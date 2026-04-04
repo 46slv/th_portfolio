@@ -3,7 +3,10 @@ const BASE =
 
 async function fetchSheet(name: string) {
   const res = await fetch(`${BASE}/${name}`);
-  if (!res.ok) throw new Error(`Failed: ${name}`);
+  if (!res.ok) {
+    if (name === "Schema") return [];
+    throw new Error(`Failed: ${name}`);
+  }
   return res.json();
 }
 
@@ -37,7 +40,7 @@ export async function fetchWorks() {
   // schemaをmap化
   const schema: Record<string, string> = {};
   for (const row of schemaRows) {
-    schema[row.field] = row.type;
+    if (row.field) schema[row.field] = row.type;
   }
 
   return works.map((row: any) => {
@@ -46,6 +49,12 @@ export async function fetchWorks() {
     for (const key in row) {
       const type = schema[key] || "string";
       parsed[key] = parseValue(row[key], type);
+    }
+
+    if (parsed.tags && typeof parsed.tags === "string") {
+      parsed.tags = parsed.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+    } else if (!parsed.tags) {
+      parsed.tags = [];
     }
 
     return parsed;
