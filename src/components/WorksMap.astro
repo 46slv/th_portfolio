@@ -105,15 +105,23 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
           class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]"
           style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
         >
-          {/* ポイントのビジュアル */}
-          <div class="relative w-4 h-4 flex items-center justify-center 
-                      drop-shadow-[0_0_3px_rgba(255,255,255,0.7)] 
-                      group-hover:drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]
-                      transition-all duration-300">
-            <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
-            <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
-            <div class="w-1 h-1 bg-white group-hover:scale-150 transition-transform"></div>
-          </div>
+          {/* 🟢 ポイントをリンク化 */}
+          <a 
+            href={work.url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="relative w-6 h-6 flex items-center justify-center transition-transform hover:scale-125 active:scale-95"
+            title={work.title}
+          >
+            <div class="relative w-4 h-4 flex items-center justify-center 
+                        drop-shadow-[0_0_3px_rgba(255,255,255,0.7)] 
+                        group-hover:drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]
+                        transition-all duration-300">
+              <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
+              <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
+              <div class="w-1 h-1 bg-white group-hover:scale-150 transition-transform"></div>
+            </div>
+          </a>
 
           {/* 🟢 コンテンツ量に応じて縦横に広がるツールチップ */}
           <div class={`absolute mb-2 w-max max-w-[280px] z-[100]
