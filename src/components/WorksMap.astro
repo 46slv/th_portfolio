@@ -6,11 +6,22 @@ import '../styles/global.css';
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
+<style>
+  /* 浮遊アニメーション */
+  @keyframes float {
+    0%, 100% { transform: translate(-50%, 50%); }
+    50% { transform: translate(-50%, calc(50% - 5px)); }
+  }
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+</style>
+
 <div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
-  <button onclick="setTag(null)">ALL</button>
+  <button onclick="setTag(null)" class="hover:text-cyan-400 transition-colors">ALL</button>
 
   {allTags.map(tag => (
-    <button onclick={`setTag("${tag}")`}>
+    <button onclick={`setTag("${tag}")`} class="hover:text-cyan-400 transition-colors">
       {tag}
     </button>
   ))}
@@ -18,10 +29,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
 <div class="relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] sm:text-xs selection:bg-cyan-500/30">
   
-  <div class="absolute inset-0 opacity-20" 
-       style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;">
-  </div>
-
+  <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
   <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
     <div class="w-full h-[1px] bg-zinc-800"></div>
     <div class="absolute h-full w-[1px] bg-zinc-800"></div>
@@ -33,7 +41,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   <div class="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-zinc-600 tracking-[0.2em] uppercase font-black origin-right">Acoustic [R]</div>
 
   <div class="absolute inset-16 sm:inset-24">
-    {works.map((work) => {
+    {works.map((work, index) => {
       const left = ((work.x + 100) / 200) * 100;
       const bottom = ((work.y + 100) / 200) * 100;
 
@@ -41,8 +49,8 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
         <div 
           data-work
           data-tags={work.tags?.join(",") ?? ""}
-          class="group absolute -translate-x-1/2 translate-y-1/2 cursor-crosshair"
-          style={`left: ${left}%; bottom: ${bottom}%;`}
+          class="group absolute cursor-crosshair animate-float"
+          style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s;`}
         >
           <div class="relative w-4 h-4 flex items-center justify-center">
             <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
@@ -50,9 +58,12 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
             <div class="w-1 h-1 bg-white group-hover:scale-150 transition-transform"></div>
           </div>
           
-          <div class="absolute bottom-full left-4 mb-2 w-max max-w-[180px] opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 translate-y-2 group-hover:translate-y-0 z-10">
-            <div class="bg-black/90 border-l-2 border-cyan-500 p-3 backdrop-blur-md">
-
+          <div class="absolute bottom-full left-4 mb-2 w-max max-w-[180px] z-10
+                      opacity-0 translate-y-2 pointer-events-none
+                      group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto
+                      transition-all duration-300 ease-out
+                      delay-500 group-hover:delay-[400ms]">
+            <div class="bg-black/90 border-l-2 border-cyan-500 p-3 backdrop-blur-md shadow-xl">
               <p class="text-[8px] text-cyan-500/70 mb-1 tracking-tighter">
                 ID: {(work.artist ?? "").toUpperCase()}
               </p>
@@ -64,20 +75,18 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
               {work.tags && (
                 <div class="flex gap-1 mt-1 flex-wrap">
                   {work.tags.map(tag => (
-                    <span class="text-[8px] bg-zinc-800 px-1">
-                      {tag}
-                    </span>
+                    <span class="text-[8px] bg-zinc-800 px-1">{tag}</span>
                   ))}
                 </div>
               )}
 
               <a 
                 href={work.url} 
-                class="inline-block text-[9px] text-zinc-400 pointer-events-auto hover:text-white border border-zinc-700 px-2 py-1 transition-colors uppercase tracking-widest mt-2"
+                target="_blank"
+                class="inline-block text-[9px] text-zinc-400 hover:text-white border border-zinc-700 px-2 py-1 transition-colors uppercase tracking-widest mt-2"
               >
                 Access Data _
               </a>
-
             </div>
           </div>
         </div>
@@ -87,21 +96,13 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 </div>
 
 <script>
-  let filters = {
-    tag: null
-  };
+  let filters = { tag: null };
 
   function applyFilters() {
     document.querySelectorAll("[data-work]").forEach((el) => {
       const tags = (el.dataset.tags || "").split(",").map(t => t.trim()).filter(Boolean);
-
-      let visible = true;
-
-      if (filters.tag && !tags.includes(filters.tag)) {
-        visible = false;
-      }
-
-      el.style.display = visible ? "block" : "none";
+      let visible = !filters.tag || tags.includes(filters.tag);
+      (el as HTMLElement).style.display = visible ? "block" : "none";
     });
   }
 
