@@ -2,7 +2,9 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
-const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
+// 🔥 フィルタリング用データの抽出
+const allTags = [...new Set(works.flatMap(w => w.tags ?? []))].sort();
+const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
 ---
 
 <style>
@@ -20,7 +22,6 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     margin: 0;
     color: white;
     min-height: 100vh;
-    /* 🌈 ドップラー・ハイパー・シフト連動用 */
     transition: filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
   }
 
@@ -109,24 +110,48 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   </div>
 </div>
 
-<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs pt-4 px-4">
-  <button id="btn-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all">ALL</button>
-  {allTags.map(tag => (
-    <button id={`btn-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all">{tag}</button>
-  ))}
+<div class="max-w-4xl mx-auto pt-6 px-4 space-y-4">
+  <div class="flex flex-wrap gap-2 text-[10px]">
+    <button id="btn-tag-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all uppercase">All Tags</button>
+    {allTags.map(tag => (
+      <button id={`btn-tag-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{tag}</button>
+    ))}
+  </div>
+  <div class="flex flex-wrap gap-2 text-[10px] opacity-70">
+    <button id="btn-year-all" onclick="setYear(null)" class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">All Years</button>
+    {allYears.map(year => (
+      <button id={`btn-year-${year}`} onclick={`setYear("${year}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{year}</button>
+    ))}
+  </div>
 </div>
 
 <div class="main-layout">
   <div class="relative aspect-square px-4">
     <div id="map-target" class="map-container w-full h-full bg-zinc-950/40 border border-zinc-800 overflow-hidden font-mono text-[10px]">
       <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
+      
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+        <div class="w-full h-[1px] bg-zinc-800"></div>
+        <div class="absolute h-full w-[1px] bg-zinc-800"></div>
+      </div>
+      <div class="absolute top-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Maniac [+]</div>
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Popular [-]</div>
+      <div class="absolute left-4 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-left">Electro [L]</div>
+      <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-right">Acoustic [R]</div>
+
       <div class="absolute inset-16 sm:inset-24">
         {works.map((work, index) => {
           const left = ((work.x + 100) / 200) * 100;
           const bottom = ((work.y + 100) / 200) * 100;
           const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
           return (
-            <div data-work data-tags={work.tags?.join(",") ?? ""} class="group absolute cursor-crosshair animate-float" style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}>
+            <div 
+              data-work 
+              data-tags={work.tags?.join(",") ?? ""} 
+              data-year={work.year}
+              class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]" 
+              style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
+            >
               <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center work-trigger">
                 <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
                 <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
@@ -134,10 +159,30 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
               </a>
               <div class={`absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
                 <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
-                  {ytId && <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full aspect-video object-cover" loading="lazy" />}
+                  {ytId && (
+                    <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
+                      <img 
+                        src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} 
+                        class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]" 
+                        loading="lazy" 
+                      />
+                    </div>
+                  )}
                   <div class="p-3">
-                    <p class="text-[8px] text-cyan-500/70 mb-1 uppercase">ID: {work.artist}</p>
+                    <div class="flex justify-between items-start mb-1 uppercase text-[8px]">
+                      <p class="text-cyan-500/70">ID: {work.artist}</p>
+                      <p class="text-zinc-500">{work.year}</p>
+                    </div>
                     <p class="text-white font-bold leading-tight mb-2 line-clamp-2">{work.title}</p>
+                    
+                    {work.tags && (
+                      <div class="flex gap-1 mt-1 flex-wrap mb-3">
+                        {work.tags.map(tag => (
+                          <span class="text-[7px] bg-zinc-800 text-zinc-400 px-1 border border-zinc-700/50">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+
                     <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50">
                       <span>Access Data</span><span>→</span>
                     </div>
@@ -154,9 +199,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   <aside class="audio-hud">
     <div class="control-group"><label class="control-label">Master Gain</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
     <div class="control-group"><label class="control-label">Temporal Velocity</label><input type="range" id="speed-fader" min="0" max="2" step="0.01" value="1.0"></div>
-    
     <div class="hud-divider"></div>
-    
     <div class="control-group"><label class="control-label">Distortion (Entropy)</label><input type="range" id="dist-fader" min="0" max="100" step="1" value="0"></div>
     <div class="control-group"><label class="control-label">Delay (Echoes)</label><input type="range" id="delay-fader" min="0" max="0.8" step="0.01" value="0"></div>
     <div class="control-group"><label class="control-label">Reverb (Space)</label><input type="range" id="reverb-fader" min="0" max="1" step="0.01" value="0"></div>
@@ -171,16 +214,12 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
 <script>
   let currentTag = null;
+  let currentYear = null; // 📅 年度フィルタ用
   let audioContext = null;
   let source = null;
   let gainNode = null;
   
-  // FX Nodes
-  let distNode = null;
-  let delayNode = null;
-  let delayGain = null;
-  let reverbNode = null;
-  let reverbGain = null;
+  let distNode, delayNode, delayGain, reverbNode, reverbGain;
 
   let isStarted = false;
   let isPlaying = true;
@@ -195,15 +234,12 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     });
   };
 
-  // 🌈 ドップラー・ビジュアルアップデート
   function updateVisualShift() {
     if (!isStarted) return;
-
     if (isPlaying && currentSpeed > 0) {
       const cycleSpeed = 0.1 * Math.pow(currentSpeed, 3); 
       baseHue = (baseHue + cycleSpeed) % 360;
     }
-
     const speedDelta = currentSpeed - 1.0;
     const shiftHue = baseHue + (speedDelta * 50);
     const brightness = 0.9 + (Math.pow(Math.abs(speedDelta), 1.5) * 1.5);
@@ -211,10 +247,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     const saturation = 0.5 + (currentSpeed * 1.2);
     const invert = currentSpeed > 1.5 ? (currentSpeed - 1.5) * 0.4 : 0;
     
-    document.body.style.filter = `
-      hue-rotate(${shiftHue}deg) saturate(${saturation}) 
-      brightness(${brightness}) contrast(${contrast}) invert(${invert})
-    `;
+    document.body.style.filter = `hue-rotate(${shiftHue}deg) saturate(${saturation}) brightness(${brightness}) contrast(${contrast}) invert(${invert})`;
     
     const status = document.getElementById('doppler-status');
     if (status) {
@@ -227,23 +260,19 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     requestAnimationFrame(updateVisualShift);
   }
 
-  // 🎻 Reverb Impulse Response 生成
   function createImpulse(duration, decay) {
     const rate = audioContext.sampleRate;
     const length = rate * duration;
     const impulse = audioContext.createBuffer(2, length, rate);
     for (let i = 0; i < 2; i++) {
       const data = impulse.getChannelData(i);
-      for (let j = 0; j < length; j++) {
-        data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, decay);
-      }
+      for (let j = 0; j < length; j++) { data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, decay); }
     }
     return impulse;
   }
 
-  // 🎸 Distortion Curve 生成
   function makeDistortionCurve(amount) {
-    const k = typeof amount === 'number' ? amount : 50;
+    const k = amount || 50;
     const n_samples = 44100;
     const curve = new Float32Array(n_samples);
     const deg = Math.PI / 180;
@@ -256,15 +285,8 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
   function togglePlayback() {
     if (!audioContext) return;
-    if (isPlaying) {
-      audioContext.suspend();
-      isPlaying = false;
-      document.getElementById('play-pause-btn').innerText = "Resume Transmission";
-    } else {
-      audioContext.resume();
-      isPlaying = true;
-      document.getElementById('play-pause-btn').innerText = "Pause Transmission";
-    }
+    if (isPlaying) { audioContext.suspend(); isPlaying = false; document.getElementById('play-pause-btn').innerText = "Resume Transmission"; }
+    else { audioContext.resume(); isPlaying = true; document.getElementById('play-pause-btn').innerText = "Pause Transmission"; }
   }
 
   async function startExperience() {
@@ -273,77 +295,34 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     document.getElementById('start-overlay').classList.add('hidden');
     document.body.classList.remove('is-blurred');
     document.body.style.overflow = 'auto';
-
     updateVisualShift();
 
     try {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
       const response = await fetch('/SITE_th.mp3');
-      const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
-
       source = audioContext.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
       source.loop = true;
 
-      // Initialize FX
-      distNode = audioContext.createWaveShaper();
-      distNode.oversample = '4x';
-      
-      delayNode = audioContext.createDelay(2.0);
-      delayGain = audioContext.createGain();
-      delayGain.gain.value = 0; // initial wet
-      
-      reverbNode = audioContext.createConvolver();
-      reverbNode.buffer = createImpulse(2.5, 4.0);
-      reverbGain = audioContext.createGain();
-      reverbGain.gain.value = 0;
+      distNode = audioContext.createWaveShaper(); distNode.oversample = '4x';
+      delayNode = audioContext.createDelay(2.0); delayGain = audioContext.createGain(); delayGain.gain.value = 0;
+      reverbNode = audioContext.createConvolver(); reverbNode.buffer = createImpulse(2.5, 4.0);
+      reverbGain = audioContext.createGain(); reverbGain.gain.value = 0;
+      gainNode = audioContext.createGain(); gainNode.gain.value = 0.5;
 
-      gainNode = audioContext.createGain();
-      gainNode.gain.value = 0.5;
-
-      // Routing: Source -> Dist -> (Delay Parallel) -> (Reverb Parallel) -> Main Gain -> Dest
       source.connect(distNode);
-      
-      // Delay Loop
-      distNode.connect(delayNode);
-      delayNode.connect(delayGain);
-      delayGain.connect(delayNode); // feedback
-      delayGain.connect(gainNode);
-
-      // Reverb
-      distNode.connect(reverbNode);
-      reverbNode.connect(reverbGain);
-      reverbGain.connect(gainNode);
-
-      // Dry path
-      distNode.connect(gainNode);
-      
-      gainNode.connect(audioContext.destination);
+      distNode.connect(delayNode); delayNode.connect(delayGain); delayGain.connect(delayNode); delayGain.connect(gainNode);
+      distNode.connect(reverbNode); reverbNode.connect(reverbGain); reverbGain.connect(gainNode);
+      distNode.connect(gainNode); gainNode.connect(audioContext.destination);
       source.start(0);
 
-      // UI Bindings
-      const volFader = document.getElementById('vol-fader') as HTMLInputElement;
-      const speedFader = document.getElementById('speed-fader') as HTMLInputElement;
-      const distFader = document.getElementById('dist-fader') as HTMLInputElement;
-      const delayFader = document.getElementById('delay-fader') as HTMLInputElement;
-      const reverbFader = document.getElementById('reverb-fader') as HTMLInputElement;
-      const playBtn = document.getElementById('play-pause-btn');
-
-      playBtn.addEventListener('click', togglePlayback);
+      document.getElementById('play-pause-btn').addEventListener('click', togglePlayback);
       document.querySelectorAll('.work-trigger').forEach(t => t.addEventListener('click', () => isPlaying && togglePlayback()));
-
-      volFader.addEventListener('input', (e: any) => gainNode.gain.value = parseFloat(e.target.value));
-      speedFader.addEventListener('input', (e: any) => {
-        currentSpeed = parseFloat(e.target.value);
-        source.playbackRate.value = currentSpeed;
-      });
-      distFader.addEventListener('input', (e: any) => distNode.curve = makeDistortionCurve(parseInt(e.target.value)));
-      delayFader.addEventListener('input', (e: any) => {
-        delayNode.delayTime.value = 0.4; // Fixed timing for rhythmic feel
-        delayGain.gain.value = parseFloat(e.target.value);
-      });
-      reverbFader.addEventListener('input', (e: any) => reverbGain.gain.value = parseFloat(e.target.value));
+      document.getElementById('vol-fader').addEventListener('input', (e: any) => gainNode.gain.value = parseFloat(e.target.value));
+      document.getElementById('speed-fader').addEventListener('input', (e: any) => { currentSpeed = parseFloat(e.target.value); source.playbackRate.value = currentSpeed; });
+      document.getElementById('dist-fader').addEventListener('input', (e: any) => distNode.curve = makeDistortionCurve(parseInt(e.target.value)));
+      document.getElementById('delay-fader').addEventListener('input', (e: any) => { delayNode.delayTime.value = 0.4; delayGain.gain.value = parseFloat(e.target.value); });
+      document.getElementById('reverb-fader').addEventListener('input', (e: any) => reverbGain.gain.value = parseFloat(e.target.value));
 
       const vBar = document.getElementById('v-bar');
       setInterval(() => {
@@ -351,25 +330,43 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
         const level = Math.random() * (gainNode.gain.value * 100);
         if(vBar) vBar.style.width = `${level}%`;
       }, 100);
-
-    } catch (e) { console.error("Audio init error:", e); }
+    } catch (e) { console.error(e); }
   }
 
-  (window as any).setTag = (tag: string) => {
-    if (!isStarted) startExperience();
-    currentTag = tag;
+  // 🔄 統合フィルタリングロジック
+  function applyFilters() {
     const allWorks = document.querySelectorAll("[data-work]");
-    const allBtns = document.querySelectorAll("button[id^='btn-']");
-    allBtns.forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
-    const activeBtn = currentTag ? document.getElementById(`btn-${currentTag}`) : document.getElementById('btn-all');
-    activeBtn?.classList.add('border-cyan-500', 'text-cyan-400');
+    
+    // Tagボタン状態更新
+    document.querySelectorAll("button[id^='btn-tag-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
+    const activeTagBtn = currentTag ? document.getElementById(`btn-tag-${currentTag}`) : document.getElementById('btn-tag-all');
+    activeTagBtn?.classList.add('border-cyan-500', 'text-cyan-400');
+
+    // Yearボタン状態更新
+    document.querySelectorAll("button[id^='btn-year-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
+    const activeYearBtn = currentYear ? document.getElementById(`btn-year-${currentYear}`) : document.getElementById('btn-year-all');
+    activeYearBtn?.classList.add('border-cyan-500', 'text-cyan-400');
+
     allWorks.forEach((el: any) => {
       const tags = (el.dataset.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean);
-      if (!currentTag) { el.classList.remove('is-active', 'is-inactive'); }
-      else if (tags.includes(currentTag)) { el.classList.add('is-active'); el.classList.remove('is-inactive'); }
-      else { el.classList.add('is-inactive'); el.classList.remove('is-active'); }
+      const year = el.dataset.year;
+      
+      const tagMatch = !currentTag || tags.includes(currentTag);
+      const yearMatch = !currentYear || year === currentYear;
+
+      if (tagMatch && yearMatch) {
+        el.classList.remove('is-inactive');
+        if (currentTag || currentYear) el.classList.add('is-active');
+        else el.classList.remove('is-active');
+      } else {
+        el.classList.add('is-inactive');
+        el.classList.remove('is-active');
+      }
     });
-  };
+  }
+
+  (window as any).setTag = (tag: string) => { if (!isStarted) startExperience(); currentTag = tag; applyFilters(); };
+  (window as any).setYear = (year: string) => { if (!isStarted) startExperience(); currentYear = year; applyFilters(); };
 
   document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('is-blurred');
