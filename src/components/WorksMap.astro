@@ -2,11 +2,14 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
+// 🔥 タグ一覧自動生成
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
 <style>
-  /* 🌫️ 画面全体の初期状態 */
+  /* --------------------------------------------------
+   * 🌫️ 【仕様固定】画面全体の初期状態（ブラー）
+   * -------------------------------------------------- */
   :global(body.is-blurred) {
     filter: blur(20px) saturate(0.5);
     pointer-events: none;
@@ -17,9 +20,10 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     transition: filter 1.2s cubic-bezier(0.4, 0, 0.2, 1);
     background-color: #09090b;
     margin: 0;
+    color: white;
   }
 
-  /* 🎬 始動オーバーレイ */
+  /* 🎬 始動用オーバーレイ */
   #start-overlay {
     position: fixed;
     inset: 0;
@@ -31,7 +35,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     justify-content: center;
     background: rgba(0, 0, 0, 0.6);
     cursor: pointer;
-    pointer-events: auto !important; /* ブラー中でもクリック可能にする */
+    pointer-events: auto !important;
     transition: opacity 0.8s ease, visibility 0.8s;
   }
 
@@ -40,13 +44,59 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     visibility: hidden;
   }
 
-  /* 🔵 レイアウト */
+  /* --------------------------------------------------
+   * 📧 【新規】Contactセクション（コピー機能付き）
+   * -------------------------------------------------- */
+  .contact-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 20px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    border-bottom: 1px solid rgba(34, 211, 238, 0.1);
+  }
+
+  .contact-link {
+    color: #71717a;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .contact-link:hover {
+    color: #22d3ee;
+  }
+
+  /* コピー完了通知のツールチップ */
+  .copy-feedback {
+    position: absolute;
+    right: 0;
+    top: 120%;
+    background: #22d3ee;
+    color: #000;
+    padding: 2px 6px;
+    font-weight: bold;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    white-space: nowrap;
+  }
+  .copy-feedback.is-visible {
+    opacity: 1;
+  }
+
+  /* --------------------------------------------------
+   * 🔵 【仕様固定】レイアウト構成
+   * -------------------------------------------------- */
   .main-layout {
     display: grid;
     grid-template-columns: 1fr 240px; 
     gap: 20px;
     max-width: 1200px;
-    margin: 0 auto;
+    margin: 20px auto;
     font-family: 'JetBrains Mono', monospace;
     opacity: 0;
     transition: opacity 1s ease 0.5s;
@@ -56,34 +106,39 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     opacity: 1;
   }
 
-  /* マップ・ツールチップ・アニメーションのCSSは前回と同様のため省略 */
   .map-container { perspective: 1200px; transform-style: preserve-3d; position: relative; isolation: isolate; }
   @keyframes float {
     0%, 100% { transform: translate(-50%, 50%) rotate(0deg); }
     33% { transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg); }
     66% { transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg); }
   }
-  [data-work] { position: absolute; transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); will-change: transform, opacity; transform: translate(-50%, 50%); }
-  [data-work].is-active { opacity: 1; z-index: 100; transform: translate(-50%, 50%) translateZ(120px) scale(1.2); }
+  [data-work] { position: absolute; transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform: translate(-50%, 50%); }
+  [data-work].is-active { opacity: 1; z-index: 100; transform: translate(-50%, 50%) translateZ(120px) scale(1.2); filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.8)); }
   [data-work].is-inactive { opacity: 0.1; z-index: 0; transform: translate(-50%, 50%) translateZ(-300px) scale(0.7); pointer-events: none; }
   .animate-float { animation: float 6s ease-in-out infinite; }
 
-  /* オーディオHUDのCSSも同様 */
+  /* 🎚️ 【仕様固定】オーディオHUD */
   .audio-hud { display: flex; flex-direction: column; gap: 24px; padding: 20px; background: rgba(9, 9, 11, 0.5); border: 1px solid rgba(34, 211, 238, 0.1); height: fit-content; }
   .control-group { display: flex; flex-direction: column; gap: 8px; }
   .control-label { font-size: 9px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.1em; }
-  input[type="range"] { appearance: none; background: #27272a; height: 2px; width: 100%; outline: none; }
-  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: #22d3ee; cursor: pointer; border-radius: 50%; box-shadow: 0 0 8px #22d3ee; }
+  input[type="range"] { appearance: none; background: #27272a; height: 2px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: #22d3ee; border-radius: 50%; }
 </style>
 
 <div id="start-overlay">
-  <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">
-    Initialize System
-  </span>
+  <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">Initialize System</span>
   <p class="text-zinc-600 text-[8px] uppercase tracking-widest mt-2">Click Anywhere to Begin</p>
 </div>
 
-<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs pt-4">
+<div class="contact-bar">
+  <div class="contact-link" onclick="copyContact('info@corecreative.jp')">
+    <span class="text-zinc-500">CONTACT:</span>
+    <span id="contact-text">info@corecreative.jp</span>
+    <div id="copy-toast" class="copy-feedback">COPIED TO CLIPBOARD</div>
+  </div>
+</div>
+
+<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs pt-4 px-4">
   <button id="btn-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all">ALL</button>
   {allTags.map(tag => (
     <button id={`btn-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all">{tag}</button>
@@ -91,28 +146,17 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 </div>
 
 <div class="main-layout">
-  <div class="relative aspect-square">
+  <div class="relative aspect-square px-4">
     <div id="map-target" class="map-container w-full h-full bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px]">
       <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
-      
       <div class="absolute inset-16 sm:inset-24">
         {works.map((work, index) => {
           const left = ((work.x + 100) / 200) * 100;
           const bottom = ((work.y + 100) / 200) * 100;
-          const getYoutubeId = (url: string) => {
-            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            const match = url?.match(regExp);
-            return (match && match[2].length === 11) ? match[2] : null;
-          };
-          const ytId = getYoutubeId(work.url);
+          const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
 
           return (
-            <div 
-              data-work 
-              data-tags={work.tags?.join(",") ?? ""} 
-              class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]" 
-              style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
-            >
+            <div data-work data-tags={work.tags?.join(",") ?? ""} class="group absolute cursor-crosshair animate-float" style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}>
               <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center">
                 <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
                 <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
@@ -121,24 +165,12 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
               <div class={`absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
                 <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
-                  {ytId && (
-                    <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
-                      <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} alt="Thumbnail" class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]" loading="lazy" />
-                    </div>
-                  )}
-                  <div class="p-3 text-left">
-                    <p class="text-[8px] text-cyan-500/70 mb-1 tracking-tighter uppercase">ID: {work.artist}</p>
-                    <p class="text-white font-bold leading-tight mb-2 tracking-tight line-clamp-2">{work.title}</p>
-                    {work.tags && (
-                      <div class="flex gap-1 mt-1 flex-wrap mb-3">
-                        {work.tags.map(tag => (
-                          <span class="text-[7px] bg-zinc-800 text-zinc-400 px-1 border border-zinc-700/50">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 transition-all uppercase tracking-[0.1em] bg-zinc-900/50">
-                      <span>Access Data</span>
-                      <span class="text-[10px]">→</span>
+                  {ytId && <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full aspect-video object-cover" />}
+                  <div class="p-3">
+                    <p class="text-[8px] text-cyan-500/70 mb-1 uppercase">ID: {work.artist}</p>
+                    <p class="text-white font-bold leading-tight mb-2 line-clamp-2">{work.title}</p>
+                    <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50">
+                      <span>Access Data</span><span>→</span>
                     </div>
                   </div>
                 </div>
@@ -168,67 +200,60 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   let gainNode = null;
   let isStarted = false;
 
-  // 確実に実行される初期化
-  function initBodyBlur() {
-    document.body.classList.add('is-blurred');
-  }
+  // --------------------------------------------------
+  // 📋 【新規】コピー機能のロジック
+  // --------------------------------------------------
+  (window as any).copyContact = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      const toast = document.getElementById('copy-toast');
+      toast.classList.add('is-visible');
+      setTimeout(() => toast.classList.remove('is-visible'), 2000);
+    });
+  };
+
+  function initBodyBlur() { document.body.classList.add('is-blurred'); }
 
   async function startExperience() {
     if (isStarted) return;
     isStarted = true;
-
-    // 1. 演出解除
-    const overlay = document.getElementById('start-overlay');
-    if (overlay) overlay.classList.add('hidden');
+    document.getElementById('start-overlay').classList.add('hidden');
     document.body.classList.remove('is-blurred');
     document.body.style.overflow = 'auto';
 
-    // 2. オーディオ
     try {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const response = await fetch('/SITE_th.mp3');
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
       source = audioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.loop = true;
-
       gainNode = audioContext.createGain();
       gainNode.gain.value = 0.5;
-
       source.connect(gainNode);
       gainNode.connect(audioContext.destination);
       source.start(0);
 
-      // フェーダー設定
       const volFader = document.getElementById('vol-fader') as HTMLInputElement;
       const speedFader = document.getElementById('speed-fader') as HTMLInputElement;
       const pitchFader = document.getElementById('pitch-fader') as HTMLInputElement;
 
-      volFader.addEventListener('input', () => gainNode.gain.value = parseFloat(volFader.value));
-      speedFader.addEventListener('input', () => source.playbackRate.value = parseFloat(speedFader.value));
-      pitchFader.addEventListener('input', () => {
-         source.playbackRate.value = parseFloat(pitchFader.value);
-         speedFader.value = pitchFader.value;
-      });
+      volFader.addEventListener('input', (e: any) => gainNode.gain.value = parseFloat(e.target.value));
+      const updateRate = (val: string) => {
+        source.playbackRate.value = parseFloat(val);
+        speedFader.value = val;
+        pitchFader.value = val;
+      };
+      speedFader.addEventListener('input', (e: any) => updateRate(e.target.value));
+      pitchFader.addEventListener('input', (e: any) => updateRate(e.target.value));
 
       const vBar = document.getElementById('v-bar');
       setInterval(() => {
         const level = Math.random() * (gainNode.gain.value * 100);
         if(vBar) vBar.style.width = `${level}%`;
       }, 100);
-    } catch (e) {
-      console.error("Audio failed:", e);
-    }
+    } catch (e) { console.error(e); }
   }
-
-  // グローバル関数
-  (window as any).setTag = (tag) => {
-    if (!isStarted) startExperience();
-    currentTag = tag;
-    applyFilters();
-  };
 
   function applyFilters() {
     const allWorks = document.querySelectorAll("[data-work]");
@@ -237,21 +262,24 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     const activeBtn = currentTag ? document.getElementById(`btn-${currentTag}`) : document.getElementById('btn-all');
     activeBtn?.classList.add('border-cyan-500', 'text-cyan-400');
 
-    allWorks.forEach((el) => {
-      const tags = ((el as HTMLElement).dataset.tags || "").split(",").map(t => t.trim()).filter(Boolean);
+    allWorks.forEach((el: any) => {
+      const tags = (el.dataset.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean);
       if (!currentTag) {
         el.classList.remove('is-active', 'is-inactive');
       } else if (tags.includes(currentTag)) {
-        el.classList.add('is-active');
-        el.classList.remove('is-inactive');
+        el.classList.add('is-active'); el.classList.remove('is-inactive');
       } else {
-        el.classList.add('is-inactive');
-        el.classList.remove('is-active');
+        el.classList.add('is-inactive'); el.classList.remove('is-active');
       }
     });
   }
 
-  // 起動設定
+  (window as any).setTag = (tag: string) => {
+    if (!isStarted) startExperience();
+    currentTag = tag;
+    applyFilters();
+  };
+
   document.addEventListener('DOMContentLoaded', () => {
     initBodyBlur();
     applyFilters();
