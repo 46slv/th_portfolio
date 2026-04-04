@@ -16,5 +16,8 @@ export async function fetchWorks() {
     x: Number(row.x ?? 0),
     y: Number(row.y ?? 0),
     url: row.url ?? "",
+    tags: row.tags
+      ? row.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+      : [],
   }));
 }
