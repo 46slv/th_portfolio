@@ -7,35 +7,60 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
 <style>
-  /* 8の字を描くような、より複雑で自然な浮遊 */
-  @keyframes float {
-    0%, 100% { 
-      transform: translate(-50%, 50%) rotate(0deg); 
-    }
-    33% { 
-      transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg); 
-    }
-    66% { 
-      transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg); 
-    }
+  /* 🔵 空間の奥行き設定 */
+  .map-container {
+    perspective: 1200px;
+    transform-style: preserve-3d;
   }
+
+  @keyframes float {
+    0%, 100% { transform: translate(-50%, 50%) rotate(0deg); }
+    33% { transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg); }
+    66% { transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg); }
+  }
+
+  /* 🔵 ポイントの基本状態 */
+  [data-work] {
+    transition: 
+      opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+      filter 0.6s ease;
+    will-change: transform, opacity;
+  }
+
+  /* 🔵 前面レイヤー（選択中） */
+  [data-work].is-active {
+    opacity: 1;
+    z-index: 50;
+    transform: translate(-50%, 50%) translateZ(120px) scale(1.2);
+    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.8));
+  }
+
+  /* 🔵 背面レイヤー（非選択） */
+  [data-work].is-inactive {
+    opacity: 0.1;
+    z-index: 0;
+    transform: translate(-50%, 50%) translateZ(-300px) scale(0.7);
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.2));
+    pointer-events: none;
+  }
+
   .animate-float {
-    /* 周期を少し長く（6秒）すると、より高級感が出ます */
     animation: float 6s ease-in-out infinite;
   }
 </style>
 
 <div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
-  <button onclick="setTag(null)" class="hover:text-cyan-400 transition-colors">ALL</button>
+  <button id="btn-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all">ALL</button>
 
   {allTags.map(tag => (
-    <button onclick={`setTag("${tag}")`} class="hover:text-cyan-400 transition-colors">
+    <button id={`btn-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all">
       {tag}
     </button>
   ))}
 </div>
 
-<div class="relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] sm:text-xs selection:bg-cyan-500/30">
+<div class="map-container relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] sm:text-xs selection:bg-cyan-500/30">
   
   <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
   <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -55,35 +80,28 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
       return (
         <div 
-          // ...（data-work, animation設定などはそのまま）
+          data-work
+          data-tags={work.tags?.join(",") ?? ""}
           class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]"
-          // ...（style属性はそのまま）
+          style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s;`}
         >
           <div class="relative w-4 h-4 flex items-center justify-center
                       drop-shadow-[0_0_3px_rgba(255,255,255,0.7)] 
                       group-hover:drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]
                       transition-all duration-300">
-            
             <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
             <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
-            
             <div class="w-1 h-1 bg-white group-hover:scale-150 transition-transform"></div>
           </div>
           
-          <div class="absolute bottom-full left-4 mb-2 w-max max-w-[180px] z-10
+          <div class="absolute bottom-full left-4 mb-2 w-max max-w-[180px] z-[100]
                       opacity-0 translate-y-2 pointer-events-none
                       group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto
                       transition-all duration-300 ease-out
                       delay-1200 group-hover:delay-[400ms]">
             <div class="bg-black/90 border-l-2 border-cyan-500 p-3 backdrop-blur-md shadow-xl">
-              <p class="text-[8px] text-cyan-500/70 mb-1 tracking-tighter">
-                ID: {(work.artist ?? "").toUpperCase()}
-              </p>
-
-              <p class="text-white font-bold leading-tight mb-2 tracking-tight">
-                {work.title}
-              </p>
-
+              <p class="text-[8px] text-cyan-500/70 mb-1 tracking-tighter">ID: {(work.artist ?? "").toUpperCase()}</p>
+              <p class="text-white font-bold leading-tight mb-2 tracking-tight">{work.title}</p>
               {work.tags && (
                 <div class="flex gap-1 mt-1 flex-wrap">
                   {work.tags.map(tag => (
@@ -91,14 +109,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
                   ))}
                 </div>
               )}
-
-              <a 
-                href={work.url} 
-                target="_blank"
-                class="inline-block text-[9px] text-zinc-400 hover:text-white border border-zinc-700 px-2 py-1 transition-colors uppercase tracking-widest mt-2"
-              >
-                Access Data _
-              </a>
+              <a href={work.url} target="_blank" class="inline-block text-[9px] text-zinc-400 hover:text-white border border-zinc-700 px-2 py-1 transition-colors uppercase tracking-widest mt-2">Access Data _</a>
             </div>
           </div>
         </div>
@@ -108,18 +119,34 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 </div>
 
 <script>
-  let filters = { tag: null };
+  let currentTag = null;
 
   function applyFilters() {
-    document.querySelectorAll("[data-work]").forEach((el) => {
+    const allWorks = document.querySelectorAll("[data-work]");
+    const allBtns = document.querySelectorAll("button[id^='btn-']");
+    
+    // ボタンのスタイル更新
+    allBtns.forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
+    const activeBtn = currentTag ? document.getElementById(`btn-${currentTag}`) : document.getElementById('btn-all');
+    activeBtn?.classList.add('border-cyan-500', 'text-cyan-400');
+
+    allWorks.forEach((el) => {
       const tags = (el.dataset.tags || "").split(",").map(t => t.trim()).filter(Boolean);
-      let visible = !filters.tag || tags.includes(filters.tag);
-      (el as HTMLElement).style.display = visible ? "block" : "none";
+      
+      if (!currentTag) {
+        el.classList.remove('is-active', 'is-inactive');
+      } else if (tags.includes(currentTag)) {
+        el.classList.add('is-active');
+        el.classList.remove('is-inactive');
+      } else {
+        el.classList.add('is-inactive');
+        el.classList.remove('is-active');
+      }
     });
   }
 
   window.setTag = (tag) => {
-    filters.tag = tag;
+    currentTag = tag;
     applyFilters();
   };
 </script>
