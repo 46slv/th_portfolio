@@ -6,6 +6,38 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
 <style>
+  /* 🌫️ 画面全体の初期状態（ブラー） */
+  :global(body) {
+    overflow: hidden; /* START前はスクロール禁止 */
+    transition: filter 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  :global(body.is-blurred) {
+    filter: blur(20px) saturate(0.5);
+    pointer-events: none; /* START前は操作禁止 */
+  }
+
+  /* 🎬 始動オーバーレイ（画面全体を覆う） */
+  #start-overlay {
+    position: fixed; /* 全画面固定 */
+    inset: 0;
+    z-index: 9999; /* 最前面 */
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    transition: opacity 0.8s ease, visibility 0.8s;
+    backdrop-blur: sm;
+  }
+
+  #start-overlay.hidden {
+    opacity: 0;
+    visibility: hidden; /* 完全に消す */
+  }
+
   .main-layout {
     display: grid;
     grid-template-columns: 1fr 240px; /* 左：マップ / 右：オーディオ制御 */
@@ -13,6 +45,12 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     max-width: 1200px;
     margin: 0 auto;
     font-family: 'JetBrains Mono', monospace;
+    opacity: 0; /* 初期は非表示 */
+    transition: opacity 1s ease 0.5s; /* ブラーが晴れ始めてから表示 */
+  }
+
+  body:not(.is-blurred) .main-layout {
+    opacity: 1;
   }
 
   .map-container {
@@ -20,28 +58,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     transform-style: preserve-3d;
     position: relative;
     isolation: isolate;
-    transition: filter 1.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
-
-  /* 🌫️ 初期状態の靄（ブラー） */
-  .is-blurred {
-    filter: blur(20px) saturate(0.5);
-    pointer-events: none;
-  }
-
-  /* 始動オーバーレイ */
-  #start-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 500;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
-    cursor: pointer;
-    transition: opacity 0.8s ease;
-  }
-  #start-overlay.hidden { opacity: 0; pointer-events: none; }
 
   @keyframes float {
     0%, 100% { transform: translate(-50%, 50%) rotate(0deg); }
@@ -97,7 +114,14 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #22d3ee; }
 </style>
 
-<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
+<div id="start-overlay" onclick="startExperience()">
+  <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">
+    Initialize System
+  </span>
+  <p class="text-zinc-600 text-[8px] uppercase tracking-widest mt-2">Click Anywhere to Begin</p>
+</div>
+
+<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs pt-4">
   <button id="btn-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all">ALL</button>
   {allTags.map(tag => (
     <button id={`btn-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all">{tag}</button>
@@ -106,11 +130,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
 <div class="main-layout">
   <div class="relative aspect-square">
-    <div id="start-overlay" onclick="startExperience()">
-      <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60 backdrop-blur-sm">Initialize System</span>
-    </div>
-
-    <div id="map-target" class="map-container is-blurred w-full h-full bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px]">
+    <div id="map-target" class="map-container w-full h-full bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px]">
       <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
       
       <div class="absolute inset-16 sm:inset-24">
@@ -170,17 +190,19 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   let currentTag = null;
   let audioContext = null;
   let source = null;
-  let audioNode = null;
   let gainNode = null;
   let isStarted = false;
+
+  // 初期状態でbodyにブラーをかける
+  document.body.classList.add('is-blurred');
 
   async function startExperience() {
     if (isStarted) return;
     isStarted = true;
 
-    // 1. 靄（ブラー）を消す
+    // 1. 画面全体の靄（ブラー）を消す
     document.getElementById('start-overlay').classList.add('hidden');
-    document.getElementById('map-target').classList.remove('is-blurred');
+    document.body.classList.remove('is-blurred');
 
     // 2. オーディオ開始
     try {
@@ -208,11 +230,10 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
       volFader.oninput = () => gainNode.gain.value = parseFloat(volFader.value);
       
-      // 再生速度とピッチ（createBufferSourceのplaybackRateで制御）
+      // 再生速度とピッチ（playbackRateで制御）
       speedFader.oninput = () => source.playbackRate.value = parseFloat(speedFader.value);
       pitchFader.oninput = () => {
-         // ピッチのみを独立させるのはWeb Audioでは複雑なため、
-         // 一般的な「再生速度（テープ回転数）」の変化としてplaybackRateに統合
+         // ピッチのみを独立させるのはWeb Audioでは複雑なため、playbackRateに統合
          source.playbackRate.value = parseFloat(pitchFader.value);
          speedFader.value = pitchFader.value;
       };
@@ -255,5 +276,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   };
 
   (window as any).startExperience = startExperience;
+  
+  // 初期化（ブラー状態でフィルタ適用）
   document.addEventListener('DOMContentLoaded', applyFilters);
 </script>
