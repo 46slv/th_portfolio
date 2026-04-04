@@ -42,7 +42,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
           data-work
           data-tags={work.tags?.join(",") ?? ""}
           class="group absolute -translate-x-1/2 translate-y-1/2 cursor-crosshair"
-          style={`left: ${left}%; bottom: ${bottom};`}
+          style={`left: ${left}%; bottom: ${bottom}%;`}
         >
           <div class="relative w-4 h-4 flex items-center justify-center">
             <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
