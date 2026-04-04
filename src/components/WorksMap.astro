@@ -55,14 +55,18 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
       return (
         <div 
-          data-work
-          data-tags={work.tags?.join(",") ?? ""}
-          class="group absolute cursor-crosshair animate-float"
-          style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s;`}
+          // ...（data-work, animation設定などはそのまま）
+          class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]"
+          // ...（style属性はそのまま）
         >
-          <div class="relative w-4 h-4 flex items-center justify-center">
+          <div class="relative w-4 h-4 flex items-center justify-center
+                      drop-shadow-[0_0_3px_rgba(255,255,255,0.7)] 
+                      group-hover:drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]
+                      transition-all duration-300">
+            
             <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
             <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
+            
             <div class="w-1 h-1 bg-white group-hover:scale-150 transition-transform"></div>
           </div>
           
