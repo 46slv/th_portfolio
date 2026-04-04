@@ -1,8 +1,25 @@
 ---
 import { works } from '../data/works';
 import '../styles/global.css';
+
+// 🔥 タグ一覧自動生成
+const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
+<!-- 🟢 フィルタUI -->
+<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
+  <button onclick="setTag(null)">ALL</button>
+
+  {allTags.map(tag => (
+    <button onclick={`setTag("${tag}")`}>
+      {tag}
+    </button>
+  ))}
+
+  <button onclick="setRating(4)">★4+</button>
+</div>
+
+<!-- 🟢 マップ -->
 <div class="relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] sm:text-xs selection:bg-cyan-500/30">
   <div class="absolute inset-0 opacity-20" 
        style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;">
@@ -25,6 +42,9 @@ import '../styles/global.css';
 
       return (
         <div 
+          data-work
+          data-tags={work.tags?.join(",") ?? ""}
+          data-rating={work.rating ?? ""}
           class="group absolute -translate-x-1/2 translate-y-1/2 cursor-crosshair"
           style={`left: ${left}%; bottom: ${bottom}%;`}
         >
@@ -36,9 +56,36 @@ import '../styles/global.css';
           
           <div class="absolute bottom-full left-4 mb-2 w-max max-w-[180px] opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 translate-y-2 group-hover:translate-y-0 z-10">
             <div class="bg-black/90 border-l-2 border-cyan-500 p-3 backdrop-blur-md">
-              <p class="text-[8px] text-cyan-500/70 mb-1 tracking-tighter">ID: {work.artist.toUpperCase()}</p>
-              <p class="text-white font-bold leading-tight mb-2 tracking-tight">{work.title}</p>
-              <a href={work.url} class="inline-block text-[9px] text-zinc-400 pointer-events-auto hover:text-white border border-zinc-700 px-2 py-1 transition-colors uppercase tracking-widest">
+              <p class="text-[8px] text-cyan-500/70 mb-1 tracking-tighter">
+                ID: {work.artist.toUpperCase()}
+              </p>
+
+              <p class="text-white font-bold leading-tight mb-2 tracking-tight">
+                {work.title}
+              </p>
+
+              <!-- ⭐ rating表示（あれば） -->
+              {work.rating && (
+                <p class="text-yellow-400 text-[10px]">
+                  {"★".repeat(work.rating)}
+                </p>
+              )}
+
+              <!-- 🏷 tags表示 -->
+              {work.tags && (
+                <div class="flex gap-1 mt-1 flex-wrap">
+                  {work.tags.map(tag => (
+                    <span class="text-[8px] bg-zinc-800 px-1">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <a 
+                href={work.url} 
+                class="inline-block text-[9px] text-zinc-400 pointer-events-auto hover:text-white border border-zinc-700 px-2 py-1 transition-colors uppercase tracking-widest mt-2"
+              >
                 Access Data _
               </a>
             </div>
@@ -48,3 +95,40 @@ import '../styles/global.css';
     })}
   </div>
 </div>
+
+<!-- 🟢 フィルタロジック -->
+<script>
+  let filters = {
+    tag: null,
+    minRating: null
+  };
+
+  function applyFilters() {
+    document.querySelectorAll("[data-work]").forEach((el) => {
+      const tags = el.dataset.tags?.split(",") || [];
+      const rating = Number(el.dataset.rating || 0);
+
+      let visible = true;
+
+      if (filters.tag && !tags.includes(filters.tag)) {
+        visible = false;
+      }
+
+      if (filters.minRating && rating < filters.minRating) {
+        visible = false;
+      }
+
+      el.style.display = visible ? "block" : "none";
+    });
+  }
+
+  window.setTag = (tag) => {
+    filters.tag = tag;
+    applyFilters();
+  };
+
+  window.setRating = (r) => {
+    filters.minRating = r;
+    applyFilters();
+  };
+</script>
