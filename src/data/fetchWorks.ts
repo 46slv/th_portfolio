@@ -1,23 +1,53 @@
-export async function fetchWorks() {
-  const res = await fetch(
-    "https://opensheet.elk.sh/1SUNeimLX56E4fBopXi7Dxg-VHRTp9keTad4lmVtirR0/Works"
-  );
+const BASE =
+  "https://opensheet.elk.sh/1SUNeimLX56E4fBopXi7Dxg-VHRTp9keTad4lmVtirR0";
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch works");
+async function fetchSheet(name: string) {
+  const res = await fetch(`${BASE}/${name}`);
+  if (!res.ok) throw new Error(`Failed: ${name}`);
+  return res.json();
+}
+
+function parseValue(value: any, type: string) {
+  if (value === "" || value == null) return null;
+
+  switch (type) {
+    case "number":
+      return Number(value);
+
+    case "boolean":
+      return value === "true" || value === true;
+
+    case "array":
+      return String(value)
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+
+    default:
+      return value;
+  }
+}
+
+export async function fetchWorks() {
+  const [works, schemaRows] = await Promise.all([
+    fetchSheet("Works"),
+    fetchSheet("Schema"),
+  ]);
+
+  // schemaをmap化
+  const schema: Record<string, string> = {};
+  for (const row of schemaRows) {
+    schema[row.field] = row.type;
   }
 
-  const data = await res.json();
+  return works.map((row: any) => {
+    const parsed: any = {};
 
-  return data.map((row: any) => ({
-    title: row.title ?? "",
-    artist: row.artist ?? "",
-    release: row.release ?? "",
-    x: Number(row.x ?? 0),
-    y: Number(row.y ?? 0),
-    url: row.url ?? "",
-    tags: row.tags
-      ? row.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
-      : [],
-  }));
+    for (const key in row) {
+      const type = schema[key] || "string";
+      parsed[key] = parseValue(row[key], type);
+    }
+
+    return parsed;
+  });
 }
