@@ -6,218 +6,211 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
 <style>
-  /* 🔵 追加：HUDヘッダーとホイールのスタイル */
-  .hud-top-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 15px;
-    border: 1px solid rgba(34, 211, 238, 0.2);
-    background: rgba(0, 0, 0, 0.4);
-    padding: 15px;
+  /* 🔵 全体レイアウト：左にマップ、右にHUD操作系 */
+  .console-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    height: 85vh;
+    gap: 20px;
+    background: #000;
+    padding: 20px;
     font-family: 'JetBrains Mono', monospace;
-  }
-
-  .wheel-container {
-    position: relative;
-    height: 60px;
     overflow: hidden;
-    border-top: 1px solid rgba(34, 211, 238, 0.1);
-    mask-image: linear-gradient(90deg, transparent, black 20%, black 80%, transparent);
   }
 
-  .wheel-track {
-    position: absolute;
-    left: 50%;
-    top: 300px; /* 巨大な円の半径 */
-    transform: translateX(-50%) rotate(0deg);
-    transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-    transform-style: preserve-3d;
-  }
-
-  .wheel-item {
-    position: absolute;
-    left: 50%;
-    top: 0;
-    width: 180px;
-    transform-origin: center -300px;
-    text-align: center;
-    transition: all 0.3s;
-    opacity: 0.3;
-    pointer-events: none;
-  }
-
-  .wheel-item.is-active {
-    opacity: 1;
-    color: #22d3ee;
-    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.8));
-    transform: translateX(-50%) translateY(-10px) scale(1.1);
+  /* 🟢 左側：戦術マップ */
+  .tactical-map {
+    position: relative;
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    background: rgba(34, 211, 238, 0.02);
+    overflow: hidden;
   }
 
   /* 🎯 マップ内のレティクル（十字線） */
   #map-reticle {
     position: absolute;
-    width: 40px;
-    height: 40px;
-    border: 1px solid rgba(34, 211, 238, 0.4);
+    width: 60px;
+    height: 60px;
+    border: 1px solid rgba(34, 211, 238, 0.6);
     pointer-events: none;
     z-index: 50;
     transform: translate(-50%, 50%);
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
   }
   #map-reticle::before, #map-reticle::after {
-    content: ''; position: absolute; background: #22d3ee;
+    content: ''; position: absolute; background: #22d3ee; box-shadow: 0 0 10px #22d3ee;
   }
   #map-reticle::before { width: 100%; height: 1px; top: 50%; left: 0; }
   #map-reticle::after { width: 1px; height: 100%; left: 50%; top: 0; }
 
-  /* 既存のスタイル維持 */
-  .map-container {
-    perspective: 1200px;
-    transform-style: preserve-3d;
+  /* 🟢 右側：HUDユニット（ホイール & 情報） */
+  .hud-unit {
     position: relative;
-    isolation: isolate;
+    border-left: 1px solid rgba(34, 211, 238, 0.3);
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .wheel-viewport {
+    position: absolute;
+    right: -800px; /* 巨大な円を右に沈める */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1600px;
+    height: 1600px;
+  }
+
+  .circular-track {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 1px solid rgba(34, 211, 238, 0.1);
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .wheel-item {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    width: 280px;
+    transform-origin: 800px center;
+    transition: all 0.4s;
+    opacity: 0.2;
+    color: #22d3ee;
+  }
+
+  .wheel-item.is-active {
+    opacity: 1;
+    transform: rotate(0deg) translateX(-30px);
+    filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.9));
+  }
+
+  /* 情報表示エリア */
+  .info-panel {
+    z-index: 10;
+    background: rgba(0,0,0,0.8);
+    border-left: 2px solid #22d3ee;
+    padding: 15px;
+    margin-bottom: 20px;
   }
 
   [data-work] {
     position: absolute;
-    transition: opacity 0.6s, transform 0.6s, filter 0.6s;
-    will-change: transform, opacity;
-    transform: translate(-50%, 50%) translateZ(0px);
+    transition: opacity 0.6s, transform 0.6s;
+    transform: translate(-50%, 50%);
   }
-
   [data-work].is-active {
-    opacity: 1 !important;
+    filter: drop-shadow(0 0 8px #22d3ee);
     z-index: 100;
-    transform: translate(-50%, 50%) translateZ(80px) scale(1.1);
-    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.8));
   }
 </style>
 
-<div class="max-w-4xl mx-auto hud-top-panel">
-  <div class="flex gap-4 items-center h-24">
-    <div id="hud-thumb" class="w-32 aspect-video bg-zinc-900 border border-cyan-900 overflow-hidden shrink-0 shadow-lg">
-      </div>
-    <div class="flex-1 min-w-0">
-      <div id="hud-id" class="text-[8px] text-cyan-500/50 tracking-widest uppercase">Select Data Point</div>
-      <h2 id="hud-title" class="text-lg font-black text-white truncate uppercase tracking-tighter">System Initialized</h2>
-      <div id="hud-tags" class="flex gap-1 mt-1 overflow-hidden"></div>
-    </div>
-  </div>
-
-  <div class="wheel-container">
-    <div id="wheel-track" class="wheel-track">
-      {works.map((work, i) => (
-        <div class="wheel-item text-[10px] uppercase font-bold" data-index={i}>
-          {work.title}
-        </div>
-      ))}
-    </div>
-    <div class="absolute left-1/2 top-0 -translate-x-1/2 w-px h-full bg-cyan-500/30"></div>
-  </div>
-</div>
-
-<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
-  <button id="btn-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all uppercase">All</button>
-  {allTags.map(tag => (
-    <button id={`btn-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{tag}</button>
-  ))}
-</div>
-
-<div class="map-container relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] selection:bg-cyan-500/30">
+<div class="console-wrapper border border-cyan-900/50">
   
-  <div id="map-reticle" class="opacity-0"></div>
-
-  <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
-  
-  <div class="absolute inset-16 sm:inset-24">
-    {works.map((work, index) => {
-      const left = ((work.x + 100) / 200) * 100;
-      const bottom = ((work.y + 100) / 200) * 100;
-
-      return (
-        <div 
-          data-work
-          data-index={index}
-          data-tags={work.tags?.join(",") ?? ""}
-          class="group absolute cursor-crosshair"
-          style={`left: ${left}%; bottom: ${bottom}%; z-index: ${Math.round(bottom)};`}
-          onclick={`focusItem(${index})`}
-        >
-          <div class="relative w-4 h-4 flex items-center justify-center group-hover:scale-125 transition-transform">
-            <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
-            <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
-            <div class="w-1 h-1 bg-white"></div>
+  <div class="tactical-map">
+    <div id="map-reticle" class="opacity-0"></div>
+    <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(#22d3ee 1px, transparent 1px), linear-gradient(90deg, #22d3ee 1px, transparent 1px); background-size: 50px 50px;"></div>
+    
+    <div class="absolute inset-16">
+      {works.map((work, index) => {
+        const x = ((work.x + 100) / 200) * 100;
+        const y = ((work.y + 100) / 200) * 100;
+        return (
+          <div 
+            data-work 
+            data-index={index}
+            style={`left: ${x}%; bottom: ${y}%;`}
+            onclick={`focusItem(${index})`}
+          >
+            <div class="w-2 h-2 border border-cyan-500/50 bg-cyan-500/20"></div>
           </div>
-        </div>
-      );
-    })}
+        );
+      })}
+    </div>
+  </div>
+
+  <div class="hud-unit">
+    <div class="info-panel space-y-4">
+      <div id="hud-thumb" class="w-full aspect-video bg-zinc-900 border border-cyan-900 overflow-hidden"></div>
+      <div>
+        <p id="hud-id" class="text-[8px] text-cyan-500/50">ID: ----</p>
+        <h2 id="hud-title" class="text-sm font-bold text-white uppercase tracking-tighter">Initializing...</h2>
+      </div>
+      <div id="hud-tags" class="flex flex-wrap gap-1"></div>
+      <a id="hud-link" href="#" target="_blank" class="block text-center border border-cyan-500 py-2 text-[10px] hover:bg-cyan-500 hover:text-black transition-all">ACCESS DATA</a>
+    </div>
+
+    <div class="wheel-viewport pointer-events-none">
+      <div id="circular-track" class="circular-track">
+        {works.map((work, i) => (
+          <div class="wheel-item text-[9px] font-black uppercase whitespace-nowrap" data-wheel-index={i}>
+            {work.title}
+          </div>
+        ))}
+      </div>
+    </div>
+    
+    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-10 h-[1px] bg-cyan-400 shadow-[0_0_10px_#22d3ee]"></div>
   </div>
 </div>
 
 <script define:vars={{ works }}>
   let activeIndex = 0;
-  let currentTag = null;
-
-  function getYoutubeId(url) {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url?.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  }
 
   function focusItem(index) {
     activeIndex = Math.max(0, Math.min(index, works.length - 1));
-    updateUI();
+    updateHUD();
   }
 
-  function updateUI() {
-    const activeData = works[activeIndex];
+  function updateHUD() {
+    const data = works[activeIndex];
     
-    // 1. マップ上のアクティブ状態とレティクル移動
-    const points = document.querySelectorAll("[data-work]");
-    const reticle = document.getElementById("map-reticle");
-    
-    points.forEach((p, i) => {
-      const isSelected = i === activeIndex;
-      p.classList.toggle("is-active", isSelected);
-      if (isSelected) {
-        reticle.style.opacity = "1";
-        reticle.style.left = p.style.left;
-        reticle.style.bottom = p.style.bottom;
-      }
+    // 1. マップとレティクルの同期
+    document.querySelectorAll("[data-work]").forEach((p, i) => {
+      p.classList.toggle("is-active", i === activeIndex);
     });
+    const target = document.querySelector(`[data-work][data-index="${activeIndex}"]`);
+    const reticle = document.getElementById("map-reticle");
+    if (target) {
+      reticle.style.opacity = "1";
+      reticle.style.left = target.style.left;
+      reticle.style.bottom = target.style.bottom;
+    }
 
-    // 2. HUDパネルの更新
-    document.getElementById("hud-title").innerText = activeData.title;
-    document.getElementById("hud-id").innerText = `ID: ${activeData.artist}`;
-    const ytId = getYoutubeId(activeData.url);
-    document.getElementById("hud-thumb").innerHTML = ytId 
-      ? `<img src="https://img.youtube.com/vi/${ytId}/mqdefault.jpg" class="w-full h-full object-cover shadow-inner" />`
-      : `<div class="w-full h-full bg-zinc-800"></div>`;
-
-    // 3. ホイールの回転
-    const track = document.getElementById("wheel-track");
-    const angleStep = 12; // 1項目あたりの回転角度
-    track.style.transform = `translateX(-50%) rotate(${activeIndex * -angleStep}deg)`;
+    // 2. ホイール回転
+    const angleStep = 10;
+    const track = document.getElementById("circular-track");
+    track.style.transform = `rotate(${activeIndex * -angleStep}deg)`;
     
     document.querySelectorAll(".wheel-item").forEach((item, i) => {
       item.classList.toggle("is-active", i === activeIndex);
+      const angle = i * angleStep;
+      item.style.transform = `rotate(${angle}deg) translateX(0px)`;
     });
+
+    // 3. 情報表示更新
+    document.getElementById("hud-title").innerText = data.title;
+    document.getElementById("hud-id").innerText = `ID: ${data.artist}`;
+    document.getElementById("hud-link").href = data.url;
+    const ytId = data.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
+    document.getElementById("hud-thumb").innerHTML = ytId 
+      ? `<img src="https://img.youtube.com/vi/${ytId}/mqdefault.jpg" class="w-full h-full object-cover" />`
+      : "";
   }
 
-  // キーボード & マウスホイール操作
+  // 入力制御
   window.addEventListener("wheel", (e) => {
-    if (Math.abs(e.deltaY) < 10) return;
     e.deltaY > 0 ? focusItem(activeIndex + 1) : focusItem(activeIndex - 1);
   }, { passive: true });
 
   window.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") focusItem(activeIndex + 1);
-    if (e.key === "ArrowLeft" || e.key === "ArrowUp") focusItem(activeIndex - 1);
+    if (["ArrowUp", "ArrowLeft"].includes(e.key)) focusItem(activeIndex - 1);
+    if (["ArrowDown", "ArrowRight"].includes(e.key)) focusItem(activeIndex + 1);
   });
 
-  // 初期化
   window.focusItem = focusItem;
-  window.setTag = (tag) => { currentTag = tag; /* フィルタロジックは必要に応じて拡張 */ };
   document.addEventListener("DOMContentLoaded", () => focusItem(0));
 </script>
