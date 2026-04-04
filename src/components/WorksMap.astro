@@ -7,13 +7,21 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
 <style>
-  /* 浮遊アニメーション */
+  /* 8の字を描くような、より複雑で自然な浮遊 */
   @keyframes float {
-    0%, 100% { transform: translate(-50%, 50%); }
-    50% { transform: translate(-50%, calc(50% - 5px)); }
+    0%, 100% { 
+      transform: translate(-50%, 50%) rotate(0deg); 
+    }
+    33% { 
+      transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg); 
+    }
+    66% { 
+      transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg); 
+    }
   }
   .animate-float {
-    animation: float 4s ease-in-out infinite;
+    /* 周期を少し長く（6秒）すると、より高級感が出ます */
+    animation: float 6s ease-in-out infinite;
   }
 </style>
 
