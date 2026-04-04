@@ -27,7 +27,8 @@ function parseValue(value: any, type: string) {
         .filter(Boolean);
 
     default:
-      return value;
+      // 💡 year が string で定義されていればそのまま文字列として返ります
+      return String(value); 
   }
 }
 
@@ -37,7 +38,6 @@ export async function fetchWorks() {
     fetchSheet("Schema"),
   ]);
 
-  // schemaをmap化
   const schema: Record<string, string> = {};
   for (const row of schemaRows) {
     if (row.field) schema[row.field] = row.type;
@@ -47,17 +47,25 @@ export async function fetchWorks() {
     const parsed: any = {};
 
     for (const key in row) {
+      // 💡 スプレッドシートの列名が 'year' で、Schemaシートに 'year' : 'string' と書いてあれば自動適用
       const type = schema[key] || "string";
       parsed[key] = parseValue(row[key], type);
     }
 
+    // 数値バリデーション
     parsed.x = isNaN(Number(parsed.x)) ? 0 : Number(parsed.x);
     parsed.y = isNaN(Number(parsed.y)) ? 0 : Number(parsed.y);
 
+    // 💡 既存の tags 用の個別処理（Schemaに頼らない安全策）
     if (parsed.tags && typeof parsed.tags === "string") {
       parsed.tags = parsed.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
     } else if (!parsed.tags) {
       parsed.tags = [];
+    }
+
+    // 💡 year が undefined の場合のフォールバック（必要に応じて）
+    if (!parsed.year) {
+      parsed.year = "Unknown";
     }
 
     return parsed;
