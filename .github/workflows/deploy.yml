@@ -17,9 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install, build, and upload with Astro
-        uses: withastro/action@v3
-        # with:
-        #   path: . # プロジェクトルートがリポジトリ直下ならこのまま
+        uses: withastro/action@v3st
 
   deploy:
     needs: build
