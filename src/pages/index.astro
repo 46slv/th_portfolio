@@ -1,17 +1,28 @@
 ---
-
+import WorksMap from '../components/WorksMap.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width" />
+        <meta name="generator" content={Astro.generator} />
+        <title>Talich Helfen | Portfolio</title>
+    </head>
+    <body class="bg-zinc-950 text-zinc-200 min-h-screen flex flex-col items-center justify-center p-4">
+        <header class="mb-12 text-center">
+            <h1 class="text-4xl font-bold tracking-tighter uppercase mb-2">Talich Helfen</h1>
+            <p class="text-zinc-500 font-mono text-sm">Composer / Arranger - Works Distribution Map</p>
+        </header>
+
+        <main class="w-full max-w-5xl">
+            <WorksMap />
+        </main>
+
+        <footer class="mt-12 text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
+            © 2026 Talich Helfen. All rights reserved.
+        </footer>
+    </body>
 </html>
