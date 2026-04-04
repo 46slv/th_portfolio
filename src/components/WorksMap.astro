@@ -6,7 +6,6 @@ import '../styles/global.css';
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
-<!-- 🟢 フィルタUI -->
 <div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
   <button onclick="setTag(null)">ALL</button>
 
@@ -17,27 +16,22 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   ))}
 </div>
 
-<!-- 🟢 マップ -->
 <div class="relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] sm:text-xs selection:bg-cyan-500/30">
   
-  <!-- グリッド -->
   <div class="absolute inset-0 opacity-20" 
        style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;">
   </div>
 
-  <!-- 軸 -->
   <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
     <div class="w-full h-[1px] bg-zinc-800"></div>
     <div class="absolute h-full w-[1px] bg-zinc-800"></div>
   </div>
 
-  <!-- ラベル -->
   <div class="absolute top-6 left-1/2 -translate-x-1/2 text-zinc-600 tracking-[0.2em] uppercase font-black">Maniac [+]</div>
   <div class="absolute bottom-6 left-1/2 -translate-x-1/2 text-zinc-600 tracking-[0.2em] uppercase font-black">Popular [-]</div>
   <div class="absolute left-6 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-600 tracking-[0.2em] uppercase font-black origin-left">Electro [L]</div>
   <div class="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-zinc-600 tracking-[0.2em] uppercase font-black origin-right">Acoustic [R]</div>
 
-  <!-- 点 -->
   <div class="absolute inset-16 sm:inset-24">
     {works.map((work) => {
       const left = ((work.x + 100) / 200) * 100;
@@ -50,28 +44,23 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
           class="group absolute -translate-x-1/2 translate-y-1/2 cursor-crosshair"
           style={`left: ${left}%; bottom: ${bottom};`}
         >
-          <!-- 点 -->
           <div class="relative w-4 h-4 flex items-center justify-center">
             <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
             <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
             <div class="w-1 h-1 bg-white group-hover:scale-150 transition-transform"></div>
           </div>
           
-          <!-- ツールチップ -->
           <div class="absolute bottom-full left-4 mb-2 w-max max-w-[180px] opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 translate-y-2 group-hover:translate-y-0 z-10">
             <div class="bg-black/90 border-l-2 border-cyan-500 p-3 backdrop-blur-md">
 
-              <!-- ID -->
               <p class="text-[8px] text-cyan-500/70 mb-1 tracking-tighter">
                 ID: {(work.artist ?? "").toUpperCase()}
               </p>
 
-              <!-- タイトル -->
               <p class="text-white font-bold leading-tight mb-2 tracking-tight">
                 {work.title}
               </p>
 
-              <!-- 🏷 tags -->
               {work.tags && (
                 <div class="flex gap-1 mt-1 flex-wrap">
                   {work.tags.map(tag => (
@@ -82,7 +71,6 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
                 </div>
               )}
 
-              <!-- リンク -->
               <a 
                 href={work.url} 
                 class="inline-block text-[9px] text-zinc-400 pointer-events-auto hover:text-white border border-zinc-700 px-2 py-1 transition-colors uppercase tracking-widest mt-2"
@@ -98,7 +86,6 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   </div>
 </div>
 
-<!-- 🟢 フィルタロジック -->
 <script>
   let filters = {
     tag: null
@@ -106,7 +93,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
   function applyFilters() {
     document.querySelectorAll("[data-work]").forEach((el) => {
-      const tags = el.dataset.tags?.split(",") || [];
+      const tags = (el.dataset.tags || "").split(",").map(t => t.trim()).filter(Boolean);
 
       let visible = true;
 
