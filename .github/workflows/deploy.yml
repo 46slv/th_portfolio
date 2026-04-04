@@ -18,6 +18,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install, build, and upload with Astro
         uses: withastro/action@v3
+        with:
+          node-version: 22 # ここを追加：Astro v6に対応させる
 
   deploy:
     needs: build
