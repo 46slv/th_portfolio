@@ -2,211 +2,205 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
-// 🔥 タグ一覧自動生成
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
 <style>
-  /* 🔵 空間の奥行き設定 */
-  .map-container {
-    perspective: 1200px;
-    transform-style: preserve-3d;
-    position: relative;
-    isolation: isolate; /* z-indexの干渉と消失を防止 */
+  /* 🔵 HUD全体レイアウト */
+  .hud-shell {
+    display: grid;
+    grid-template-columns: 1fr 320px; /* 左:マップ / 右:ホイール */
+    grid-template-rows: 180px 1fr;    /* 上:インフォ / 下:メイン */
+    height: 90vh;
+    gap: 10px;
+    background: #050505;
+    padding: 10px;
+    color: #22d3ee;
+    font-family: 'JetBrains Mono', monospace;
   }
 
-  @keyframes float {
-    0%, 100% { transform: translate(-50%, 50%) rotate(0deg); }
-    33% { transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg); }
-    66% { transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg); }
-  }
-
-  /* 🔵 ポイントの基本状態 */
-  [data-work] {
+  /* 🎯 ターゲット・レティクル（追従する十字照準） */
+  #target-reticle {
     position: absolute;
-    transition: 
-      opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-      transform 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-      filter 0.6s ease;
-    will-change: transform, opacity;
-    transform: translate(-50%, 50%) translateZ(0px); /* 初期位置を固定 */
-  }
-
-  /* 🔵 前面レイヤー（選択中） */
-  [data-work].is-active {
-    opacity: 1 !important;
-    z-index: 100;
-    transform: translate(-50%, 50%) translateZ(120px) scale(1.2);
-    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.8));
-    pointer-events: auto;
-  }
-
-  /* 🔵 背面レイヤー（非選択） */
-  [data-work].is-inactive {
-    opacity: 0.1 !important;
-    z-index: 0;
-    transform: translate(-50%, 50%) translateZ(-300px) scale(0.7);
-    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.2));
+    width: 80px;
+    height: 80px;
+    border: 1px solid rgba(34, 211, 238, 0.3);
     pointer-events: none;
+    transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    z-index: 200;
+    transform: translate(-50%, -50%);
   }
-
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  /* カスタムスクロールバー（ツールチップ用） */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 2px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
+  #target-reticle::before, #target-reticle::after {
+    content: '';
+    position: absolute;
     background: #22d3ee;
+    box-shadow: 0 0 15px #22d3ee;
   }
+  #target-reticle::before { width: 100%; height: 1px; top: 50%; left: 0; }
+  #target-reticle::after { width: 1px; height: 100%; left: 50%; top: 0; }
+
+  /* 🎡 右側：円弧型ホイール */
+  .wheel-viewport {
+    position: relative;
+    overflow: hidden;
+    border-left: 1px solid rgba(34, 211, 238, 0.2);
+  }
+  .circular-track {
+    position: absolute;
+    right: -1100px; /* 巨大な円の半径分オフセット */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2400px;
+    height: 2400px;
+    border-radius: 50%;
+    border: 1px double rgba(34, 211, 238, 0.1);
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .hud-card {
+    position: absolute;
+    left: 40px;
+    top: 50%;
+    width: 260px;
+    transform-origin: 1200px center; /* 円の中心を軸に回転 */
+    transition: all 0.4s ease;
+  }
+
+  .hud-card.active {
+    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.6));
+    transform: translateX(-20px) scale(1.05); /* 中央にきた時だけ少し前に出す */
+  }
+
+  /* スクロールバー非表示 */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 </style>
 
-<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
-  <button id="btn-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all">ALL</button>
-
-  {allTags.map(tag => (
-    <button id={`btn-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all">
-      {tag}
-    </button>
-  ))}
-</div>
-
-<div class="map-container relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] sm:text-xs selection:bg-cyan-500/30">
+<div class="hud-shell border border-cyan-900/50">
   
-  <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
-  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <div class="w-full h-[1px] bg-zinc-800"></div>
-    <div class="absolute h-full w-[1px] bg-zinc-800"></div>
-  </div>
+  <header class="col-span-2 border border-cyan-900/40 bg-cyan-950/5 p-4 flex gap-8 items-center backdrop-blur-md relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-30"></div>
+    
+    <div id="info-display-thumb" class="w-48 aspect-video bg-zinc-900 border border-cyan-500/50 overflow-hidden shrink-0 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
+      </div>
 
-  <div class="absolute top-6 left-1/2 -translate-x-1/2 text-zinc-600 tracking-[0.2em] uppercase font-black">Maniac [+]</div>
-  <div class="absolute bottom-6 left-1/2 -translate-x-1/2 text-zinc-600 tracking-[0.2em] uppercase font-black">Popular [-]</div>
-  <div class="absolute left-6 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-600 tracking-[0.2em] uppercase font-black origin-left">Electro [L]</div>
-  <div class="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-zinc-600 tracking-[0.2em] uppercase font-black origin-right">Acoustic [R]</div>
+    <div class="flex-1 space-y-2">
+      <div class="flex items-center gap-4 text-[10px] tracking-[0.3em] text-cyan-500/60 uppercase">
+        <span>Object Status: Selected</span>
+        <span id="info-display-id">ID: ----</span>
+      </div>
+      <h1 id="info-display-title" class="text-2xl font-black text-white tracking-tighter uppercase truncate">System Ready</h1>
+      <div id="info-display-tags" class="flex gap-2"></div>
+    </div>
 
-  <div class="absolute inset-16 sm:inset-24">
-    {works.map((work, index) => {
-      const left = ((work.x + 100) / 200) * 100;
-      const bottom = ((work.y + 100) / 200) * 100;
+    <div class="shrink-0">
+      <a id="info-display-link" href="#" target="_blank" class="px-6 py-3 border border-cyan-500 text-cyan-400 text-xs hover:bg-cyan-500 hover:text-black transition-all font-black tracking-widest uppercase">
+        Access Data →
+      </a>
+    </div>
+  </header>
 
-      const getYoutubeId = (url: string) => {
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = url?.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : null;
-      };
-      const ytId = getYoutubeId(work.url);
+  <main class="relative bg-black/40 border border-cyan-900/30 overflow-hidden cursor-none">
+    <div id="target-reticle" class="opacity-0"></div> <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(#22d3ee 1px, transparent 1px), linear-gradient(90deg, #22d3ee 1px, transparent 1px); background-size: 40px 40px;"></div>
 
-      return (
+    <div class="absolute inset-16">
+      {works.map((work, index) => {
+        const x = ((work.x + 100) / 200) * 100;
+        const y = ((work.y + 100) / 200) * 100;
+        return (
+          <div 
+            data-map-point={index}
+            class="absolute w-2 h-2 bg-white/20 border border-white/40 transition-all hover:bg-cyan-400"
+            style={`left: ${x}%; bottom: ${y}%;`}
+            onclick={`focusIndex(${index})`}
+          ></div>
+        );
+      })}
+    </div>
+  </main>
+
+  <aside class="wheel-viewport">
+    <div id="circular-track" class="circular-track">
+      {works.map((work, index) => (
         <div 
-          data-work
-          data-tags={work.tags?.join(",") ?? ""}
-          class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]"
-          style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
+          class="hud-card" 
+          data-card-index={index}
+          style={`transform: rotate(0deg);`}
         >
-          {/* 🟢 ポイントをリンク化 */}
-          <a 
-            href={work.url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            class="relative w-6 h-6 flex items-center justify-center transition-transform hover:scale-125 active:scale-95"
-            title={work.title}
-          >
-            <div class="relative w-4 h-4 flex items-center justify-center 
-                        drop-shadow-[0_0_3px_rgba(255,255,255,0.7)] 
-                        group-hover:drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]
-                        transition-all duration-300">
-              <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
-              <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
-              <div class="w-1 h-1 bg-white group-hover:scale-150 transition-transform"></div>
-            </div>
-          </a>
-
-          {/* 🟢 コンテンツ量に応じて縦横に広がるツールチップ */}
-          <div class={`absolute mb-2 w-max max-w-[280px] z-[100]
-                      opacity-0 pointer-events-none
-                      group-hover:opacity-100 group-hover:pointer-events-auto
-                      transition-all duration-300 ease-out
-                      delay-1200 group-hover:delay-[400ms]
-                      ${bottom > 70 ? "top-6" : "bottom-full"} 
-                      ${left > 70 ? "right-4" : "left-4"}`}>
-            
-            <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col max-h-[70vh]">
-              
-              {ytId && (
-                <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800 shrink-0">
-                  <img 
-                    src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} 
-                    alt="Thumbnail"
-                    class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]"
-                    loading="lazy"
-                  />
-                </div>
-              )}
-
-              <div class="p-3 flex flex-col gap-2 overflow-y-auto custom-scrollbar">
-                <p class="text-[8px] text-cyan-500/70 tracking-tighter uppercase shrink-0">ID: {work.artist}</p>
-                
-                <p class="text-white font-bold leading-snug tracking-tight whitespace-normal break-words">
-                  {work.title}
-                </p>
-                
-                {work.tags && (
-                  <div class="flex gap-1 flex-wrap mt-0.5 shrink-0">
-                    {work.tags.map(tag => (
-                      <span class="text-[7px] bg-zinc-800 text-zinc-300 px-1.5 py-0.5 border border-zinc-700/50">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <a href={work.url} target="_blank" class="flex items-center justify-between text-[9px] text-zinc-400 hover:text-white border border-zinc-800 hover:border-cyan-500 px-2 py-1.5 transition-all uppercase tracking-[0.1em] bg-zinc-900/50 mt-1 shrink-0">
-                  <span>Access Data</span>
-                  <span class="text-[10px]">→</span>
-                </a>
-              </div>
-            </div>
+          <div class="bg-black/80 border-l-4 border-zinc-800 p-3 hover:border-cyan-500 transition-all cursor-pointer group" onclick={`focusIndex(${index})`}>
+            <p class="text-[8px] text-zinc-500 group-hover:text-cyan-500">ENTRY_{index.toString().padStart(3, '0')}</p>
+            <h3 class="text-[10px] text-zinc-300 font-bold truncate group-hover:text-white uppercase">{work.title}</h3>
           </div>
         </div>
-      );
-    })}
-  </div>
+      ))}
+    </div>
+    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-[2px] bg-cyan-400 shadow-[0_0_10px_#22d3ee]"></div>
+  </aside>
 </div>
 
-<script>
-  let currentTag = null;
+<script define:vars={{ works }}>
+  let activeIndex = 0;
+  const total = works.length;
 
-  function applyFilters() {
-    const allWorks = document.querySelectorAll("[data-work]");
-    const allBtns = document.querySelectorAll("button[id^='btn-']");
-    
-    allBtns.forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
-    const activeBtn = currentTag ? document.getElementById(`btn-${currentTag}`) : document.getElementById('btn-all');
-    activeBtn?.classList.add('border-cyan-500', 'text-cyan-400');
+  function getYoutubeId(url) {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url?.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  }
 
-    allWorks.forEach((el) => {
-      const tags = (el.dataset.tags || "").split(",").map(t => t.trim()).filter(Boolean);
-      
-      if (!currentTag) {
-        el.classList.remove('is-active', 'is-inactive');
-      } else if (tags.includes(currentTag)) {
-        el.classList.add('is-active');
-        el.classList.remove('is-inactive');
-      } else {
-        el.classList.add('is-inactive');
-        el.classList.remove('is-active');
-      }
+  function focusIndex(index) {
+    activeIndex = Math.max(0, Math.min(index, total - 1));
+    updateHUD();
+  }
+
+  function updateHUD() {
+    const current = works[activeIndex];
+    const ytId = getYoutubeId(current.url);
+
+    // 1. 上部情報の更新
+    document.getElementById('info-display-title').innerText = current.title;
+    document.getElementById('info-display-id').innerText = `ID: ${current.artist}`;
+    document.getElementById('info-display-link').href = current.url;
+    document.getElementById('info-display-thumb').innerHTML = ytId 
+      ? `<img src="https://img.youtube.com/vi/${ytId}/mqdefault.jpg" class="w-full h-full object-cover animate-pulse" />`
+      : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px]">NO SIGNAL</div>`;
+
+    // 2. マップ上の十字カーソル移動
+    const reticle = document.getElementById('target-reticle');
+    const targetPoint = document.querySelector(`[data-map-point="${activeIndex}"]`);
+    if (targetPoint) {
+      reticle.style.opacity = '1';
+      reticle.style.left = targetPoint.style.left;
+      reticle.style.bottom = targetPoint.style.bottom;
+      // 座標軸も移動させるならここ
+    }
+
+    // 3. ホイール回転
+    const track = document.getElementById('circular-track');
+    const angleStep = 12; // カード間の角度
+    track.style.transform = `translateY(-50%) rotate(${activeIndex * -angleStep}deg)`;
+
+    // 4. カードの状態更新
+    document.querySelectorAll('.hud-card').forEach((card, i) => {
+      const cardAngle = i * angleStep;
+      card.style.transform = `translateY(-50%) rotate(${cardAngle}deg)`;
+      card.classList.toggle('active', i === activeIndex);
+      card.style.opacity = Math.abs(i - activeIndex) > 4 ? '0.2' : '1';
     });
   }
 
-  window.setTag = (tag) => {
-    currentTag = tag;
-    applyFilters();
-  };
+  // 入力イベント
+  window.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (e.deltaY > 0) focusIndex(activeIndex + 1);
+    else focusIndex(activeIndex - 1);
+  }, { passive: false });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') focusIndex(activeIndex - 1);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') focusIndex(activeIndex + 1);
+  });
 
   // 初期化
-  document.addEventListener('DOMContentLoaded', applyFilters);
-  applyFilters();
+  window.focusIndex = focusIndex;
+  document.addEventListener('DOMContentLoaded', () => focusIndex(0));
 </script>
