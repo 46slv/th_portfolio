@@ -16,11 +16,11 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   }
 
   :global(body) {
-    /* 🌈 ドップラー・ハイパー・シフト */
     background-color: #020205; 
     margin: 0;
     color: white;
     min-height: 100vh;
+    /* 🌈 ドップラー・ハイパー・シフト連動用 */
     transition: filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
   }
 
@@ -42,8 +42,9 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     border-bottom: 1px solid rgba(34, 211, 238, 0.1);
     position: relative; z-index: 10;
   }
-  .contact-link { color: #71717a; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-  .copy-feedback { position: absolute; right: 0; top: 120%; background: #22d3ee; color: #000; padding: 2px 6px; font-weight: bold; opacity: 0; transition: opacity 0.3s ease; }
+  .contact-link { color: #71717a; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: color 0.3s ease; }
+  .contact-link:hover { color: #22d3ee; }
+  .copy-feedback { position: absolute; right: 0; top: 120%; background: #22d3ee; color: #000; padding: 2px 6px; font-weight: bold; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
   .copy-feedback.is-visible { opacity: 1; }
 
   /* 🔵 レイアウト構成 */
@@ -56,22 +57,43 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   :global(body:not(.is-blurred)) .main-layout { opacity: 1; }
 
   .map-container { perspective: 1200px; transform-style: preserve-3d; position: relative; isolation: isolate; }
+  
   @keyframes float {
     0%, 100% { transform: translate(-50%, 50%) rotate(0deg); }
     33% { transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg); }
     66% { transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg); }
   }
-  [data-work] { position: absolute; transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform: translate(-50%, 50%); }
-  [data-work].is-active { opacity: 1; z-index: 100; transform: translate(-50%, 50%) translateZ(120px) scale(1.2); filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.8)); }
-  [data-work].is-inactive { opacity: 0.1; z-index: 0; transform: translate(-50%, 50%) translateZ(-300px) scale(0.7); pointer-events: none; }
+
+  [data-work] { 
+    position: absolute; 
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
+    transform: translate(-50%, 50%); 
+    will-change: transform, opacity;
+  }
+  [data-work].is-active { 
+    opacity: 1; z-index: 100; 
+    transform: translate(-50%, 50%) translateZ(120px) scale(1.2); 
+    filter: drop-shadow(0 0 15px rgba(34, 211, 238, 0.8)); 
+  }
+  [data-work].is-inactive { 
+    opacity: 0.1; z-index: 0; 
+    transform: translate(-50%, 50%) translateZ(-300px) scale(0.7); 
+    pointer-events: none; 
+  }
   .animate-float { animation: float 6s ease-in-out infinite; }
 
   /* 🎚️ オーディオHUD */
-  .audio-hud { display: flex; flex-direction: column; gap: 24px; padding: 20px; background: rgba(9, 9, 11, 0.8); border: 1px solid rgba(34, 211, 238, 0.1); height: fit-content; position: relative; z-index: 20; backdrop-blur: lg; }
-  .control-group { display: flex; flex-direction: column; gap: 8px; }
-  .control-label { font-size: 9px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.1em; }
-  input[type="range"] { appearance: none; background: #27272a; height: 2px; outline: none; width: 100%; }
-  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: #22d3ee; border-radius: 50%; cursor: pointer; }
+  .audio-hud { 
+    display: flex; flex-direction: column; gap: 18px; padding: 20px; 
+    background: rgba(9, 9, 11, 0.8); border: 1px solid rgba(34, 211, 238, 0.1); 
+    height: fit-content; position: relative; z-index: 20; backdrop-blur: lg; 
+  }
+  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .control-label { font-size: 8px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.8; }
+  input[type="range"] { appearance: none; background: #18181b; height: 2px; outline: none; width: 100%; }
+  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 8px; height: 8px; background: #22d3ee; border-radius: 50%; cursor: pointer; box-shadow: 0 0 5px #22d3ee; }
+  
+  .hud-divider { height: 1px; background: rgba(34, 211, 238, 0.05); margin: 10px 0; }
 </style>
 
 <div id="start-overlay">
@@ -82,7 +104,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 <div class="contact-bar">
   <div class="contact-link" onclick="copyContact('info@corecreative.jp')">
     <span class="text-zinc-500">CONTACT:</span>
-    <span>info@corecreative.jp</span>
+    <span id="contact-text">info@corecreative.jp</span>
     <div id="copy-toast" class="copy-feedback">COPIED</div>
   </div>
 </div>
@@ -112,7 +134,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
               </a>
               <div class={`absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
                 <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
-                  {ytId && <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full aspect-video object-cover" />}
+                  {ytId && <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full aspect-video object-cover" loading="lazy" />}
                   <div class="p-3">
                     <p class="text-[8px] text-cyan-500/70 mb-1 uppercase">ID: {work.artist}</p>
                     <p class="text-white font-bold leading-tight mb-2 line-clamp-2">{work.title}</p>
@@ -130,12 +152,17 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   </div>
 
   <aside class="audio-hud">
-    <div class="control-group"><label class="control-label">Master Volume</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
-    <div class="control-group"><label class="control-label">Playback Speed</label><input type="range" id="speed-fader" min="0" max="2" step="0.01" value="1.0"></div>
-    <div class="control-group"><label class="control-label">Pitch Shift</label><input type="range" id="pitch-fader" min="0" max="2" step="0.01" value="1.0"></div>
+    <div class="control-group"><label class="control-label">Master Gain</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
+    <div class="control-group"><label class="control-label">Temporal Velocity</label><input type="range" id="speed-fader" min="0" max="2" step="0.01" value="1.0"></div>
+    
+    <div class="hud-divider"></div>
+    
+    <div class="control-group"><label class="control-label">Distortion (Entropy)</label><input type="range" id="dist-fader" min="0" max="100" step="1" value="0"></div>
+    <div class="control-group"><label class="control-label">Delay (Echoes)</label><input type="range" id="delay-fader" min="0" max="0.8" step="0.01" value="0"></div>
+    <div class="control-group"><label class="control-label">Reverb (Space)</label><input type="range" id="reverb-fader" min="0" max="1" step="0.01" value="0"></div>
+
     <div class="mt-4 pt-4 border-t border-zinc-800">
       <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div></div>
-      <p class="text-[7px] text-zinc-600 mt-1 uppercase">Audio Signal Analysis</p>
       <p id="doppler-status" class="text-[6px] text-cyan-900 mt-2 uppercase tracking-tighter">Shift: Stable</p>
       <button id="play-pause-btn" class="mt-4 w-full border border-cyan-900/50 text-cyan-500 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-all">Pause Transmission</button>
     </div>
@@ -147,6 +174,14 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   let audioContext = null;
   let source = null;
   let gainNode = null;
+  
+  // FX Nodes
+  let distNode = null;
+  let delayNode = null;
+  let delayGain = null;
+  let reverbNode = null;
+  let reverbGain = null;
+
   let isStarted = false;
   let isPlaying = true;
   let baseHue = 0;
@@ -160,10 +195,10 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     });
   };
 
+  // 🌈 ドップラー・ビジュアルアップデート
   function updateVisualShift() {
     if (!isStarted) return;
 
-    // 再生中かつ速度が0より大きい場合のみ色を回す
     if (isPlaying && currentSpeed > 0) {
       const cycleSpeed = 0.1 * Math.pow(currentSpeed, 3); 
       baseHue = (baseHue + cycleSpeed) % 360;
@@ -189,11 +224,36 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
       else if (currentSpeed < 0.8) status.innerText = `Shift: Red (Distant)`;
       else status.innerText = `Shift: Stable`;
     }
-
     requestAnimationFrame(updateVisualShift);
   }
 
-  // 🔴 再生・停止のトグル
+  // 🎻 Reverb Impulse Response 生成
+  function createImpulse(duration, decay) {
+    const rate = audioContext.sampleRate;
+    const length = rate * duration;
+    const impulse = audioContext.createBuffer(2, length, rate);
+    for (let i = 0; i < 2; i++) {
+      const data = impulse.getChannelData(i);
+      for (let j = 0; j < length; j++) {
+        data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, decay);
+      }
+    }
+    return impulse;
+  }
+
+  // 🎸 Distortion Curve 生成
+  function makeDistortionCurve(amount) {
+    const k = typeof amount === 'number' ? amount : 50;
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < n_samples; ++i) {
+      const x = (i * 2) / n_samples - 1;
+      curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
+  }
+
   function togglePlayback() {
     if (!audioContext) return;
     if (isPlaying) {
@@ -218,51 +278,81 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
     try {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
       const response = await fetch('/SITE_th.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+
       source = audioContext.createBufferSource();
-      source.buffer = audioBuffer;
+      source.buffer = buffer;
       source.loop = true;
+
+      // Initialize FX
+      distNode = audioContext.createWaveShaper();
+      distNode.oversample = '4x';
+      
+      delayNode = audioContext.createDelay(2.0);
+      delayGain = audioContext.createGain();
+      delayGain.gain.value = 0; // initial wet
+      
+      reverbNode = audioContext.createConvolver();
+      reverbNode.buffer = createImpulse(2.5, 4.0);
+      reverbGain = audioContext.createGain();
+      reverbGain.gain.value = 0;
+
       gainNode = audioContext.createGain();
       gainNode.gain.value = 0.5;
-      source.connect(gainNode);
+
+      // Routing: Source -> Dist -> (Delay Parallel) -> (Reverb Parallel) -> Main Gain -> Dest
+      source.connect(distNode);
+      
+      // Delay Loop
+      distNode.connect(delayNode);
+      delayNode.connect(delayGain);
+      delayGain.connect(delayNode); // feedback
+      delayGain.connect(gainNode);
+
+      // Reverb
+      distNode.connect(reverbNode);
+      reverbNode.connect(reverbGain);
+      reverbGain.connect(gainNode);
+
+      // Dry path
+      distNode.connect(gainNode);
+      
       gainNode.connect(audioContext.destination);
       source.start(0);
 
-      const speedFader = document.getElementById('speed-fader') as HTMLInputElement;
-      const pitchFader = document.getElementById('pitch-fader') as HTMLInputElement;
+      // UI Bindings
       const volFader = document.getElementById('vol-fader') as HTMLInputElement;
+      const speedFader = document.getElementById('speed-fader') as HTMLInputElement;
+      const distFader = document.getElementById('dist-fader') as HTMLInputElement;
+      const delayFader = document.getElementById('delay-fader') as HTMLInputElement;
+      const reverbFader = document.getElementById('reverb-fader') as HTMLInputElement;
       const playBtn = document.getElementById('play-pause-btn');
 
       playBtn.addEventListener('click', togglePlayback);
-      
-      // 🔴 ポイントクリックで音楽停止
-      document.querySelectorAll('.work-trigger').forEach(trigger => {
-        trigger.addEventListener('click', () => {
-          if (isPlaying) togglePlayback();
-        });
-      });
+      document.querySelectorAll('.work-trigger').forEach(t => t.addEventListener('click', () => isPlaying && togglePlayback()));
 
       volFader.addEventListener('input', (e: any) => gainNode.gain.value = parseFloat(e.target.value));
-      
-      const updateRate = (val: string) => {
-        currentSpeed = parseFloat(val);
+      speedFader.addEventListener('input', (e: any) => {
+        currentSpeed = parseFloat(e.target.value);
         source.playbackRate.value = currentSpeed;
-        speedFader.value = val;
-        pitchFader.value = val;
-      };
-
-      speedFader.addEventListener('input', (e: any) => updateRate(e.target.value));
-      pitchFader.addEventListener('input', (e: any) => updateRate(e.target.value));
+      });
+      distFader.addEventListener('input', (e: any) => distNode.curve = makeDistortionCurve(parseInt(e.target.value)));
+      delayFader.addEventListener('input', (e: any) => {
+        delayNode.delayTime.value = 0.4; // Fixed timing for rhythmic feel
+        delayGain.gain.value = parseFloat(e.target.value);
+      });
+      reverbFader.addEventListener('input', (e: any) => reverbGain.gain.value = parseFloat(e.target.value));
 
       const vBar = document.getElementById('v-bar');
       setInterval(() => {
-        if (!isPlaying) { if(vBar) vBar.style.width = '0%'; return; }
+        if (!isPlaying || currentSpeed === 0) { if(vBar) vBar.style.width = '0%'; return; }
         const level = Math.random() * (gainNode.gain.value * 100);
         if(vBar) vBar.style.width = `${level}%`;
       }, 100);
-    } catch (e) { console.error(e); }
+
+    } catch (e) { console.error("Audio init error:", e); }
   }
 
   (window as any).setTag = (tag: string) => {
@@ -273,7 +363,6 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     allBtns.forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
     const activeBtn = currentTag ? document.getElementById(`btn-${currentTag}`) : document.getElementById('btn-all');
     activeBtn?.classList.add('border-cyan-500', 'text-cyan-400');
-
     allWorks.forEach((el: any) => {
       const tags = (el.dataset.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean);
       if (!currentTag) { el.classList.remove('is-active', 'is-inactive'); }
