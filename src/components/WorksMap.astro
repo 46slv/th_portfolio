@@ -2,17 +2,9 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
-// --------------------------------------------------
-// 📊 データ処理
-// --------------------------------------------------
+// 🔥 フィルタリング用データの抽出
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))].sort();
 const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
-
-// マップ上の要素とホイールを同期させるためのユニークID（_uid）を付与
-const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
-
-// ホイール用に時系列（年）の降順でソートした配列を作成
-const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.year));
 ---
 
 <style>
@@ -33,6 +25,7 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
     transition: filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
   }
 
+  /* 🎬 始動用オーバーレイ */
   #start-overlay {
     position: fixed; inset: 0; z-index: 9999;
     display: flex; flex-direction: column; gap: 16px;
@@ -57,14 +50,13 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
 
   /* 🔵 レイアウト構成 */
   .main-layout {
-    display: grid; grid-template-columns: 1fr 260px; gap: 20px;
+    display: grid; grid-template-columns: 1fr 240px; gap: 20px;
     max-width: 1200px; margin: 20px auto;
     font-family: 'JetBrains Mono', monospace;
     opacity: 0; transition: opacity 1s ease 0.5s;
   }
   :global(body:not(.is-blurred)) .main-layout { opacity: 1; }
 
-  /* 🗺️ マップ構成 */
   .map-container { perspective: 1200px; transform-style: preserve-3d; position: relative; isolation: isolate; }
   
   @keyframes float {
@@ -79,29 +71,21 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
     transform: translate(-50%, 50%); 
     will-change: transform, opacity;
   }
-  
-  /* ホイール選択時 */
   [data-work].is-active { 
-    opacity: 1; z-index: 200 !important; 
-    transform: translate(-50%, 50%) translateZ(120px) scale(1.4); 
+    opacity: 1; z-index: 100; 
+    transform: translate(-50%, 50%) translateZ(120px) scale(1.2); 
     filter: drop-shadow(0 0 15px rgba(34, 211, 238, 0.8)); 
   }
-  /* 非選択時 */
   [data-work].is-inactive { 
-    opacity: 0.2; z-index: 0; 
-    transform: translate(-50%, 50%) translateZ(-100px) scale(0.8); 
+    opacity: 0.1; z-index: 0; 
+    transform: translate(-50%, 50%) translateZ(-300px) scale(0.7); 
+    pointer-events: none; 
   }
-  /* タグ/年フィルタによる完全除外 */
-  [data-work].is-filtered-out {
-    opacity: 0.02 !important; pointer-events: none;
-    transform: translate(-50%, 50%) translateZ(-400px) scale(0.5) !important;
-  }
-
   .animate-float { animation: float 6s ease-in-out infinite; }
 
   /* 🎚️ オーディオHUD */
   .audio-hud { 
-    display: flex; flex-direction: column; gap: 12px; padding: 20px; 
+    display: flex; flex-direction: column; gap: 18px; padding: 20px; 
     background: rgba(9, 9, 11, 0.8); border: 1px solid rgba(34, 211, 238, 0.1); 
     height: fit-content; position: relative; z-index: 20; backdrop-blur: lg; 
   }
@@ -109,37 +93,8 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
   .control-label { font-size: 8px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.8; }
   input[type="range"] { appearance: none; background: #18181b; height: 2px; outline: none; width: 100%; }
   input[type="range"]::-webkit-slider-thumb { appearance: none; width: 8px; height: 8px; background: #22d3ee; border-radius: 50%; cursor: pointer; box-shadow: 0 0 5px #22d3ee; }
-  .hud-divider { height: 1px; background: rgba(34, 211, 238, 0.05); margin: 6px 0; }
-
-  /* 📜 【新規】Chrono-Rotary Wheel */
-  .rotary-container {
-    position: relative; height: 200px; margin-top: 10px;
-    mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
-    border-top: 1px solid rgba(34, 211, 238, 0.1);
-    border-bottom: 1px solid rgba(34, 211, 238, 0.1);
-  }
-  .rotary-viewport {
-    -webkit-overflow-scrolling: touch; height: 100%; overflow-y: auto;
-    scrollbar-width: none; /* Firefox */
-  }
-  .rotary-viewport::-webkit-scrollbar { display: none; } /* Chrome/Safari */
   
-  .rotary-item { 
-    height: 40px; display: flex; align-items: center; position: absolute; width: 100%;
-    font-size: 9px; color: #71717a; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-    will-change: transform, opacity; opacity: 0.2; cursor: pointer; padding: 0 10px;
-  }
-  .rotary-item:hover { opacity: 0.6; }
-  .rotary-item.is-focused { 
-    opacity: 1; color: #22d3ee; font-weight: bold; 
-    transform: scale(1.05) translateX(5px); /* active時は少し右にせり出す */
-    text-shadow: 0 0 8px rgba(34, 211, 238, 0.5);
-  }
-  .focus-line {
-    position: absolute; top: 50%; left: 0; right: 0; height: 1px;
-    background: rgba(34, 211, 238, 0.3); transform: translateY(-50%); pointer-events: none;
-    box-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
-  }
+  .hud-divider { height: 1px; background: rgba(34, 211, 238, 0.05); margin: 10px 0; }
 </style>
 
 <div id="start-overlay">
@@ -185,31 +140,32 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
       <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-right">Acoustic [R]</div>
 
       <div class="absolute inset-16 sm:inset-24">
-        {mappedWorks.map((work, index) => {
+        {works.map((work, index) => {
           const left = ((work.x + 100) / 200) * 100;
           const bottom = ((work.y + 100) / 200) * 100;
           const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
           return (
             <div 
               data-work 
-              data-uid={work._uid}
               data-tags={work.tags?.join(",") ?? ""} 
               data-year={work.year}
-              data-orig-z={Math.round(bottom)}
-              class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused] is-inactive" 
+              class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]" 
               style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
-              onclick={`syncWheelToMap(${work._uid})`}
             >
-              <div class="relative w-4 h-4 flex items-center justify-center work-trigger">
+              <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center work-trigger">
                 <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
                 <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
                 <div class="w-1 h-1 bg-white"></div>
-              </div>
+              </a>
               <div class={`absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
                 <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
                   {ytId && (
                     <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
-                      <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]" loading="lazy" />
+                      <img 
+                        src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} 
+                        class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]" 
+                        loading="lazy" 
+                      />
                     </div>
                   )}
                   <div class="p-3">
@@ -218,6 +174,7 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
                       <p class="text-zinc-500">{work.year}</p>
                     </div>
                     <p class="text-white font-bold leading-tight mb-2 line-clamp-2">{work.title}</p>
+                    
                     {work.tags && (
                       <div class="flex gap-1 mt-1 flex-wrap mb-3">
                         {work.tags.map(tag => (
@@ -225,9 +182,10 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
                         ))}
                       </div>
                     )}
-                    <a href={work.url} target="_blank" class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50 hover:bg-cyan-900/30 hover:text-cyan-400 transition-colors">
+
+                    <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50">
                       <span>Access Data</span><span>→</span>
-                    </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -246,36 +204,23 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
     <div class="control-group"><label class="control-label">Delay (Echoes)</label><input type="range" id="delay-fader" min="0" max="0.8" step="0.01" value="0"></div>
     <div class="control-group"><label class="control-label">Reverb (Space)</label><input type="range" id="reverb-fader" min="0" max="1" step="0.01" value="0"></div>
 
-    <div class="mt-2 border-t border-zinc-800 pt-2">
+    <div class="mt-4 pt-4 border-t border-zinc-800">
       <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div></div>
-      <p id="doppler-status" class="text-[6px] text-cyan-900 mt-1 uppercase tracking-tighter">Shift: Stable</p>
-      <button id="play-pause-btn" class="mt-2 w-full border border-cyan-900/50 text-cyan-500 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-all">Pause Transmission</button>
-    </div>
-
-    <div class="rotary-container">
-      <div class="focus-line"></div>
-      <div id="rotary" class="rotary-viewport">
-        <div id="rotary-dummy" style="height: 100000px;"></div>
-        <div id="rotary-list" class="absolute top-0 left-0 w-full">
-          {wheelWorks.map((work) => (
-            <div class="rotary-item" data-uid={work._uid} onclick={`syncWheelToMap(${work._uid})`}>
-              <span class="w-8 font-mono text-[8px] text-zinc-500">{work.year}</span>
-              <span class="truncate pr-2 tracking-wide leading-tight">{work.title}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <p id="doppler-status" class="text-[6px] text-cyan-900 mt-2 uppercase tracking-tighter">Shift: Stable</p>
+      <button id="play-pause-btn" class="mt-4 w-full border border-cyan-900/50 text-cyan-500 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-all">Pause Transmission</button>
     </div>
   </aside>
 </div>
 
 <script>
   let currentTag = null;
-  let currentYear = null; 
+  let currentYear = null; // 📅 年度フィルタ用
   let audioContext = null;
   let source = null;
   let gainNode = null;
+  
   let distNode, delayNode, delayGain, reverbNode, reverbGain;
+
   let isStarted = false;
   let isPlaying = true;
   let baseHue = 0;
@@ -292,7 +237,7 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
   function updateVisualShift() {
     if (!isStarted) return;
     if (isPlaying && currentSpeed > 0) {
-      const cycleSpeed = 0.1 * Math.pow(currentSpeed, 3);
+      const cycleSpeed = 0.1 * Math.pow(currentSpeed, 3); 
       baseHue = (baseHue + cycleSpeed) % 360;
     }
     const speedDelta = currentSpeed - 1.0;
@@ -372,6 +317,7 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
       source.start(0);
 
       document.getElementById('play-pause-btn').addEventListener('click', togglePlayback);
+      document.querySelectorAll('.work-trigger').forEach(t => t.addEventListener('click', () => isPlaying && togglePlayback()));
       document.getElementById('vol-fader').addEventListener('input', (e: any) => gainNode.gain.value = parseFloat(e.target.value));
       document.getElementById('speed-fader').addEventListener('input', (e: any) => { currentSpeed = parseFloat(e.target.value); source.playbackRate.value = currentSpeed; });
       document.getElementById('dist-fader').addEventListener('input', (e: any) => distNode.curve = makeDistortionCurve(parseInt(e.target.value)));
@@ -387,19 +333,16 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
     } catch (e) { console.error(e); }
   }
 
-  // --------------------------------------------------
-  // ⚙️ フィルタリング ＆ ハイライトロジック
-  // --------------------------------------------------
-  let wheelActiveUid = null;
-
-  function applyVisualStates() {
+  // 🔄 統合フィルタリングロジック
+  function applyFilters() {
     const allWorks = document.querySelectorAll("[data-work]");
     
-    // Tag & Year フィルタ状態のUI更新
+    // Tagボタン状態更新
     document.querySelectorAll("button[id^='btn-tag-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
     const activeTagBtn = currentTag ? document.getElementById(`btn-tag-${currentTag}`) : document.getElementById('btn-tag-all');
     activeTagBtn?.classList.add('border-cyan-500', 'text-cyan-400');
 
+    // Yearボタン状態更新
     document.querySelectorAll("button[id^='btn-year-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
     const activeYearBtn = currentYear ? document.getElementById(`btn-year-${currentYear}`) : document.getElementById('btn-year-all');
     activeYearBtn?.classList.add('border-cyan-500', 'text-cyan-400');
@@ -407,133 +350,23 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
     allWorks.forEach((el: any) => {
       const tags = (el.dataset.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean);
       const year = el.dataset.year;
-      const uid = parseInt(el.dataset.uid);
       
       const tagMatch = !currentTag || tags.includes(currentTag);
       const yearMatch = !currentYear || year === currentYear;
 
-      // 1. まずフィルタで除外されているか判定
-      if (!tagMatch || !yearMatch) {
-        el.classList.add('is-filtered-out');
-        el.classList.remove('is-active', 'is-inactive');
-        return;
-      } else {
-        el.classList.remove('is-filtered-out');
-      }
-
-      // 2. ホイールでフォーカスされているか判定
-      if (uid === wheelActiveUid) {
-        el.classList.add('is-active');
+      if (tagMatch && yearMatch) {
         el.classList.remove('is-inactive');
+        if (currentTag || currentYear) el.classList.add('is-active');
+        else el.classList.remove('is-active');
       } else {
         el.classList.add('is-inactive');
         el.classList.remove('is-active');
-        el.style.zIndex = el.dataset.origZ; // 元のZインデックスに戻す
       }
     });
   }
 
-  (window as any).setTag = (tag: string) => { if (!isStarted) startExperience(); currentTag = tag; applyVisualStates(); };
-  (window as any).setYear = (year: string) => { if (!isStarted) startExperience(); currentYear = year; applyVisualStates(); };
-
-  // --------------------------------------------------
-  // 📜 Chrono-Rotary Wheel (Map双方向同期)
-  // --------------------------------------------------
-  const rotary = document.getElementById('rotary') as HTMLElement;
-  const list = document.getElementById('rotary-list') as HTMLElement;
-  const itemHeight = 40; 
-  const containerHeight = 200;
-  let numItems = 0;
-  let totalHeight = 0;
-  let centerPos = 0;
-
-  if (rotary && list) {
-    const items = Array.from(list.children) as HTMLElement[];
-    numItems = items.length;
-    totalHeight = numItems * itemHeight;
-    // 巨大なダミー要素の中央を初期値とする
-    centerPos = Math.floor(50000 / itemHeight) * itemHeight;
-    rotary.scrollTop = centerPos;
-    
-    let isInteracting = false;
-    let snapTimeout;
-
-    const updateItems = () => {
-      const currentScroll = rotary.scrollTop;
-      const scrollY = currentScroll - centerPos;
-      
-      // 現在中央にいるインデックスを計算
-      const rawIndex = Math.round(scrollY / itemHeight);
-      const activeIndex = ((rawIndex % numItems) + numItems) % numItems;
-
-      items.forEach((item, i) => {
-        const basePos = i * itemHeight;
-        const pos = basePos - scrollY;
-        
-        // Y軸の中央にオフセット (コンテナの半分 - アイテムの半分)
-        const offset = (containerHeight / 2) - (itemHeight / 2);
-        const wrappedPos = (((pos) % totalHeight) + totalHeight) % totalHeight;
-        
-        // スタイル適用
-        item.style.transform = `translateY(${currentScroll + wrappedPos - offset}px)`;
-        
-        // 中央のアイテムをフォーカス＆マップ同期
-        if (i === activeIndex) {
-          item.classList.add('is-focused');
-          wheelActiveUid = parseInt(item.dataset.uid);
-          applyVisualStates(); // マップ側のハイライトを更新
-        } else {
-          item.classList.remove('is-focused');
-        }
-      });
-    };
-
-    const snapToCenter = () => {
-      if (isInteracting) return;
-      const current = rotary.scrollTop;
-      const target = Math.round(current / itemHeight) * itemHeight;
-      rotary.scrollTo({ top: target, behavior: 'smooth' });
-    };
-
-    rotary.addEventListener('scroll', () => {
-      updateItems();
-      clearTimeout(snapTimeout);
-      if (!isInteracting) snapTimeout = window.setTimeout(snapToCenter, 150);
-    }, { passive: true });
-
-    // ユーザー操作の監視（スナップの競合を防ぐ）
-    const startInteraction = () => { isInteracting = true; clearTimeout(snapTimeout); };
-    const endInteraction = () => { isInteracting = false; clearTimeout(snapTimeout); snapTimeout = window.setTimeout(snapToCenter, 150); };
-    rotary.addEventListener('mousedown', startInteraction);
-    window.addEventListener('mouseup', endInteraction);
-    rotary.addEventListener('touchstart', startInteraction);
-    window.addEventListener('touchend', endInteraction);
-    rotary.addEventListener('wheel', () => { startInteraction(); clearTimeout((rotary as any).wheelTimer); (rotary as any).wheelTimer = setTimeout(endInteraction, 150); }, { passive: true });
-
-    // Map -> Wheel 同期関数（グローバルに公開）
-    (window as any).syncWheelToMap = (uid) => {
-      // 音楽の一時停止（既存仕様の継承）
-      if (isPlaying) togglePlayback();
-
-      const targetIndex = items.findIndex(item => parseInt(item.dataset.uid) === uid);
-      if (targetIndex === -1) return;
-
-      const currentScroll = rotary.scrollTop;
-      const scrollY = currentScroll - centerPos;
-      const rawIndex = Math.round(scrollY / itemHeight);
-      const currentIndex = ((rawIndex % numItems) + numItems) % numItems;
-      
-      // 最短ルートでスクロールするための計算（ループ考慮）
-      let diff = targetIndex - currentIndex;
-      if (diff > numItems / 2) diff -= numItems;
-      if (diff < -numItems / 2) diff += numItems;
-
-      const targetScroll = currentScroll + (diff * itemHeight);
-      rotary.scrollTo({ top: targetScroll, behavior: 'smooth' });
-    };
-
-    updateItems(); // 初回実行
-  }
+  (window as any).setTag = (tag: string) => { if (!isStarted) startExperience(); currentTag = tag; applyFilters(); };
+  (window as any).setYear = (year: string) => { if (!isStarted) startExperience(); currentYear = year; applyFilters(); };
 
   document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('is-blurred');
