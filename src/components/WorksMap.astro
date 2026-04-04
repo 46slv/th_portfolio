@@ -6,140 +6,158 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
 <style>
-  /* 🔵 HUD全体レイアウト */
-  .hud-shell {
-    display: grid;
-    grid-template-columns: 1fr 320px; /* 左:マップ / 右:ホイール */
-    grid-template-rows: 180px 1fr;    /* 上:インフォ / 下:メイン */
-    height: 90vh;
+  /* 🔵 追加：HUDヘッダーとホイールのスタイル */
+  .hud-top-panel {
+    display: flex;
+    flex-direction: column;
     gap: 10px;
-    background: #050505;
-    padding: 10px;
-    color: #22d3ee;
+    margin-bottom: 15px;
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    background: rgba(0, 0, 0, 0.4);
+    padding: 15px;
     font-family: 'JetBrains Mono', monospace;
   }
 
-  /* 🎯 ターゲット・レティクル（追従する十字照準） */
-  #target-reticle {
-    position: absolute;
-    width: 80px;
-    height: 80px;
-    border: 1px solid rgba(34, 211, 238, 0.3);
-    pointer-events: none;
-    transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-    z-index: 200;
-    transform: translate(-50%, -50%);
-  }
-  #target-reticle::before, #target-reticle::after {
-    content: '';
-    position: absolute;
-    background: #22d3ee;
-    box-shadow: 0 0 15px #22d3ee;
-  }
-  #target-reticle::before { width: 100%; height: 1px; top: 50%; left: 0; }
-  #target-reticle::after { width: 1px; height: 100%; left: 50%; top: 0; }
-
-  /* 🎡 右側：円弧型ホイール */
-  .wheel-viewport {
+  .wheel-container {
     position: relative;
+    height: 60px;
     overflow: hidden;
-    border-left: 1px solid rgba(34, 211, 238, 0.2);
+    border-top: 1px solid rgba(34, 211, 238, 0.1);
+    mask-image: linear-gradient(90deg, transparent, black 20%, black 80%, transparent);
   }
-  .circular-track {
+
+  .wheel-track {
     position: absolute;
-    right: -1100px; /* 巨大な円の半径分オフセット */
-    top: 50%;
-    transform: translateY(-50%);
-    width: 2400px;
-    height: 2400px;
-    border-radius: 50%;
-    border: 1px double rgba(34, 211, 238, 0.1);
-    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    left: 50%;
+    top: 300px; /* 巨大な円の半径 */
+    transform: translateX(-50%) rotate(0deg);
+    transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    transform-style: preserve-3d;
   }
 
-  .hud-card {
+  .wheel-item {
     position: absolute;
-    left: 40px;
-    top: 50%;
-    width: 260px;
-    transform-origin: 1200px center; /* 円の中心を軸に回転 */
-    transition: all 0.4s ease;
+    left: 50%;
+    top: 0;
+    width: 180px;
+    transform-origin: center -300px;
+    text-align: center;
+    transition: all 0.3s;
+    opacity: 0.3;
+    pointer-events: none;
   }
 
-  .hud-card.active {
-    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.6));
-    transform: translateX(-20px) scale(1.05); /* 中央にきた時だけ少し前に出す */
+  .wheel-item.is-active {
+    opacity: 1;
+    color: #22d3ee;
+    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.8));
+    transform: translateX(-50%) translateY(-10px) scale(1.1);
   }
 
-  /* スクロールバー非表示 */
-  .no-scrollbar::-webkit-scrollbar { display: none; }
+  /* 🎯 マップ内のレティクル（十字線） */
+  #map-reticle {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(34, 211, 238, 0.4);
+    pointer-events: none;
+    z-index: 50;
+    transform: translate(-50%, 50%);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  #map-reticle::before, #map-reticle::after {
+    content: ''; position: absolute; background: #22d3ee;
+  }
+  #map-reticle::before { width: 100%; height: 1px; top: 50%; left: 0; }
+  #map-reticle::after { width: 1px; height: 100%; left: 50%; top: 0; }
+
+  /* 既存のスタイル維持 */
+  .map-container {
+    perspective: 1200px;
+    transform-style: preserve-3d;
+    position: relative;
+    isolation: isolate;
+  }
+
+  [data-work] {
+    position: absolute;
+    transition: opacity 0.6s, transform 0.6s, filter 0.6s;
+    will-change: transform, opacity;
+    transform: translate(-50%, 50%) translateZ(0px);
+  }
+
+  [data-work].is-active {
+    opacity: 1 !important;
+    z-index: 100;
+    transform: translate(-50%, 50%) translateZ(80px) scale(1.1);
+    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.8));
+  }
 </style>
 
-<div class="hud-shell border border-cyan-900/50">
-  
-  <header class="col-span-2 border border-cyan-900/40 bg-cyan-950/5 p-4 flex gap-8 items-center backdrop-blur-md relative overflow-hidden">
-    <div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-30"></div>
-    
-    <div id="info-display-thumb" class="w-48 aspect-video bg-zinc-900 border border-cyan-500/50 overflow-hidden shrink-0 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
+<div class="max-w-4xl mx-auto hud-top-panel">
+  <div class="flex gap-4 items-center h-24">
+    <div id="hud-thumb" class="w-32 aspect-video bg-zinc-900 border border-cyan-900 overflow-hidden shrink-0 shadow-lg">
       </div>
-
-    <div class="flex-1 space-y-2">
-      <div class="flex items-center gap-4 text-[10px] tracking-[0.3em] text-cyan-500/60 uppercase">
-        <span>Object Status: Selected</span>
-        <span id="info-display-id">ID: ----</span>
-      </div>
-      <h1 id="info-display-title" class="text-2xl font-black text-white tracking-tighter uppercase truncate">System Ready</h1>
-      <div id="info-display-tags" class="flex gap-2"></div>
+    <div class="flex-1 min-w-0">
+      <div id="hud-id" class="text-[8px] text-cyan-500/50 tracking-widest uppercase">Select Data Point</div>
+      <h2 id="hud-title" class="text-lg font-black text-white truncate uppercase tracking-tighter">System Initialized</h2>
+      <div id="hud-tags" class="flex gap-1 mt-1 overflow-hidden"></div>
     </div>
+  </div>
 
-    <div class="shrink-0">
-      <a id="info-display-link" href="#" target="_blank" class="px-6 py-3 border border-cyan-500 text-cyan-400 text-xs hover:bg-cyan-500 hover:text-black transition-all font-black tracking-widest uppercase">
-        Access Data →
-      </a>
-    </div>
-  </header>
-
-  <main class="relative bg-black/40 border border-cyan-900/30 overflow-hidden cursor-none">
-    <div id="target-reticle" class="opacity-0"></div> <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(#22d3ee 1px, transparent 1px), linear-gradient(90deg, #22d3ee 1px, transparent 1px); background-size: 40px 40px;"></div>
-
-    <div class="absolute inset-16">
-      {works.map((work, index) => {
-        const x = ((work.x + 100) / 200) * 100;
-        const y = ((work.y + 100) / 200) * 100;
-        return (
-          <div 
-            data-map-point={index}
-            class="absolute w-2 h-2 bg-white/20 border border-white/40 transition-all hover:bg-cyan-400"
-            style={`left: ${x}%; bottom: ${y}%;`}
-            onclick={`focusIndex(${index})`}
-          ></div>
-        );
-      })}
-    </div>
-  </main>
-
-  <aside class="wheel-viewport">
-    <div id="circular-track" class="circular-track">
-      {works.map((work, index) => (
-        <div 
-          class="hud-card" 
-          data-card-index={index}
-          style={`transform: rotate(0deg);`}
-        >
-          <div class="bg-black/80 border-l-4 border-zinc-800 p-3 hover:border-cyan-500 transition-all cursor-pointer group" onclick={`focusIndex(${index})`}>
-            <p class="text-[8px] text-zinc-500 group-hover:text-cyan-500">ENTRY_{index.toString().padStart(3, '0')}</p>
-            <h3 class="text-[10px] text-zinc-300 font-bold truncate group-hover:text-white uppercase">{work.title}</h3>
-          </div>
+  <div class="wheel-container">
+    <div id="wheel-track" class="wheel-track">
+      {works.map((work, i) => (
+        <div class="wheel-item text-[10px] uppercase font-bold" data-index={i}>
+          {work.title}
         </div>
       ))}
     </div>
-    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-[2px] bg-cyan-400 shadow-[0_0_10px_#22d3ee]"></div>
-  </aside>
+    <div class="absolute left-1/2 top-0 -translate-x-1/2 w-px h-full bg-cyan-500/30"></div>
+  </div>
+</div>
+
+<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
+  <button id="btn-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all uppercase">All</button>
+  {allTags.map(tag => (
+    <button id={`btn-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{tag}</button>
+  ))}
+</div>
+
+<div class="map-container relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] selection:bg-cyan-500/30">
+  
+  <div id="map-reticle" class="opacity-0"></div>
+
+  <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
+  
+  <div class="absolute inset-16 sm:inset-24">
+    {works.map((work, index) => {
+      const left = ((work.x + 100) / 200) * 100;
+      const bottom = ((work.y + 100) / 200) * 100;
+
+      return (
+        <div 
+          data-work
+          data-index={index}
+          data-tags={work.tags?.join(",") ?? ""}
+          class="group absolute cursor-crosshair"
+          style={`left: ${left}%; bottom: ${bottom}%; z-index: ${Math.round(bottom)};`}
+          onclick={`focusItem(${index})`}
+        >
+          <div class="relative w-4 h-4 flex items-center justify-center group-hover:scale-125 transition-transform">
+            <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
+            <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
+            <div class="w-1 h-1 bg-white"></div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
 </div>
 
 <script define:vars={{ works }}>
   let activeIndex = 0;
-  const total = works.length;
+  let currentTag = null;
 
   function getYoutubeId(url) {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -147,60 +165,59 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     return (match && match[2].length === 11) ? match[2] : null;
   }
 
-  function focusIndex(index) {
-    activeIndex = Math.max(0, Math.min(index, total - 1));
-    updateHUD();
+  function focusItem(index) {
+    activeIndex = Math.max(0, Math.min(index, works.length - 1));
+    updateUI();
   }
 
-  function updateHUD() {
-    const current = works[activeIndex];
-    const ytId = getYoutubeId(current.url);
+  function updateUI() {
+    const activeData = works[activeIndex];
+    
+    // 1. マップ上のアクティブ状態とレティクル移動
+    const points = document.querySelectorAll("[data-work]");
+    const reticle = document.getElementById("map-reticle");
+    
+    points.forEach((p, i) => {
+      const isSelected = i === activeIndex;
+      p.classList.toggle("is-active", isSelected);
+      if (isSelected) {
+        reticle.style.opacity = "1";
+        reticle.style.left = p.style.left;
+        reticle.style.bottom = p.style.bottom;
+      }
+    });
 
-    // 1. 上部情報の更新
-    document.getElementById('info-display-title').innerText = current.title;
-    document.getElementById('info-display-id').innerText = `ID: ${current.artist}`;
-    document.getElementById('info-display-link').href = current.url;
-    document.getElementById('info-display-thumb').innerHTML = ytId 
-      ? `<img src="https://img.youtube.com/vi/${ytId}/mqdefault.jpg" class="w-full h-full object-cover animate-pulse" />`
-      : `<div class="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px]">NO SIGNAL</div>`;
+    // 2. HUDパネルの更新
+    document.getElementById("hud-title").innerText = activeData.title;
+    document.getElementById("hud-id").innerText = `ID: ${activeData.artist}`;
+    const ytId = getYoutubeId(activeData.url);
+    document.getElementById("hud-thumb").innerHTML = ytId 
+      ? `<img src="https://img.youtube.com/vi/${ytId}/mqdefault.jpg" class="w-full h-full object-cover shadow-inner" />`
+      : `<div class="w-full h-full bg-zinc-800"></div>`;
 
-    // 2. マップ上の十字カーソル移動
-    const reticle = document.getElementById('target-reticle');
-    const targetPoint = document.querySelector(`[data-map-point="${activeIndex}"]`);
-    if (targetPoint) {
-      reticle.style.opacity = '1';
-      reticle.style.left = targetPoint.style.left;
-      reticle.style.bottom = targetPoint.style.bottom;
-      // 座標軸も移動させるならここ
-    }
-
-    // 3. ホイール回転
-    const track = document.getElementById('circular-track');
-    const angleStep = 12; // カード間の角度
-    track.style.transform = `translateY(-50%) rotate(${activeIndex * -angleStep}deg)`;
-
-    // 4. カードの状態更新
-    document.querySelectorAll('.hud-card').forEach((card, i) => {
-      const cardAngle = i * angleStep;
-      card.style.transform = `translateY(-50%) rotate(${cardAngle}deg)`;
-      card.classList.toggle('active', i === activeIndex);
-      card.style.opacity = Math.abs(i - activeIndex) > 4 ? '0.2' : '1';
+    // 3. ホイールの回転
+    const track = document.getElementById("wheel-track");
+    const angleStep = 12; // 1項目あたりの回転角度
+    track.style.transform = `translateX(-50%) rotate(${activeIndex * -angleStep}deg)`;
+    
+    document.querySelectorAll(".wheel-item").forEach((item, i) => {
+      item.classList.toggle("is-active", i === activeIndex);
     });
   }
 
-  // 入力イベント
-  window.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    if (e.deltaY > 0) focusIndex(activeIndex + 1);
-    else focusIndex(activeIndex - 1);
-  }, { passive: false });
+  // キーボード & マウスホイール操作
+  window.addEventListener("wheel", (e) => {
+    if (Math.abs(e.deltaY) < 10) return;
+    e.deltaY > 0 ? focusItem(activeIndex + 1) : focusItem(activeIndex - 1);
+  }, { passive: true });
 
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') focusIndex(activeIndex - 1);
-    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') focusIndex(activeIndex + 1);
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") focusItem(activeIndex + 1);
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") focusItem(activeIndex - 1);
   });
 
   // 初期化
-  window.focusIndex = focusIndex;
-  document.addEventListener('DOMContentLoaded', () => focusIndex(0));
+  window.focusItem = focusItem;
+  window.setTag = (tag) => { currentTag = tag; /* フィルタロジックは必要に応じて拡張 */ };
+  document.addEventListener("DOMContentLoaded", () => focusItem(0));
 </script>
