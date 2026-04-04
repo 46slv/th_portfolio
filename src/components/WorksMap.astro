@@ -2,20 +2,21 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
-// 🔥 タグ一覧自動生成
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
 <style>
-  /* 🌫️ 画面全体の初期状態（ブラー） */
-  :global(body) {
-    overflow: hidden; 
-    transition: filter 1.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
+  /* 🌫️ 画面全体の初期状態 */
   :global(body.is-blurred) {
     filter: blur(20px) saturate(0.5);
     pointer-events: none;
+    overflow: hidden;
+  }
+
+  :global(body) {
+    transition: filter 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: #09090b;
+    margin: 0;
   }
 
   /* 🎬 始動オーバーレイ */
@@ -30,6 +31,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     justify-content: center;
     background: rgba(0, 0, 0, 0.6);
     cursor: pointer;
+    pointer-events: auto !important; /* ブラー中でもクリック可能にする */
     transition: opacity 0.8s ease, visibility 0.8s;
   }
 
@@ -38,7 +40,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     visibility: hidden;
   }
 
-  /* 🔵 レイアウト設定 */
+  /* 🔵 レイアウト */
   .main-layout {
     display: grid;
     grid-template-columns: 1fr 240px; 
@@ -50,82 +52,31 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     transition: opacity 1s ease 0.5s;
   }
 
-  body:not(.is-blurred) .main-layout {
+  :global(body:not(.is-blurred)) .main-layout {
     opacity: 1;
   }
 
-  .map-container {
-    perspective: 1200px;
-    transform-style: preserve-3d;
-    position: relative;
-    isolation: isolate;
-  }
-
+  /* マップ・ツールチップ・アニメーションのCSSは前回と同様のため省略 */
+  .map-container { perspective: 1200px; transform-style: preserve-3d; position: relative; isolation: isolate; }
   @keyframes float {
     0%, 100% { transform: translate(-50%, 50%) rotate(0deg); }
     33% { transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg); }
     66% { transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg); }
   }
+  [data-work] { position: absolute; transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); will-change: transform, opacity; transform: translate(-50%, 50%); }
+  [data-work].is-active { opacity: 1; z-index: 100; transform: translate(-50%, 50%) translateZ(120px) scale(1.2); }
+  [data-work].is-inactive { opacity: 0.1; z-index: 0; transform: translate(-50%, 50%) translateZ(-300px) scale(0.7); pointer-events: none; }
+  .animate-float { animation: float 6s ease-in-out infinite; }
 
-  [data-work] {
-    position: absolute;
-    transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), filter 0.6s ease;
-    will-change: transform, opacity;
-    transform: translate(-50%, 50%) translateZ(0px);
-  }
-
-  [data-work].is-active {
-    opacity: 1;
-    z-index: 100;
-    transform: translate(-50%, 50%) translateZ(120px) scale(1.2);
-    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.8));
-  }
-
-  [data-work].is-inactive {
-    opacity: 0.1;
-    z-index: 0;
-    transform: translate(-50%, 50%) translateZ(-300px) scale(0.7);
-    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.2));
-    pointer-events: none;
-  }
-
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  /* 🎚️ 右側オーディオHUD */
-  .audio-hud {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    padding: 20px;
-    background: rgba(9, 9, 11, 0.5);
-    border: 1px solid rgba(34, 211, 238, 0.1);
-    height: fit-content;
-  }
-
+  /* オーディオHUDのCSSも同様 */
+  .audio-hud { display: flex; flex-direction: column; gap: 24px; padding: 20px; background: rgba(9, 9, 11, 0.5); border: 1px solid rgba(34, 211, 238, 0.1); height: fit-content; }
   .control-group { display: flex; flex-direction: column; gap: 8px; }
   .control-label { font-size: 9px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.1em; }
-  
-  input[type="range"] {
-    appearance: none;
-    background: #27272a;
-    height: 2px;
-    width: 100%;
-    outline: none;
-  }
-  input[type="range"]::-webkit-slider-thumb {
-    appearance: none;
-    width: 10px;
-    height: 10px;
-    background: #22d3ee;
-    cursor: pointer;
-    border-radius: 50%;
-    box-shadow: 0 0 8px #22d3ee;
-  }
+  input[type="range"] { appearance: none; background: #27272a; height: 2px; width: 100%; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: #22d3ee; cursor: pointer; border-radius: 50%; box-shadow: 0 0 8px #22d3ee; }
 </style>
 
-<div id="start-overlay" onclick="startExperience()">
+<div id="start-overlay">
   <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">
     Initialize System
   </span>
@@ -168,23 +119,11 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
                 <div class="w-1 h-1 bg-white"></div>
               </a>
 
-              <div class={`absolute mb-2 w-[220px] z-[100]
-                          opacity-0 pointer-events-none
-                          group-hover:opacity-100 group-hover:pointer-events-auto
-                          transition-all duration-300 ease-out
-                          delay-1200 group-hover:delay-[400ms]
-                          ${bottom > 70 ? 'top-6' : 'bottom-full'} 
-                          ${left > 70 ? 'right-4' : 'left-4'}`}>
-                
+              <div class={`absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
                 <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
                   {ytId && (
                     <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
-                      <img 
-                        src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} 
-                        alt="Thumbnail"
-                        class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]"
-                        loading="lazy"
-                      />
+                      <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} alt="Thumbnail" class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]" loading="lazy" />
                     </div>
                   )}
                   <div class="p-3 text-left">
@@ -197,10 +136,10 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
                         ))}
                       </div>
                     )}
-                    <a href={work.url} target="_blank" class="flex items-center justify-between text-[9px] text-zinc-400 hover:text-white border border-zinc-800 hover:border-cyan-500 px-2 py-1.5 transition-all uppercase tracking-[0.1em] bg-zinc-900/50">
+                    <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 transition-all uppercase tracking-[0.1em] bg-zinc-900/50">
                       <span>Access Data</span>
                       <span class="text-[10px]">→</span>
-                    </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -212,22 +151,11 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   </div>
 
   <aside class="audio-hud">
-    <div class="control-group">
-      <label class="control-label">Master Volume</label>
-      <input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5">
-    </div>
-    <div class="control-group">
-      <label class="control-label">Playback Speed</label>
-      <input type="range" id="speed-fader" min="0.5" max="2" step="0.01" value="1.0">
-    </div>
-    <div class="control-group">
-      <label class="control-label">Pitch Shift</label>
-      <input type="range" id="pitch-fader" min="0.5" max="2" step="0.01" value="1.0">
-    </div>
+    <div class="control-group"><label class="control-label">Master Volume</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
+    <div class="control-group"><label class="control-label">Playback Speed</label><input type="range" id="speed-fader" min="0.5" max="2" step="0.01" value="1.0"></div>
+    <div class="control-group"><label class="control-label">Pitch Shift</label><input type="range" id="pitch-fader" min="0.5" max="2" step="0.01" value="1.0"></div>
     <div class="mt-4 pt-4 border-t border-zinc-800">
-      <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden">
-        <div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div>
-      </div>
+      <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div></div>
       <p class="text-[7px] text-zinc-600 mt-1 uppercase">Audio Signal Analysis</p>
     </div>
   </aside>
@@ -240,15 +168,22 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   let gainNode = null;
   let isStarted = false;
 
-  document.body.classList.add('is-blurred');
+  // 確実に実行される初期化
+  function initBodyBlur() {
+    document.body.classList.add('is-blurred');
+  }
 
   async function startExperience() {
     if (isStarted) return;
     isStarted = true;
 
-    document.getElementById('start-overlay').classList.add('hidden');
+    // 1. 演出解除
+    const overlay = document.getElementById('start-overlay');
+    if (overlay) overlay.classList.add('hidden');
     document.body.classList.remove('is-blurred');
+    document.body.style.overflow = 'auto';
 
+    // 2. オーディオ
     try {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const response = await fetch('/SITE_th.mp3');
@@ -266,16 +201,17 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
       gainNode.connect(audioContext.destination);
       source.start(0);
 
+      // フェーダー設定
       const volFader = document.getElementById('vol-fader') as HTMLInputElement;
       const speedFader = document.getElementById('speed-fader') as HTMLInputElement;
       const pitchFader = document.getElementById('pitch-fader') as HTMLInputElement;
 
-      volFader.oninput = () => gainNode.gain.value = parseFloat(volFader.value);
-      speedFader.oninput = () => source.playbackRate.value = parseFloat(speedFader.value);
-      pitchFader.oninput = () => {
+      volFader.addEventListener('input', () => gainNode.gain.value = parseFloat(volFader.value));
+      speedFader.addEventListener('input', () => source.playbackRate.value = parseFloat(speedFader.value));
+      pitchFader.addEventListener('input', () => {
          source.playbackRate.value = parseFloat(pitchFader.value);
          speedFader.value = pitchFader.value;
-      };
+      });
 
       const vBar = document.getElementById('v-bar');
       setInterval(() => {
@@ -283,9 +219,16 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
         if(vBar) vBar.style.width = `${level}%`;
       }, 100);
     } catch (e) {
-      console.error("Audio error:", e);
+      console.error("Audio failed:", e);
     }
   }
+
+  // グローバル関数
+  (window as any).setTag = (tag) => {
+    if (!isStarted) startExperience();
+    currentTag = tag;
+    applyFilters();
+  };
 
   function applyFilters() {
     const allWorks = document.querySelectorAll("[data-work]");
@@ -308,11 +251,10 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     });
   }
 
-  (window as any).setTag = (tag) => {
-    if (!isStarted) startExperience();
-    currentTag = tag;
+  // 起動設定
+  document.addEventListener('DOMContentLoaded', () => {
+    initBodyBlur();
     applyFilters();
-  };
-  (window as any).startExperience = startExperience;
-  document.addEventListener('DOMContentLoaded', applyFilters);
+    document.getElementById('start-overlay')?.addEventListener('click', startExperience);
+  });
 </script>
