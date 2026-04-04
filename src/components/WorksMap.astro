@@ -2,46 +2,11 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
-// --------------------------------------------------
-// 📊 データ処理
-// --------------------------------------------------
-
-// SS_Portfolio Data (index.astro から統合)
-const profile = {
-  name: "Shishu Fujishiro",
-  jpName: "藤白 詩集",
-  roles: "Compositor / Colorist / Motion Designer / Cinematographer",
-  email: "info@corecreative.jp",
-  snsLinks: [
-    { name: "X (Twitter)", url: "https://x.com/shiro_works" },
-  ],
-  workScope: [
-    { title: "Music Video", desc: "Filmmaking / Editing / Motion Graphics" },
-    { title: "Film Instructor", desc: "Support Lecturer at Vocational School" },
-  ]
-};
-
-// Chrono-Log Data (index.astro から統合・ソート)
-const logs = [
-  { date: "2025.12.21.", content: "V/R Converters「ニューラルへ縹緲」リリックブック", url: "https://x.com/shiro_works/status/2003103881790914873" },
-  { date: "2025.12.12.", content: "【生演奏歌枠】manuscript / 綿菓子かんろ", url: "https://x.com/Wata_kanro/status/1999463442328224198" },
-  { date: "2025.09.01", content: "Core Creative / CDs 加入", url: "https://x.com/shiro_works/status/1962168505782186124" },
-  { date: "2025.08.22", content: "【歌枠】常夏ノ夜ニ萌ユ！", url: "https://x.com/Wata_kanro/status/1958875429101871257" },
-  { date: "2025.08.16", content: "【歌ってみた】空想フォレスト", url: "https://x.com/Wata_kanro/status/1956371845164253453" },
-  { date: "2025.07.25", content: "【歌ってみた】サンフェーデッド", url: "https://x.com/shiro_works/status/1961069976883782057" },
-  { date: "2025.05.28", content: "【歌ってみた】きゅびずむ シリーズ", url: "https://x.com/Wata_kanro/status/1927654765754003841" },
-];
-
-// WorksMap フィルタリング用データの抽出
+// 🔥 フィルタリング用データの抽出
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))].sort();
 const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
 ---
 
-<html lang="ja">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width" />
-  <title>SS_Portfolio | {profile.name}</title>
 <style>
   /* --------------------------------------------------
    * 🌫️ 【仕様固定】画面全体の初期状態（ブラー）
@@ -58,7 +23,6 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
     color: white;
     min-height: 100vh;
     transition: filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
-    font-family: 'JetBrains Mono', monospace selection:bg-white selection:text-black antialiased;
   }
 
   /* 🎬 始動用オーバーレイ */
@@ -86,14 +50,13 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
 
   /* 🔵 レイアウト構成 */
   .main-layout {
-    display: grid; grid-template-columns: 1fr 240px; gap: 24px;
-    max-width: 1400px; margin: 24px auto;
+    display: grid; grid-template-columns: 1fr 240px; gap: 20px;
+    max-width: 1200px; margin: 20px auto;
+    font-family: 'JetBrains Mono', monospace;
     opacity: 0; transition: opacity 1s ease 0.5s;
-    padding: 0 24px;
   }
   :global(body:not(.is-blurred)) .main-layout { opacity: 1; }
 
-  /* 🗺️ Map Container & Elements */
   .map-container { perspective: 1200px; transform-style: preserve-3d; position: relative; isolation: isolate; }
   
   @keyframes float {
@@ -120,28 +83,9 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
   }
   .animate-float { animation: float 6s ease-in-out infinite; }
 
-  /* ✨ 【新規】パーティクル演出 */
-  #particle-container {
-    position: absolute; inset: 0; pointer-events: none; z-index: 1;
-    mask-image: radial-gradient(circle, black 30%, transparent 70%);
-  }
-  :global(.particle) {
-    position: absolute; width: 1px; height: 1px;
-    background-color: rgba(34, 211, 238, 0.4);
-    border-radius: 50%;
-    animation: particle-drift linear infinite;
-    will-change: transform, opacity;
-  }
-  @keyframes particle-drift {
-    0% { transform: translate(0, 0) translateZ(0); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: var(--drift-end) translateZ(100px); opacity: 0; }
-  }
-
   /* 🎚️ オーディオHUD */
   .audio-hud { 
-    display: flex; flex-direction: column; gap: 18px; padding: 24px; 
+    display: flex; flex-direction: column; gap: 18px; padding: 20px; 
     background: rgba(9, 9, 11, 0.8); border: 1px solid rgba(34, 211, 238, 0.1); 
     height: fit-content; position: relative; z-index: 20; backdrop-blur: lg; 
   }
@@ -151,217 +95,111 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
   input[type="range"]::-webkit-slider-thumb { appearance: none; width: 8px; height: 8px; background: #22d3ee; border-radius: 50%; cursor: pointer; box-shadow: 0 0 5px #22d3ee; }
   
   .hud-divider { height: 1px; background: rgba(34, 211, 238, 0.05); margin: 10px 0; }
-
-  /* 📜 【復元】Chrono-Log (index.astro) */
-  .rotary-viewport {
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin; scrollbar-color: #3f3f46 transparent; 
-  }
-  .rotary-viewport::-webkit-scrollbar { width: 2px; }
-  .rotary-viewport::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
-  .rotary-item { height: 80px; display: flex; align-items: center; top: 0; will-change: transform; }
-
-  /* Load Animation (index.astro) */
-  @keyframes fadeSlideRight { 0% { opacity: 0; transform: translateX(-15px); } 100% { opacity: 1; transform: translateX(0); } }
-  .animate-fade-slide { opacity: 0; animation: fadeSlideRight 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-  .delay-100 { animation-delay: 100ms; } .delay-200 { animation-delay: 200ms; } .delay-300 { animation-delay: 300ms; } .delay-400 { animation-delay: 400ms; } .delay-500 { animation-delay: 500ms; }
 </style>
-</head>
 
-<body class="is-blurred overflow-x-hiddenSelection:bg-white selection:text-black antialiased">
 <div id="start-overlay">
   <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">Initialize System</span>
   <p class="text-zinc-600 text-[8px] uppercase tracking-widest mt-2">Click Anywhere to Begin</p>
 </div>
 
 <div class="contact-bar">
-  <div class="contact-link" onclick="copyContact('{profile.email}')">
+  <div class="contact-link" onclick="copyContact('info@corecreative.jp')">
     <span class="text-zinc-500">CONTACT:</span>
-    <span id="contact-text">{profile.email}</span>
+    <span id="contact-text">info@corecreative.jp</span>
     <div id="copy-toast" class="copy-feedback">COPIED</div>
   </div>
 </div>
 
+<div class="max-w-4xl mx-auto pt-6 px-4 space-y-4">
+  <div class="flex flex-wrap gap-2 text-[10px]">
+    <button id="btn-tag-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all uppercase">All Tags</button>
+    {allTags.map(tag => (
+      <button id={`btn-tag-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{tag}</button>
+    ))}
+  </div>
+  <div class="flex flex-wrap gap-2 text-[10px] opacity-70">
+    <button id="btn-year-all" onclick="setYear(null)" class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">All Years</button>
+    {allYears.map(year => (
+      <button id={`btn-year-${year}`} onclick={`setYear("${year}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{year}</button>
+    ))}
+  </div>
+</div>
+
 <div class="main-layout">
-  <div class="space-y-24">
-    
-    <header class="animate-fade-slide delay-100">
-      <div class="flex justify-between items-start mb-12 border-b border-zinc-900 pb-8">
-        <div>
-          <div class="text-[10px] tracking-[0.4em] font-black text-white uppercase opacity-50 mb-4">SS_Portfolio v2.10</div>
-          <h1 class="text-4xl md:text-5xl font-bold text-white transition-all duration-700 hover:tracking-widest cursor-default">
-            {profile.name}
-            <span class="text-zinc-600 font-light text-xl italic ml-3 tracking-normal">{profile.jpName}</span>
-          </h1>
-          <p class="text-zinc-500 text-xs mt-3 tracking-wide">{profile.roles}</p>
-        </div>
-        <div class="text-[10px] tracking-widest uppercase font-mono text-right space-y-1 text-zinc-600">
-          <div>Status: <span class="text-green-500 animate-pulse">ONLINE</span></div>
-          <div id="sys-time">TIME: --:--:--</div>
-        </div>
+  <div class="relative aspect-square px-4">
+    <div id="map-target" class="map-container w-full h-full bg-zinc-950/40 border border-zinc-800 overflow-hidden font-mono text-[10px]">
+      <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
+      
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+        <div class="w-full h-[1px] bg-zinc-800"></div>
+        <div class="absolute h-full w-[1px] bg-zinc-800"></div>
       </div>
+      <div class="absolute top-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Maniac [+]</div>
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Popular [-]</div>
+      <div class="absolute left-4 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-left">Electro [L]</div>
+      <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-right">Acoustic [R]</div>
 
-      <div class="flex flex-wrap gap-3 text-[10px] tracking-[0.2em] uppercase">
-        {profile.snsLinks.map(link => (
-          <a href={link.url} target="_blank" class="border border-zinc-800 px-5 py-3 hover:bg-[#d0e2f8] hover:text-black hover:border-[#d0e2f8] transition-all duration-300 hover:scale-105 origin-center flex items-center">
-            {link.name}
-          </a>
-        ))}
-        <div class="border border-zinc-700/50 text-zinc-400 px-5 py-3 flex items-center gap-2">
-          <span>Mail: {profile.email}</span>
-        </div>
-      </div>
-    </header>
-
-    <section class="animate-fade-slide delay-200">
-      <div class="mb-6 space-y-4 border border-zinc-900 bg-zinc-950/50 p-4">
-        <div class="flex flex-wrap gap-2 text-[9px] uppercase">
-          <button id="btn-tag-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all">All Tags</button>
-          {allTags.map(tag => (
-            <button id={`btn-tag-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all">{tag}</button>
-          ))}
-        </div>
-        <div class="flex flex-wrap gap-2 text-[9px] uppercase opacity-70">
-          <button id="btn-year-all" onclick="setYear(null)" class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all">All Years</button>
-          {allYears.map(year => (
-            <button id={`btn-year-${year}`} onclick={`setYear("${year}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all">{year}</button>
-          ))}
-        </div>
-      </div>
-
-      <div class="relative aspect-square">
-        <div id="map-target" class="map-container w-full h-full bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px Selection:bg-cyan-500/30">
-          
-          <div id="particle-container"></div>
-          
-          <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
-          
-          <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-            <div class="w-full h-[1px] bg-zinc-800"></div>
-            <div class="absolute h-full w-[1px] bg-zinc-800"></div>
-          </div>
-          <div class="absolute top-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px] font-black pointer-events-none">Maniac [+]</div>
-          <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px] font-black pointer-events-none">Popular [-]</div>
-          <div class="absolute left-4 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] font-black origin-left pointer-events-none">Electro [L]</div>
-          <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] font-black origin-right pointer-events-none">Acoustic [R]</div>
-
-          <div class="absolute inset-16 sm:inset-24 z-10">
-            {works.map((work, index) => {
-              const left = ((work.x + 100) / 200) * 100;
-              const bottom = ((work.y + 100) / 200) * 100;
-              const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
-              return (
-                <div 
-                  data-work 
-                  data-tags={work.tags?.join(",") ?? ""} 
-                  data-year={work.year}
-                  class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]" 
-                  style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
-                >
-                  <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center work-trigger">
-                    <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
-                    <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
-                    <div class="w-1 h-1 bg-white"></div>
-                  </a>
-                  
-                  <div class={`absolute mb-2 w-[240px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
-                    <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
-                      {ytId && (
-                        <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
-                          <img 
-                            src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} 
-                            class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]" 
-                            loading="lazy" 
-                          />
-                        </div>
-                      )}
-                      <div class="p-3 text-left">
-                        <div class="flex justify-between items-start mb-1 uppercase text-[8px]">
-                          <p class="text-cyan-500/70 tracking-tighter">ID: {work.artist}</p>
-                          <p class="text-zinc-500 font-mono">{work.year}</p>
-                        </div>
-                        <p class="text-white font-bold leading-tight mb-2 line-clamp-2">{work.title}</p>
-                        
-                        {work.tags && (
-                          <div class="flex gap-1 mt-1 flex-wrap mb-3">
-                            {work.tags.map(tag => (
-                              <span class="text-[7px] bg-zinc-800 text-zinc-400 px-1 border border-zinc-700/50 uppercase tracking-wider">{tag}</span>
-                            ))}
-                          </div>
-                        )}
-
-                        <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase tracking-[0.1em] bg-zinc-900/50">
-                          <span>Access Data</span><span>→</span>
-                        </div>
+      <div class="absolute inset-16 sm:inset-24">
+        {works.map((work, index) => {
+          const left = ((work.x + 100) / 200) * 100;
+          const bottom = ((work.y + 100) / 200) * 100;
+          const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
+          return (
+            <div 
+              data-work 
+              data-tags={work.tags?.join(",") ?? ""} 
+              data-year={work.year}
+              class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]" 
+              style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
+            >
+              <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center work-trigger">
+                <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
+                <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
+                <div class="w-1 h-1 bg-white"></div>
+              </a>
+              <div class={`absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
+                <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
+                  {ytId && (
+                    <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
+                      <img 
+                        src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} 
+                        class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]" 
+                        loading="lazy" 
+                      />
+                    </div>
+                  )}
+                  <div class="p-3">
+                    <div class="flex justify-between items-start mb-1 uppercase text-[8px]">
+                      <p class="text-cyan-500/70">ID: {work.artist}</p>
+                      <p class="text-zinc-500">{work.year}</p>
+                    </div>
+                    <p class="text-white font-bold leading-tight mb-2 line-clamp-2">{work.title}</p>
+                    
+                    {work.tags && (
+                      <div class="flex gap-1 mt-1 flex-wrap mb-3">
+                        {work.tags.map(tag => (
+                          <span class="text-[7px] bg-zinc-800 text-zinc-400 px-1 border border-zinc-700/50">{tag}</span>
+                        ))}
                       </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </section>
+                    )}
 
-    <div class="grid md:grid-cols-2 gap-16 items-start pb-24">
-      <section class="animate-fade-slide delay-300">
-        <h2 class="text-[10px] tracking-[0.3em] font-bold text-zinc-400 uppercase mb-6 border-b border-zinc-900 pb-2">Recent Logs</h2>
-        <div class="relative h-[320px]" style="mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);">
-          <div id="rotary" class="rotary-viewport absolute inset-0 overflow-y-auto">
-            <div id="rotary-dummy" style="height: 100000px;"></div>
-            <div id="rotary-list" class="absolute top-0 left-0 w-full">
-              {logs.map((log) => (
-                <div class="rotary-item absolute w-full">
-                  <div class="flex gap-4 items-center group">
-                    <div class="h-1.5 w-1.5 rounded-full bg-[#d0e2f8] shadow-[0_0_8px_rgba(208,226,248,0.4)] group-hover:shadow-[0_0_12px_rgba(208,226,248,0.8)] transition-all"></div>
-                    <div>
-                      <div class="text-[10px] font-mono text-zinc-500 mb-0.5 tracking-wider">{log.date}</div>
-                      <a href={log.url} target="_blank" class="text-sm tracking-wider text-zinc-300 group-hover:text-[#d0e2f8] transition-all hover:scale-105 origin-left inline-block">
-                        {log.content}
-                      </a>
+                    <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50">
+                      <span>Access Data</span><span>→</span>
                     </div>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="space-y-12 animate-fade-slide delay-400">
-        <div>
-          <h2 class="text-[10px] tracking-[0.3em] font-bold text-zinc-600 uppercase mb-8 border-b border-zinc-900 pb-2">Work Scope</h2>
-          <div class="space-y-6 text-sm font-light">
-            {profile.workScope.map(work => (
-              <div>
-                <h3 class="font-medium text-zinc-200">{work.title}</h3>
-                <p class="text-zinc-500 mt-1">{work.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h2 class="text-[10px] tracking-[0.3em] font-bold text-zinc-600 uppercase mb-8 border-b border-zinc-900 pb-2">Direct Link</h2>
-          <div class="space-y-3">
-            <a href="https://corecreative.jp/shishu-fujishiro" target="_blank" class="block group p-5 bg-zinc-950 border border-zinc-900 hover:border-zinc-700 transition-all hover:scale-[1.02] origin-center">
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-white font-medium tracking-wide">Core Creative Profile</span>
-                <span class="text-xl group-hover:translate-x-1.5 transition-transform">→</span>
-              </div>
-            </a>
-          </div>
-        </div>
-      </section>
+          );
+        })}
+      </div>
     </div>
   </div>
 
   <aside class="audio-hud">
     <div class="control-group"><label class="control-label">Master Gain</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
     <div class="control-group"><label class="control-label">Temporal Velocity</label><input type="range" id="speed-fader" min="0" max="2" step="0.01" value="1.0"></div>
-    
     <div class="hud-divider"></div>
-    
     <div class="control-group"><label class="control-label">Distortion (Entropy)</label><input type="range" id="dist-fader" min="0" max="100" step="1" value="0"></div>
     <div class="control-group"><label class="control-label">Delay (Echoes)</label><input type="range" id="delay-fader" min="0" max="0.8" step="0.01" value="0"></div>
     <div class="control-group"><label class="control-label">Reverb (Space)</label><input type="range" id="reverb-fader" min="0" max="1" step="0.01" value="0"></div>
@@ -396,7 +234,6 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
     });
   };
 
-  // 🌈 ドップラー・ビジュアルアップデート
   function updateVisualShift() {
     if (!isStarted) return;
     if (isPlaying && currentSpeed > 0) {
@@ -423,41 +260,6 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
     requestAnimationFrame(updateVisualShift);
   }
 
-  // ✨ 【新規】パーティクル生成
-  function createParticles() {
-    const container = document.getElementById('particle-container');
-    if (!container) return;
-    const count = 50; // パーティクルの数
-    
-    for (let i = 0; i < count; i++) {
-      const particle = document.createElement('div');
-      particle.className = 'particle';
-      
-      // 初期位置ランダム
-      particle.style.left = `${Math.random() * 100}%`;
-      particle.style.top = `${Math.random() * 100}%`;
-      
-      // サイズランダム (0.5px ~ 1.5px)
-      const size = Math.random() * 1 + 0.5;
-      particle.style.width = `${size}px`;
-      particle.style.height = `${size}px`;
-
-      // アニメーション設定ランダム
-      const duration = Math.random() * 15 + 10; // 10s ~ 25s
-      const delay = Math.random() * -20; // negative delay で最初から散らす
-      particle.style.animationDuration = `${duration}s`;
-      particle.style.animationDelay = `${delay}s`;
-      
-      // ドリフト方向ランダム (CSS変数として渡す)
-      const driftX = (Math.random() - 0.5) * 200; // -100px ~ 100px
-      const driftY = (Math.random() - 0.5) * 200; // -100px ~ 100px
-      particle.style.setProperty('--drift-end', `${driftX}px, ${driftY}px`);
-
-      container.appendChild(particle);
-    }
-  }
-
-  // オーディオFX系の関数群 (仕様固定)
   function createImpulse(duration, decay) {
     const rate = audioContext.sampleRate;
     const length = rate * duration;
@@ -468,6 +270,7 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
     }
     return impulse;
   }
+
   function makeDistortionCurve(amount) {
     const k = amount || 50;
     const n_samples = 44100;
@@ -479,22 +282,20 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
     }
     return curve;
   }
+
   function togglePlayback() {
     if (!audioContext) return;
     if (isPlaying) { audioContext.suspend(); isPlaying = false; document.getElementById('play-pause-btn').innerText = "Resume Transmission"; }
     else { audioContext.resume(); isPlaying = true; document.getElementById('play-pause-btn').innerText = "Pause Transmission"; }
   }
 
-  // システム始動
   async function startExperience() {
     if (isStarted) return;
     isStarted = true;
     document.getElementById('start-overlay').classList.add('hidden');
     document.body.classList.remove('is-blurred');
     document.body.style.overflow = 'auto';
-    
     updateVisualShift();
-    createParticles(); // ✨ パーティクル開始
 
     try {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -503,19 +304,18 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
       source.buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
       source.loop = true;
 
-      // FX初期化・接続 (仕様固定)
       distNode = audioContext.createWaveShaper(); distNode.oversample = '4x';
       delayNode = audioContext.createDelay(2.0); delayGain = audioContext.createGain(); delayGain.gain.value = 0;
       reverbNode = audioContext.createConvolver(); reverbNode.buffer = createImpulse(2.5, 4.0);
       reverbGain = audioContext.createGain(); reverbGain.gain.value = 0;
       gainNode = audioContext.createGain(); gainNode.gain.value = 0.5;
+
       source.connect(distNode);
       distNode.connect(delayNode); delayNode.connect(delayGain); delayGain.connect(delayNode); delayGain.connect(gainNode);
       distNode.connect(reverbNode); reverbNode.connect(reverbGain); reverbGain.connect(gainNode);
       distNode.connect(gainNode); gainNode.connect(audioContext.destination);
       source.start(0);
 
-      // UIイベントバインド (仕様固定)
       document.getElementById('play-pause-btn').addEventListener('click', togglePlayback);
       document.querySelectorAll('.work-trigger').forEach(t => t.addEventListener('click', () => isPlaying && togglePlayback()));
       document.getElementById('vol-fader').addEventListener('input', (e: any) => gainNode.gain.value = parseFloat(e.target.value));
@@ -533,15 +333,16 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
     } catch (e) { console.error(e); }
   }
 
-  // 🔄 統合フィルタリングロジック (Year対応)
+  // 🔄 統合フィルタリングロジック
   function applyFilters() {
     const allWorks = document.querySelectorAll("[data-work]");
     
-    // UI状態更新
+    // Tagボタン状態更新
     document.querySelectorAll("button[id^='btn-tag-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
     const activeTagBtn = currentTag ? document.getElementById(`btn-tag-${currentTag}`) : document.getElementById('btn-tag-all');
     activeTagBtn?.classList.add('border-cyan-500', 'text-cyan-400');
 
+    // Yearボタン状態更新
     document.querySelectorAll("button[id^='btn-year-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
     const activeYearBtn = currentYear ? document.getElementById(`btn-year-${currentYear}`) : document.getElementById('btn-year-all');
     activeYearBtn?.classList.add('border-cyan-500', 'text-cyan-400');
@@ -549,6 +350,7 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
     allWorks.forEach((el: any) => {
       const tags = (el.dataset.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean);
       const year = el.dataset.year;
+      
       const tagMatch = !currentTag || tags.includes(currentTag);
       const yearMatch = !currentYear || year === currentYear;
 
@@ -556,47 +358,18 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
         el.classList.remove('is-inactive');
         if (currentTag || currentYear) el.classList.add('is-active');
         else el.classList.remove('is-active');
-      } else { el.classList.add('is-inactive'); el.classList.remove('is-active'); }
+      } else {
+        el.classList.add('is-inactive');
+        el.classList.remove('is-active');
+      }
     });
   }
 
   (window as any).setTag = (tag: string) => { if (!isStarted) startExperience(); currentTag = tag; applyFilters(); };
   (window as any).setYear = (year: string) => { if (!isStarted) startExperience(); currentYear = year; applyFilters(); };
 
-  // 📜 Chrono-Log rotary logic (index.astro から移植)
-  const rotary = document.getElementById('rotary') as HTMLElement;
-  const list = document.getElementById('rotary-list') as HTMLElement;
-  if (rotary && list) {
-    const items = Array.from(list.children) as HTMLElement[];
-    const itemHeight = 80;
-    const totalHeight = items.length * itemHeight;
-    const centerPos = Math.floor(50000 / itemHeight) * itemHeight;
-    rotary.scrollTop = centerPos;
-    
-    const updateItems = () => {
-      const currentScroll = rotary.scrollTop;
-      const scrollY = currentScroll - centerPos;
-      items.forEach((item, i) => {
-        const basePos = i * itemHeight;
-        const pos = basePos - scrollY;
-        const wrappedPos = (((pos + itemHeight) % totalHeight) + totalHeight) % totalHeight - itemHeight;
-        item.style.transform = `translateY(${currentScroll + wrappedPos}px)`;
-      });
-    };
-    rotary.addEventListener('scroll', updateItems, { passive: true });
-    updateItems();
-  }
-
   document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('is-blurred');
     document.getElementById('start-overlay')?.addEventListener('click', startExperience);
-    
-    // システム時刻 (index.astro)
-    setInterval(() => {
-      const timeEl = document.getElementById('sys-time');
-      if(timeEl) timeEl.innerText = `TIME: ${new Date().toLocaleTimeString('ja-JP', { hour12: false })} JST`;
-    }, 1000);
   });
 </script>
-</body>
-</html>
