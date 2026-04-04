@@ -16,12 +16,11 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   }
 
   :global(body) {
-    /* 🌈 ドップラー・ハイパー・シフト：背景をわずかに浮かせて黒にも色を乗せる */
+    /* 🌈 ドップラー・ハイパー・シフト */
     background-color: #020205; 
     margin: 0;
     color: white;
     min-height: 100vh;
-    /* 変化を鋭くするため transition を短縮 */
     transition: filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
   }
 
@@ -106,7 +105,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
           const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
           return (
             <div data-work data-tags={work.tags?.join(",") ?? ""} class="group absolute cursor-crosshair animate-float" style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}>
-              <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center">
+              <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center work-trigger">
                 <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
                 <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
                 <div class="w-1 h-1 bg-white"></div>
@@ -132,12 +131,13 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
   <aside class="audio-hud">
     <div class="control-group"><label class="control-label">Master Volume</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
-    <div class="control-group"><label class="control-label">Playback Speed</label><input type="range" id="speed-fader" min="0.5" max="2" step="0.01" value="1.0"></div>
-    <div class="control-group"><label class="control-label">Pitch Shift</label><input type="range" id="pitch-fader" min="0.5" max="2" step="0.01" value="1.0"></div>
+    <div class="control-group"><label class="control-label">Playback Speed</label><input type="range" id="speed-fader" min="0" max="2" step="0.01" value="1.0"></div>
+    <div class="control-group"><label class="control-label">Pitch Shift</label><input type="range" id="pitch-fader" min="0" max="2" step="0.01" value="1.0"></div>
     <div class="mt-4 pt-4 border-t border-zinc-800">
       <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div></div>
       <p class="text-[7px] text-zinc-600 mt-1 uppercase">Audio Signal Analysis</p>
       <p id="doppler-status" class="text-[6px] text-cyan-900 mt-2 uppercase tracking-tighter">Shift: Stable</p>
+      <button id="play-pause-btn" class="mt-4 w-full border border-cyan-900/50 text-cyan-500 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-all">Pause Transmission</button>
     </div>
   </aside>
 </div>
@@ -148,6 +148,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   let source = null;
   let gainNode = null;
   let isStarted = false;
+  let isPlaying = true;
   let baseHue = 0;
   let currentSpeed = 1.0;
 
@@ -162,38 +163,48 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   function updateVisualShift() {
     if (!isStarted) return;
 
-    // 🏎️ カラーサイクル加速：速度の3乗で加速
-    const cycleSpeed = 0.1 * Math.pow(currentSpeed, 3); 
-    baseHue = (baseHue + cycleSpeed) % 360;
+    // 再生中かつ速度が0より大きい場合のみ色を回す
+    if (isPlaying && currentSpeed > 0) {
+      const cycleSpeed = 0.1 * Math.pow(currentSpeed, 3); 
+      baseHue = (baseHue + cycleSpeed) % 360;
+    }
 
     const speedDelta = currentSpeed - 1.0;
     const shiftHue = baseHue + (speedDelta * 50);
-    
-    // ✨ 輝度・コントラストの増幅ロジック
-    // 速度が上がるほど輝度が指数関数的に増し、1.8を超えると急激に発光
     const brightness = 0.9 + (Math.pow(Math.abs(speedDelta), 1.5) * 1.5);
     const contrast = 1.0 + (Math.abs(speedDelta) * 0.8);
     const saturation = 0.5 + (currentSpeed * 1.2);
-
-    // 🌑 ネガ反転ロジック：速度が1.7を超えたあたりから反転が混ざり始める
     const invert = currentSpeed > 1.5 ? (currentSpeed - 1.5) * 0.4 : 0;
     
     document.body.style.filter = `
-      hue-rotate(${shiftHue}deg) 
-      saturate(${saturation}) 
-      brightness(${brightness}) 
-      contrast(${contrast})
-      invert(${invert})
+      hue-rotate(${shiftHue}deg) saturate(${saturation}) 
+      brightness(${brightness}) contrast(${contrast}) invert(${invert})
     `;
     
     const status = document.getElementById('doppler-status');
     if (status) {
-      status.innerText = currentSpeed > 1.8 ? `Shift: Critical Singularity` :
-                         currentSpeed > 1.2 ? `Shift: Blue (Warping)` : 
-                         currentSpeed < 0.8 ? `Shift: Red (Distant)` : `Shift: Stable`;
+      if (currentSpeed === 0) status.innerText = `Shift: Time Frozen`;
+      else if (currentSpeed > 1.8) status.innerText = `Shift: Critical Singularity`;
+      else if (currentSpeed > 1.2) status.innerText = `Shift: Blue (Warping)`;
+      else if (currentSpeed < 0.8) status.innerText = `Shift: Red (Distant)`;
+      else status.innerText = `Shift: Stable`;
     }
 
     requestAnimationFrame(updateVisualShift);
+  }
+
+  // 🔴 再生・停止のトグル
+  function togglePlayback() {
+    if (!audioContext) return;
+    if (isPlaying) {
+      audioContext.suspend();
+      isPlaying = false;
+      document.getElementById('play-pause-btn').innerText = "Resume Transmission";
+    } else {
+      audioContext.resume();
+      isPlaying = true;
+      document.getElementById('play-pause-btn').innerText = "Pause Transmission";
+    }
   }
 
   async function startExperience() {
@@ -222,6 +233,16 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
       const speedFader = document.getElementById('speed-fader') as HTMLInputElement;
       const pitchFader = document.getElementById('pitch-fader') as HTMLInputElement;
       const volFader = document.getElementById('vol-fader') as HTMLInputElement;
+      const playBtn = document.getElementById('play-pause-btn');
+
+      playBtn.addEventListener('click', togglePlayback);
+      
+      // 🔴 ポイントクリックで音楽停止
+      document.querySelectorAll('.work-trigger').forEach(trigger => {
+        trigger.addEventListener('click', () => {
+          if (isPlaying) togglePlayback();
+        });
+      });
 
       volFader.addEventListener('input', (e: any) => gainNode.gain.value = parseFloat(e.target.value));
       
@@ -237,6 +258,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
       const vBar = document.getElementById('v-bar');
       setInterval(() => {
+        if (!isPlaying) { if(vBar) vBar.style.width = '0%'; return; }
         const level = Math.random() * (gainNode.gain.value * 100);
         if(vBar) vBar.style.width = `${level}%`;
       }, 100);
