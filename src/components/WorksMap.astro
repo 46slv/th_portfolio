@@ -2,13 +2,12 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
-// 🔥 タグ一覧自動生成
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
 <style>
   /* --------------------------------------------------
-   * 🌫️ 【仕様固定】画面全体の初期状態（ブラー）
+   * 🌫️ 【仕様固定】画面全体の初期状態
    * -------------------------------------------------- */
   :global(body.is-blurred) {
     filter: blur(20px) saturate(0.5);
@@ -17,10 +16,12 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   }
 
   :global(body) {
-    transition: filter 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 🌈 ドップラー効果：filterをJSから制御するため transition を設定 */
+    transition: filter 1.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 2s ease;
     background-color: #09090b;
     margin: 0;
     color: white;
+    min-height: 100vh;
   }
 
   /* 🎬 始動用オーバーレイ */
@@ -33,20 +34,15 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     gap: 16px;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.8);
     cursor: pointer;
     pointer-events: auto !important;
     transition: opacity 0.8s ease, visibility 0.8s;
   }
 
-  #start-overlay.hidden {
-    opacity: 0;
-    visibility: hidden;
-  }
+  #start-overlay.hidden { opacity: 0; visibility: hidden; }
 
-  /* --------------------------------------------------
-   * 📧 【新規】Contactセクション（コピー機能付き）
-   * -------------------------------------------------- */
+  /* 📧 Contact Bar */
   .contact-bar {
     display: flex;
     justify-content: flex-end;
@@ -54,43 +50,16 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     font-size: 10px;
     letter-spacing: 0.2em;
     border-bottom: 1px solid rgba(34, 211, 238, 0.1);
-  }
-
-  .contact-link {
-    color: #71717a;
-    cursor: pointer;
-    transition: all 0.3s ease;
     position: relative;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    z-index: 10;
   }
 
-  .contact-link:hover {
-    color: #22d3ee;
-  }
+  .contact-link { color: #71717a; cursor: pointer; transition: all 0.3s ease; position: relative; display: flex; align-items: center; gap: 8px; }
+  .contact-link:hover { color: #22d3ee; }
+  .copy-feedback { position: absolute; right: 0; top: 120%; background: #22d3ee; color: #000; padding: 2px 6px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; white-space: nowrap; }
+  .copy-feedback.is-visible { opacity: 1; }
 
-  /* コピー完了通知のツールチップ */
-  .copy-feedback {
-    position: absolute;
-    right: 0;
-    top: 120%;
-    background: #22d3ee;
-    color: #000;
-    padding: 2px 6px;
-    font-weight: bold;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-    white-space: nowrap;
-  }
-  .copy-feedback.is-visible {
-    opacity: 1;
-  }
-
-  /* --------------------------------------------------
-   * 🔵 【仕様固定】レイアウト構成
-   * -------------------------------------------------- */
+  /* 🔵 レイアウト構成 */
   .main-layout {
     display: grid;
     grid-template-columns: 1fr 240px; 
@@ -102,10 +71,9 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     transition: opacity 1s ease 0.5s;
   }
 
-  :global(body:not(.is-blurred)) .main-layout {
-    opacity: 1;
-  }
+  :global(body:not(.is-blurred)) .main-layout { opacity: 1; }
 
+  /* グラフ・ポイント演出 */
   .map-container { perspective: 1200px; transform-style: preserve-3d; position: relative; isolation: isolate; }
   @keyframes float {
     0%, 100% { transform: translate(-50%, 50%) rotate(0deg); }
@@ -117,12 +85,12 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   [data-work].is-inactive { opacity: 0.1; z-index: 0; transform: translate(-50%, 50%) translateZ(-300px) scale(0.7); pointer-events: none; }
   .animate-float { animation: float 6s ease-in-out infinite; }
 
-  /* 🎚️ 【仕様固定】オーディオHUD */
-  .audio-hud { display: flex; flex-direction: column; gap: 24px; padding: 20px; background: rgba(9, 9, 11, 0.5); border: 1px solid rgba(34, 211, 238, 0.1); height: fit-content; }
+  /* 🎚️ オーディオHUD */
+  .audio-hud { display: flex; flex-direction: column; gap: 24px; padding: 20px; background: rgba(9, 9, 11, 0.5); border: 1px solid rgba(34, 211, 238, 0.1); height: fit-content; position: relative; z-index: 20; }
   .control-group { display: flex; flex-direction: column; gap: 8px; }
   .control-label { font-size: 9px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.1em; }
-  input[type="range"] { appearance: none; background: #27272a; height: 2px; outline: none; }
-  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: #22d3ee; border-radius: 50%; }
+  input[type="range"] { appearance: none; background: #27272a; height: 2px; outline: none; width: 100%; }
+  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: #22d3ee; border-radius: 50%; cursor: pointer; }
 </style>
 
 <div id="start-overlay">
@@ -154,7 +122,6 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
           const left = ((work.x + 100) / 200) * 100;
           const bottom = ((work.y + 100) / 200) * 100;
           const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
-
           return (
             <div data-work data-tags={work.tags?.join(",") ?? ""} class="group absolute cursor-crosshair animate-float" style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}>
               <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center">
@@ -162,7 +129,6 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
                 <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
                 <div class="w-1 h-1 bg-white"></div>
               </a>
-
               <div class={`absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
                 <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
                   {ytId && <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full aspect-video object-cover" />}
@@ -189,6 +155,7 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
     <div class="mt-4 pt-4 border-t border-zinc-800">
       <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div></div>
       <p class="text-[7px] text-zinc-600 mt-1 uppercase">Audio Signal Analysis</p>
+      <p id="doppler-status" class="text-[6px] text-cyan-900 mt-2 uppercase tracking-tighter">Shift: Stable</p>
     </div>
   </aside>
 </div>
@@ -199,10 +166,11 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   let source = null;
   let gainNode = null;
   let isStarted = false;
+  
+  // 🌈 ドップラー効果用の変数
+  let baseHue = 0;
+  let currentSpeed = 1.0;
 
-  // --------------------------------------------------
-  // 📋 【新規】コピー機能のロジック
-  // --------------------------------------------------
   (window as any).copyContact = (text) => {
     navigator.clipboard.writeText(text).then(() => {
       const toast = document.getElementById('copy-toast');
@@ -213,12 +181,45 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 
   function initBodyBlur() { document.body.classList.add('is-blurred'); }
 
+  // 🌈 ドップラー効果と時間経過による色遷移の更新ループ
+  function updateVisualShift() {
+    if (!isStarted) return;
+
+    // 1. 時間経過でベースの色相をゆっくり回す (0.1度ずつ)
+    baseHue = (baseHue + 0.1) % 360;
+
+    // 2. 再生速度に応じた「ズレ」を計算
+    // 速度1.0を基準に、速いほど青っぽく(Blue Shift)、遅いほど赤っぽく(Red Shift)
+    const speedDelta = currentSpeed - 1.0;
+    const shiftHue = baseHue + (speedDelta * 60); // 速度差で最大60度程度色相をズラす
+    
+    // 3. 速度に応じた彩度とコントラストの歪み
+    const saturation = 0.5 + (currentSpeed * 0.5); // 速いほど鮮やかに
+    const brightness = 0.8 + (Math.abs(speedDelta) * 0.4); // 速度変化があるほど発光
+    
+    // 4. 画面全体に適用 (bodyのfilterを更新)
+    document.body.style.filter = `hue-rotate(${shiftHue}deg) saturate(${saturation}) brightness(${brightness})`;
+    
+    // ステータス表示の更新
+    const status = document.getElementById('doppler-status');
+    if (status) {
+      if (currentSpeed > 1.1) status.innerText = `Shift: Blue (Approach)`;
+      else if (currentSpeed < 0.9) status.innerText = `Shift: Red (Recede)`;
+      else status.innerText = `Shift: Stable`;
+    }
+
+    requestAnimationFrame(updateVisualShift);
+  }
+
   async function startExperience() {
     if (isStarted) return;
     isStarted = true;
     document.getElementById('start-overlay').classList.add('hidden');
     document.body.classList.remove('is-blurred');
     document.body.style.overflow = 'auto';
+
+    // ビジュアルループ開始
+    updateVisualShift();
 
     try {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -239,11 +240,14 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
       const pitchFader = document.getElementById('pitch-fader') as HTMLInputElement;
 
       volFader.addEventListener('input', (e: any) => gainNode.gain.value = parseFloat(e.target.value));
+      
       const updateRate = (val: string) => {
-        source.playbackRate.value = parseFloat(val);
+        currentSpeed = parseFloat(val); // 🌈 グローバルな速度変数を更新
+        source.playbackRate.value = currentSpeed;
         speedFader.value = val;
         pitchFader.value = val;
       };
+
       speedFader.addEventListener('input', (e: any) => updateRate(e.target.value));
       pitchFader.addEventListener('input', (e: any) => updateRate(e.target.value));
 
