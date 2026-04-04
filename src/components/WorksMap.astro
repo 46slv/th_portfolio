@@ -73,43 +73,66 @@ const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
   <div class="absolute left-6 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-600 tracking-[0.2em] uppercase font-black origin-left">Electro [L]</div>
   <div class="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-zinc-600 tracking-[0.2em] uppercase font-black origin-right">Acoustic [R]</div>
 
-  <div class="absolute inset-16 sm:inset-24">
+<div class="absolute inset-16 sm:inset-24">
     {works.map((work, index) => {
       const left = ((work.x + 100) / 200) * 100;
       const bottom = ((work.y + 100) / 200) * 100;
+
+      // 🎥 YouTube IDの抽出ロジック
+      const getYoutubeId = (url: string) => {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url?.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+      };
+      const ytId = getYoutubeId(work.url);
 
       return (
         <div 
           data-work
           data-tags={work.tags?.join(",") ?? ""}
           class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]"
-          style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s;`}
+          style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
         >
-          <div class="relative w-4 h-4 flex items-center justify-center
-                      drop-shadow-[0_0_3px_rgba(255,255,255,0.7)] 
-                      group-hover:drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]
-                      transition-all duration-300">
-            <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
-            <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400 transition-colors"></div>
-            <div class="w-1 h-1 bg-white group-hover:scale-150 transition-transform"></div>
-          </div>
+          <div class="relative w-4 h-4 flex items-center justify-center ...">
+             </div>
           
-          <div class="absolute bottom-full left-4 mb-2 w-max max-w-[180px] z-[100]
-                      opacity-0 translate-y-2 pointer-events-none
-                      group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto
+          <div class={`absolute mb-2 w-[220px] z-[100]
+                      opacity-0 pointer-events-none
+                      group-hover:opacity-100 group-hover:pointer-events-auto
                       transition-all duration-300 ease-out
-                      delay-1200 group-hover:delay-[400ms]">
-            <div class="bg-black/90 border-l-2 border-cyan-500 p-3 backdrop-blur-md shadow-xl">
-              <p class="text-[8px] text-cyan-500/70 mb-1 tracking-tighter">ID: {(work.artist ?? "").toUpperCase()}</p>
-              <p class="text-white font-bold leading-tight mb-2 tracking-tight">{work.title}</p>
-              {work.tags && (
-                <div class="flex gap-1 mt-1 flex-wrap">
-                  {work.tags.map(tag => (
-                    <span class="text-[8px] bg-zinc-800 px-1">{tag}</span>
-                  ))}
+                      delay-1200 group-hover:delay-[400ms]
+                      ${bottom > 70 ? 'top-6' : 'bottom-full'} 
+                      ${left > 70 ? 'right-4' : 'left-4'}`}>
+            
+            <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
+              
+              {ytId && (
+                <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
+                  <img 
+                    src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} 
+                    alt="Thumbnail"
+                    class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]"
+                    loading="lazy"
+                  />
                 </div>
               )}
-              <a href={work.url} target="_blank" class="inline-block text-[9px] text-zinc-400 hover:text-white border border-zinc-700 px-2 py-1 transition-colors uppercase tracking-widest mt-2">Access Data _</a>
+
+              <div class="p-3">
+                <p class="text-[8px] text-cyan-500/70 mb-1 tracking-tighter uppercase">ID: {work.artist}</p>
+                <p class="text-white font-bold leading-tight mb-2 tracking-tight line-clamp-2">{work.title}</p>
+                
+                {work.tags && (
+                  <div class="flex gap-1 mt-1 flex-wrap mb-3">
+                    {work.tags.map(tag => (
+                      <span class="text-[7px] bg-zinc-800 text-zinc-400 px-1 border border-zinc-700/50">{tag}</span>
+                    ))}
+                  </div>
+                )}
+
+                <a href={work.url} target="_blank" class="flex items-center justify-between text-[9px] text-zinc-400 hover:text-white border border-zinc-800 hover:border-cyan-500 px-2 py-1.5 transition-all uppercase tracking-[0.1em] bg-zinc-900/50">
+                  <span>Access Data</span>
+                  <span class="text-[10px]">→</span>
+                </a>
             </div>
           </div>
         </div>
