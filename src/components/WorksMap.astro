@@ -2,6 +2,7 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
+// 🔥 フィルタリング用データの抽出
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))].sort();
 const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
 
@@ -10,67 +11,71 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
 ---
 
 <style>
-  /* 全体レイアウトは維持 */
+  /* --------------------------------------------------
+   * 🌫️ 【仕様固定】初期状態
+   * -------------------------------------------------- */
   :global(body.is-blurred) { filter: blur(20px) saturate(0.5); pointer-events: none; overflow: hidden; }
   :global(body) { background-color: #020205; margin: 0; color: white; min-height: 100vh; transition: filter 0.4s; }
 
-  .main-layout {
-    display: grid; grid-template-columns: 1fr 280px; gap: 20px;
-    max-width: 1200px; margin: 20px auto; font-family: 'JetBrains Mono', monospace;
-    opacity: 0; transition: opacity 1s;
+  #start-overlay {
+    position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; gap: 16px;
+    align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.95); cursor: pointer;
   }
-  :global(body:not(.is-blurred)) .main-layout { opacity: 1; }
+  #start-overlay.hidden { opacity: 0; visibility: hidden; }
 
-  /* 🗺️ マップポイント */
-  [data-work] { position: absolute; transition: transform 0.6s; opacity: 1; z-index: 10; }
+  /* 🗺️ マップポイント（浮遊感デザイン維持） */
+  [data-work] { position: absolute; transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s; z-index: 10; }
   [data-work].is-filtered-out { opacity: 0; pointer-events: none; transform: scale(0); }
   
-  /* 🌟 アクティブ（選択中）のグロー効果 */
+  .point-core { width: 6px; height: 6px; background: #3f3f46; border-radius: 1px; transition: all 0.3s; }
   [data-work].is-active { z-index: 100 !important; }
-  [data-work].is-active .point-core {
-    background: #fff; box-shadow: 0 0 15px 2px cyan; transform: scale(1.5);
-  }
+  [data-work].is-active .point-core { background: #fff; box-shadow: 0 0 15px 2px cyan; transform: scale(1.5); }
 
-  /* 🗨️ ツールチップ（情報表示） */
+  /* 🗨️ 情報表示スタイル（デザイン維持） */
   .work-tooltip {
-    position: absolute; width: 240px; opacity: 0; pointer-events: none;
-    transform: translateY(10px); transition: all 0.2s ease; z-index: 200;
+    position: absolute; width: 200px; opacity: 0; pointer-events: none;
+    transform: translateY(10px); transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); z-index: 200;
   }
-  /* 表示優先度の制御用クラス */
-  [data-work].show-info .work-tooltip {
-    opacity: 1; pointer-events: auto; transform: translateY(0);
-  }
+  /* 表示優先度ロジック用クラス */
+  [data-work].show-info .work-tooltip { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
-  /* 🎚️ 右パネル構成 */
-  .right-panel { display: flex; flex-direction: column; gap: 16px; }
-  .hud-box {
-    background: rgba(9, 9, 11, 0.9); border: 1px solid rgba(34, 211, 238, 0.1);
-    backdrop-filter: blur(10px); padding: 15px;
-  }
-
-  /* 📜 ロータリー */
-  .rotary-container { position: relative; height: 300px; overflow: hidden; }
-  .rotary-viewport { height: 100%; overflow-y: auto; scrollbar-width: none; }
+  /* 📜 ロータリー（デザイン維持） */
+  .rotary-container { position: relative; height: 320px; overflow: hidden; }
+  .rotary-viewport { height: 100%; overflow-y: auto; scrollbar-width: none; scroll-behavior: smooth; }
   .rotary-viewport::-webkit-scrollbar { display: none; }
   .rotary-item {
-    height: 60px; display: flex; align-items: center; px: 15px;
-    opacity: 0.2; transition: all 0.3s; cursor: pointer;
+    height: 80px; display: flex; align-items: center; padding: 0 20px;
+    opacity: 0.15; transition: all 0.4s; cursor: pointer;
   }
-  .rotary-item.is-visible { display: flex; }
   .rotary-item.is-hidden { display: none; }
   .rotary-item.is-focused { opacity: 1; color: cyan; }
+
+  /* レイアウト */
+  .main-layout { display: grid; grid-template-columns: 1fr 300px; gap: 30px; max-width: 1300px; margin: 40px auto; opacity: 0; transition: opacity 1s; }
+  :global(body:not(.is-blurred)) .main-layout { opacity: 1; }
 </style>
 
-<div id="start-overlay" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black cursor-pointer">
-  <span class="border border-cyan-500 text-cyan-500 px-6 py-3 tracking-[0.5em] animate-pulse">INITIATE SYSTEM</span>
+<div id="start-overlay">
+  <span class="border border-zinc-700 text-zinc-500 px-6 py-2 text-[10px] tracking-[0.5em] animate-pulse uppercase">Initiate System</span>
 </div>
 
-<div class="main-layout px-4">
-  <div class="relative aspect-square">
-    <div id="map-target" class="w-full h-full bg-zinc-950/40 border border-zinc-800 relative overflow-hidden">
-      <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(cyan 1px, transparent 1px); background-size: 30px 30px;"></div>
+<div class="main-layout px-6">
+  <div class="flex flex-col gap-6">
+    <div class="flex flex-col gap-4 bg-zinc-900/30 p-4 border border-zinc-800/50">
+      <div class="flex flex-wrap gap-2">
+        <button id="btn-tag-all" onclick="setTag(null)" class="text-[9px] px-2 py-1 border border-zinc-800 uppercase">All Types</button>
+        {allTags.map(tag => <button id={`btn-tag-${tag}`} onclick={`setTag('${tag}')`} class="text-[9px] px-2 py-1 border border-zinc-800 uppercase">{tag}</button>)}
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button id="btn-year-all" onclick="setYear(null)" class="text-[9px] px-2 py-1 border border-zinc-800 uppercase">All Time</button>
+        {allYears.map(year => <button id={`btn-year-${year}`} onclick={`setYear('${year}')`} class="text-[9px] px-2 py-1 border border-zinc-800 uppercase">{year}</button>)}
+      </div>
+    </div>
+
+    <div id="map-target" class="relative aspect-video bg-zinc-950 border border-zinc-800 overflow-hidden">
+      <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(cyan 1px, transparent 1px); background-size: 40px 40px;"></div>
       
-      <div class="absolute inset-16 sm:inset-24">
+      <div class="absolute inset-20">
         {mappedWorks.map((work) => {
           const left = ((work.x + 100) / 200) * 100;
           const bottom = ((work.y + 100) / 200) * 100;
@@ -81,21 +86,20 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
               data-uid={work._uid}
               data-tags={work.tags?.join(",") ?? ""} 
               data-year={work.year}
-              class="group" 
               style={`left: ${left}%; bottom: ${bottom}%;`}
+              onmouseenter={`handlePointHover(${work._uid}, true)`}
+              onmouseleave={`handlePointHover(${work._uid}, false)`}
+              onclick={`syncWheelToMap(${work._uid})`}
             >
-              <div class="relative w-6 h-6 flex items-center justify-center cursor-pointer" 
-                   onmouseenter={`handlePointHover(${work._uid}, true)`}
-                   onmouseleave={`handlePointHover(${work._uid}, false)`}
-                   onclick={`syncWheelToMap(${work._uid})`}>
-                <div class="point-core w-1.5 h-1.5 bg-zinc-500 transition-all duration-300"></div>
+              <div class="group relative w-8 h-8 flex items-center justify-center cursor-pointer">
+                <div class="point-core"></div>
               </div>
 
-              <div class={`work-tooltip ${bottom > 70 ? 'top-8' : 'bottom-8'} ${left > 70 ? 'right-0' : 'left-0'}`}>
-                <div class="bg-zinc-900 border border-cyan-500/50 p-3 shadow-2xl">
+              <div class={`work-tooltip ${bottom > 70 ? 'top-10' : 'bottom-10'} ${left > 70 ? 'right-0' : 'left-0'}`}>
+                <div class="bg-zinc-900 border border-cyan-900/50 p-2 shadow-2xl backdrop-blur-md">
                   {ytId && <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full aspect-video object-cover mb-2" />}
-                  <p class="text-[9px] text-cyan-400 mb-1">{work.artist} / {work.year}</p>
-                  <p class="text-xs font-bold leading-tight">{work.title}</p>
+                  <p class="text-[8px] text-cyan-500 mb-1 tracking-tighter">{work.artist} [{work.year}]</p>
+                  <p class="text-[10px] font-bold leading-tight line-clamp-2">{work.title}</p>
                 </div>
               </div>
             </div>
@@ -103,34 +107,27 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
         })}
       </div>
     </div>
-    <div class="flex flex-wrap gap-2 mt-4 text-[10px]">
-      <button onclick="setFilter('tag', null)" class="px-2 py-1 border border-zinc-700">ALL TAGS</button>
-      {allTags.map(tag => <button id={`btn-tag-${tag}`} onclick={`setFilter('tag', '${tag}')`} class="px-2 py-1 border border-zinc-800">{tag}</button>)}
-    </div>
   </div>
 
-  <div class="right-panel">
-    <aside class="hud-box space-y-4">
-      <div><label class="text-[8px] text-cyan-500">MASTER GAIN</label><input type="range" class="w-full" id="vol-fader"></div>
-      <div><label class="text-[8px] text-cyan-500">TEMPORAL VELOCITY</label><input type="range" class="w-full" id="speed-fader"></div>
-      <div><label class="text-[8px] text-cyan-500">DISTORTION (ENTROPY)</label><input type="range" class="w-full" id="dist-fader"></div>
-      <div><label class="text-[8px] text-cyan-500">DELAY (ECHOES)</label><input type="range" class="w-full" id="delay-fader"></div>
-      <div><label class="text-[8px] text-cyan-500">REVERB (SPACE)</label><input type="range" class="w-full" id="reverb-fader"></div>
-      <div class="pt-2 border-t border-zinc-800 text-[8px] text-cyan-900 uppercase" id="doppler-status">SHIFT: STABLE</div>
-      <button id="play-pause-btn" class="w-full border border-cyan-900 text-cyan-500 text-[8px] py-1">PAUSE TRANSMISSION</button>
+  <div class="flex flex-col gap-6">
+    <aside class="bg-zinc-900/50 border border-zinc-800 p-4 space-y-4">
+      <div class="text-[8px] text-zinc-500 border-b border-zinc-800 pb-2 uppercase tracking-[0.2em]">Environmental Control</div>
+      <div><label class="text-[7px] text-cyan-900">GAIN</label><input type="range" class="w-full h-1 bg-zinc-800 accent-cyan-600 appearance-none" id="vol-fader"></div>
+      <div id="v-bar-container" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-500/30 w-0"></div></div>
+      <button id="play-pause-btn" class="w-full border border-cyan-900/30 text-cyan-700 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-colors">System Active</button>
     </aside>
 
-    <aside class="hud-box !p-0 overflow-hidden flex flex-col">
-      <div class="p-3 border-b border-zinc-800 text-[8px] text-zinc-500 uppercase tracking-widest">Archive Works</div>
+    <aside class="bg-zinc-900/50 border border-zinc-800 overflow-hidden">
+      <div class="p-3 border-b border-zinc-800 text-[8px] text-zinc-500 uppercase tracking-widest">Navigation Wheel</div>
       <div class="rotary-container">
         <div id="rotary-viewport" class="rotary-viewport">
           <div style="height: 120px;"></div> <div id="rotary-list">
             {mappedWorks.map((work) => (
               <div class="rotary-item" data-uid={work._uid} onclick={`syncWheelToMap(${work._uid})`}>
-                <div class="w-1 h-1 bg-current rounded-full mr-3"></div>
+                <div class="w-1 h-1 bg-current mr-4"></div>
                 <div class="truncate">
-                  <div class="text-[7px] opacity-50 uppercase">{work.artist}</div>
-                  <div class="text-[10px] leading-none">{work.title}</div>
+                  <div class="text-[7px] opacity-40 uppercase tracking-tighter">{work.artist}</div>
+                  <div class="text-[11px] leading-tight font-medium">{work.title}</div>
                 </div>
               </div>
             ))}
@@ -145,31 +142,35 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
   let currentTag = null;
   let currentYear = null;
   let isStarted = false;
-  let isScrolling = false;
   let wheelActiveUid = null;
   let hoverActiveUid = null;
 
+  const viewport = document.getElementById('rotary-viewport');
+  const itemHeight = 80;
+
   // --------------------------------------------------
-  // 🎯 同期 & 表示ロジック
+  // 🎯 同期 & 表示ロジック（優先順位制御）
   // --------------------------------------------------
   function updateDisplayState() {
     const allPoints = document.querySelectorAll('[data-work]');
     
-    // 優先順位: ホバーがあればホバーを、なければホイールを表示
+    // 優先順位: ホバー中の点があればそれを、なければホイールの選択値を表示
     const activeUid = hoverActiveUid !== null ? hoverActiveUid : wheelActiveUid;
 
     allPoints.forEach(el => {
       const uid = parseInt(el.dataset.uid);
-      
-      // フィルタ判定
-      const tags = el.dataset.tags.split(',');
+      const tags = (el.dataset.tags || "").split(",");
       const year = el.dataset.year;
-      const isMatch = (!currentTag || tags.includes(currentTag)) && (!currentYear || year === currentYear);
+
+      // フィルタ判定
+      const tagMatch = !currentTag || tags.includes(currentTag);
+      const yearMatch = !currentYear || year === currentYear;
+      const isMatch = tagMatch && yearMatch;
       
       el.classList.toggle('is-filtered-out', !isMatch);
       el.classList.toggle('is-active', uid === wheelActiveUid);
       
-      // 情報パネル表示（アクティブなUIDかつフィルタに合致している場合のみ）
+      // 情報表示パネルの制御
       el.classList.toggle('show-info', isMatch && uid === activeUid);
     });
 
@@ -180,32 +181,18 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
     });
   }
 
-  // ホバー処理
-  window.handlePointHover = (uid, isEnter) => {
-    if (isEnter) {
-      hoverActiveUid = uid;
-    } else {
-      hoverActiveUid = null;
-    }
-    updateDisplayState();
-  };
-
   // --------------------------------------------------
-  // 📜 ロータリー制御 (数学的同期)
+  // 📜 ロータリー制御 (数学的インデックス同期)
   // --------------------------------------------------
-  const viewport = document.getElementById('rotary-viewport');
-  const itemHeight = 60;
-
   viewport.addEventListener('scroll', () => {
-    hoverActiveUid = null; // スクロール中はホバー解除を優先
-    const scrollPos = viewport.scrollTop;
+    // スクロール中はホバー情報をリセットしてホイール表示を優先
+    hoverActiveUid = null; 
     
-    // フィルタで表示されている要素だけを取得
     const visibleItems = Array.from(document.querySelectorAll('.rotary-item:not(.is-hidden)'));
     if (visibleItems.length === 0) return;
 
-    // 中央に最も近い要素のインデックスを計算
-    const index = Math.round(scrollPos / itemHeight);
+    // 中央に最も近い要素を計算
+    const index = Math.round(viewport.scrollTop / itemHeight);
     const safeIndex = Math.max(0, Math.min(index, visibleItems.length - 1));
     
     const newUid = parseInt(visibleItems[safeIndex].dataset.uid);
@@ -214,6 +201,11 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
       updateDisplayState();
     }
   });
+
+  window.handlePointHover = (uid, isEnter) => {
+    hoverActiveUid = isEnter ? uid : null;
+    updateDisplayState();
+  };
 
   window.syncWheelToMap = (uid) => {
     const visibleItems = Array.from(document.querySelectorAll('.rotary-item:not(.is-hidden)'));
@@ -224,30 +216,39 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
   };
 
   // --------------------------------------------------
-  // ⚡ フィルタリング
+  // ⚡ フィルタリング連動
   // --------------------------------------------------
-  window.setFilter = (type, value) => {
-    if (type === 'tag') currentTag = value;
-    
-    // ロータリーリストの表示/非表示を切り替え
+  function applyFilters() {
+    // ロータリー項目の表示/非表示をまず更新
     document.querySelectorAll('.rotary-item').forEach(item => {
       const el = document.querySelector(`[data-work][data-uid="${item.dataset.uid}"]`);
       const tags = el.dataset.tags.split(',');
-      const isMatch = !currentTag || tags.includes(currentTag);
+      const year = el.dataset.year;
+      
+      const isMatch = (!currentTag || tags.includes(currentTag)) && (!currentYear || year === currentYear);
       item.classList.toggle('is-hidden', !isMatch);
     });
 
+    // ボタンの外観更新
+    document.querySelectorAll("button[id^='btn-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
+    const activeTagBtn = currentTag ? document.getElementById(`btn-tag-${currentTag}`) : document.getElementById('btn-tag-all');
+    activeTagBtn?.classList.add('border-cyan-500', 'text-cyan-400');
+    const activeYearBtn = currentYear ? document.getElementById(`btn-year-${currentYear}`) : document.getElementById('btn-year-all');
+    activeYearBtn?.classList.add('border-cyan-500', 'text-cyan-400');
+
     updateDisplayState();
-    // フィルタ後に一番上の要素にスクロール
+    // フィルタ後は一番上にスクロール
     viewport.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }
+
+  window.setTag = (tag) => { if(!isStarted) startExperience(); currentTag = tag; applyFilters(); };
+  window.setYear = (year) => { if(!isStarted) startExperience(); currentYear = year; applyFilters(); };
 
   // 開始処理
   function startExperience() {
     isStarted = true;
-    document.getElementById('start-overlay').style.display = 'none';
+    document.getElementById('start-overlay').classList.add('hidden');
     document.body.classList.remove('is-blurred');
-    // 初期選択
     const firstItem = document.querySelector('.rotary-item:not(.is-hidden)');
     if (firstItem) wheelActiveUid = parseInt(firstItem.dataset.uid);
     updateDisplayState();
