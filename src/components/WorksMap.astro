@@ -2,231 +2,518 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
-// タグ一覧
-const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
+// 🔥 フィルタリング用データの抽出
+const allTags = [...new Set(works.flatMap(w => w.tags ?? []))].sort();
+const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
+
+// マップとホイールを同期させるためのユニークIDを付与
+const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
 ---
 
-<!-- ========================= -->
-<!-- FILTER UI -->
-<!-- ========================= -->
-<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
-  <button onclick="setTag(null)">ALL</button>
+<style>
+  /* --------------------------------------------------
+   * 🌫️ 【仕様固定】画面全体の初期状態（ブラー）
+   * -------------------------------------------------- */
+  :global(body.is-blurred) {
+    filter: blur(20px) saturate(0.5);
+    pointer-events: none;
+    overflow: hidden;
+  }
 
-  {allTags.map(tag => (
-    <button onclick={`setTag("${tag}")`}>
-      {tag}
-    </button>
-  ))}
+  :global(body) {
+    background-color: #020205; 
+    margin: 0;
+    color: white;
+    min-height: 100vh;
+    transition: filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+  }
+
+  #start-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; flex-direction: column; gap: 16px;
+    align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.95);
+    cursor: pointer; pointer-events: auto !important;
+    transition: opacity 0.8s ease, visibility 0.8s;
+  }
+  #start-overlay.hidden { opacity: 0; visibility: hidden; }
+
+  .contact-bar {
+    display: flex; justify-content: flex-end; padding: 10px 20px;
+    font-size: 10px; letter-spacing: 0.2em;
+    border-bottom: 1px solid rgba(34, 211, 238, 0.1);
+    position: relative; z-index: 10;
+  }
+  .contact-link { color: #71717a; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: color 0.3s ease; }
+  .contact-link:hover { color: #22d3ee; }
+  .copy-feedback { position: absolute; right: 0; top: 120%; background: #22d3ee; color: #000; padding: 2px 6px; font-weight: bold; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+  .copy-feedback.is-visible { opacity: 1; }
+
+  /* 🔵 レイアウト構成 */
+  .main-layout {
+    display: grid; grid-template-columns: 1fr 260px; gap: 20px;
+    max-width: 1200px; margin: 20px auto;
+    font-family: 'JetBrains Mono', monospace;
+    opacity: 0; transition: opacity 1s ease 0.5s;
+  }
+  :global(body:not(.is-blurred)) .main-layout { opacity: 1; }
+
+  .map-container { perspective: 1200px; transform-style: preserve-3d; position: relative; isolation: isolate; }
+  
+  @keyframes float {
+    0%, 100% { transform: translate(-50%, 50%) rotate(0deg); }
+    33% { transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg); }
+    66% { transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg); }
+  }
+
+  [data-work] { 
+    position: absolute; 
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
+    transform: translate(-50%, 50%); 
+    will-change: transform, opacity;
+  }
+  /* ホイールやフィルタでアクティブになった時 */
+  [data-work].is-active { 
+    opacity: 1; z-index: 200 !important; 
+    transform: translate(-50%, 50%) translateZ(120px) scale(1.4); 
+    filter: drop-shadow(0 0 15px rgba(34, 211, 238, 0.8)); 
+  }
+  [data-work].is-active .bg-white {
+    transform: scale(2);
+    background: cyan;
+  }
+
+  [data-work].is-inactive { 
+    opacity: 0.15; z-index: 0; 
+    transform: translate(-50%, 50%) translateZ(-100px) scale(0.8); 
+  }
+  .animate-float { animation: float 6s ease-in-out infinite; }
+
+  /* 🎚️ オーディオHUD */
+  .audio-hud { 
+    display: flex; flex-direction: column; gap: 14px; padding: 20px; 
+    background: rgba(9, 9, 11, 0.8); border: 1px solid rgba(34, 211, 238, 0.1); 
+    height: fit-content; position: relative; z-index: 20; backdrop-filter: blur(10px); 
+  }
+  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .control-label { font-size: 8px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.8; }
+  input[type="range"] { appearance: none; background: #18181b; height: 2px; outline: none; width: 100%; }
+  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 8px; height: 8px; background: #22d3ee; border-radius: 50%; cursor: pointer; box-shadow: 0 0 5px #22d3ee; }
+  .hud-divider { height: 1px; background: rgba(34, 211, 238, 0.05); margin: 6px 0; }
+
+  /* 📜 【新規】ロータリースクローラー */
+  .rotary-viewport {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .rotary-viewport::-webkit-scrollbar { display: none; }
+
+  .rotary-item {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    will-change: transform;
+    opacity: 0.3;
+    transition: opacity 0.3s;
+    cursor: pointer;
+  }
+  .rotary-indicator {
+    width: 4px; height: 4px; border-radius: 50%; background: #555; transition: all 0.3s;
+  }
+
+  /* 中央にフォーカスされた状態 */
+  .rotary-item.is-focused { opacity: 1; }
+  .rotary-item.is-focused .rotary-indicator {
+    background: cyan; box-shadow: 0 0 8px cyan; transform: scale(1.5);
+  }
+  .rotary-item.is-focused .item-title {
+    color: cyan; font-weight: bold;
+  }
+</style>
+
+<div id="start-overlay">
+  <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">Initialize System</span>
+  <p class="text-zinc-600 text-[8px] uppercase tracking-widest mt-2">Click Anywhere to Begin</p>
 </div>
 
-<!-- ========================= -->
-<!-- MAP -->
-<!-- ========================= -->
-<div class="relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] sm:text-xs">
-
-  <div class="absolute inset-0 opacity-20" 
-       style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;">
-  </div>
-
-  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <div class="w-full h-[1px] bg-zinc-800"></div>
-    <div class="absolute h-full w-[1px] bg-zinc-800"></div>
-  </div>
-
-  <div class="absolute inset-16 sm:inset-24">
-    {works.map((work, i) => {
-      const left = ((work.x + 100) / 200) * 100;
-      const bottom = ((work.y + 100) / 200) * 100;
-
-      return (
-        <div 
-          data-work
-          data-id={i}
-          data-tags={work.tags?.join(",") ?? ""}
-          class="work-point group absolute -translate-x-1/2 translate-y-1/2 cursor-crosshair"
-          style={`left:${left}%; bottom:${bottom}%`}
-        >
-          <div class="relative w-4 h-4 flex items-center justify-center">
-            <div class="cross"></div>
-            <div class="dot"></div>
-          </div>
-        </div>
-      );
-    })}
+<div class="contact-bar">
+  <div class="contact-link" onclick="copyContact('info@corecreative.jp')">
+    <span class="text-zinc-500">CONTACT:</span>
+    <span id="contact-text">info@corecreative.jp</span>
+    <div id="copy-toast" class="copy-feedback">COPIED</div>
   </div>
 </div>
 
-<!-- ========================= -->
-<!-- ROTARY -->
-<!-- ========================= -->
-<section class="mt-20 max-w-4xl mx-auto">
-  <div class="relative h-[320px]" style="mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);">
-    
-    <div id="rotary" class="rotary-viewport absolute inset-0 overflow-y-auto">
-      <div style="height:100000px;"></div>
+<div class="max-w-4xl mx-auto pt-6 px-4 space-y-4">
+  <div class="flex flex-wrap gap-2 text-[10px]">
+    <button id="btn-tag-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all uppercase">All Tags</button>
+    {allTags.map(tag => (
+      <button id={`btn-tag-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{tag}</button>
+    ))}
+  </div>
+  <div class="flex flex-wrap gap-2 text-[10px] opacity-70">
+    <button id="btn-year-all" onclick="setYear(null)" class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">All Years</button>
+    {allYears.map(year => (
+      <button id={`btn-year-${year}`} onclick={`setYear("${year}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{year}</button>
+    ))}
+  </div>
+</div>
 
-      <div id="rotary-list" class="absolute top-0 left-0 w-full">
-        {works.map((work, i) => (
-          <div class="rotary-item absolute w-full" data-id={i}>
-            <div class="flex gap-4 items-center">
-              <div class="indicator"></div>
+<div class="main-layout">
+  <div class="relative aspect-square px-4">
+    <div id="map-target" class="map-container w-full h-full bg-zinc-950/40 border border-zinc-800 overflow-hidden font-mono text-[10px]">
+      <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
+      
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+        <div class="w-full h-[1px] bg-zinc-800"></div>
+        <div class="absolute h-full w-[1px] bg-zinc-800"></div>
+      </div>
+      <div class="absolute top-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Maniac [+]</div>
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Popular [-]</div>
+      <div class="absolute left-4 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-left">Electro [L]</div>
+      <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-right">Acoustic [R]</div>
 
-              <div>
-                <div class="text-[10px] text-zinc-500">
-                  {(work.artist ?? "").toUpperCase()}
-                </div>
-                <div class="text-sm text-zinc-300">
-                  {work.title}
+      <div class="absolute inset-16 sm:inset-24">
+        {mappedWorks.map((work, index) => {
+          const left = ((work.x + 100) / 200) * 100;
+          const bottom = ((work.y + 100) / 200) * 100;
+          const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
+          return (
+            <div 
+              data-work 
+              data-uid={work._uid}
+              data-tags={work.tags?.join(",") ?? ""} 
+              data-year={work.year}
+              class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused] is-inactive" 
+              style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
+              onclick={`syncWheelToMap(${work._uid})`}
+            >
+              <div class="relative w-4 h-4 flex items-center justify-center work-trigger">
+                <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
+                <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
+                <div class="w-1 h-1 bg-white transition-all"></div>
+              </div>
+
+              <div class={`absolute mb-2 w-[220px] z-[300] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
+                <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
+                  {ytId && (
+                    <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
+                      <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]" loading="lazy" />
+                    </div>
+                  )}
+                  <div class="p-3">
+                    <div class="flex justify-between items-start mb-1 uppercase text-[8px]">
+                      <p class="text-cyan-500/70">ID: {work.artist}</p>
+                      <p class="text-zinc-500">{work.year}</p>
+                    </div>
+                    <p class="text-white font-bold leading-tight mb-2 line-clamp-2">{work.title}</p>
+                    {work.tags && (
+                      <div class="flex gap-1 mt-1 flex-wrap mb-3">
+                        {work.tags.map(tag => (
+                          <span class="text-[7px] bg-zinc-800 text-zinc-400 px-1 border border-zinc-700/50">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50">
+                      <span>Access Data</span><span>→</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-
     </div>
   </div>
-</section>
 
-<!-- ========================= -->
-<!-- STYLE -->
-<!-- ========================= -->
-<style>
-.rotary-viewport {
-  -webkit-overflow-scrolling: touch;
-}
+  <aside class="audio-hud">
+    <div class="control-group"><label class="control-label">Master Gain</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
+    <div class="control-group"><label class="control-label">Temporal Velocity</label><input type="range" id="speed-fader" min="0" max="2" step="0.01" value="1.0"></div>
+    
+    <div class="hud-divider"></div>
+    
+    <div class="relative h-[220px]" style="mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);">
+      <div id="rotary" class="rotary-viewport absolute inset-0 overflow-y-auto">
+        <div style="height:100000px;"></div>
+        <div id="rotary-list" class="absolute top-0 left-0 w-full">
+          {mappedWorks.map((work) => (
+            <div class="rotary-item absolute w-full px-2" data-uid={work._uid} onclick={`syncWheelToMap(${work._uid})`}>
+              <div class="flex gap-3 items-center w-full">
+                <div class="rotary-indicator"></div>
+                <div class="overflow-hidden">
+                  <div class="text-[8px] text-zinc-500 font-mono">{(work.artist ?? "").toUpperCase()}</div>
+                  <div class="item-title text-xs text-zinc-400 truncate w-[180px] transition-colors">{work.title}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
 
-.rotary-item {
-  height: 80px;
-  display: flex;
-  align-items: center;
-  will-change: transform;
-}
+    <div class="hud-divider"></div>
 
-.indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #888;
-  transition: all 0.3s;
-}
+    <div class="control-group"><label class="control-label">Distortion (Entropy)</label><input type="range" id="dist-fader" min="0" max="100" step="1" value="0"></div>
+    <div class="control-group"><label class="control-label">Delay (Echoes)</label><input type="range" id="delay-fader" min="0" max="0.8" step="0.01" value="0"></div>
+    <div class="control-group"><label class="control-label">Reverb (Space)</label><input type="range" id="reverb-fader" min="0" max="1" step="0.01" value="0"></div>
 
-.work-point .cross {
-  position: absolute;
-  width: 100%;
-  height: 1px;
-  background: #555;
-}
-.work-point .cross::after {
-  content: "";
-  position: absolute;
-  width: 1px;
-  height: 100%;
-  background: #555;
-  left: 50%;
-  top: -50%;
-}
+    <div class="mt-2 pt-2 border-t border-zinc-800">
+      <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div></div>
+      <p id="doppler-status" class="text-[6px] text-cyan-900 mt-2 uppercase tracking-tighter">Shift: Stable</p>
+      <button id="play-pause-btn" class="mt-4 w-full border border-cyan-900/50 text-cyan-500 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-all">Pause Transmission</button>
+    </div>
+  </aside>
+</div>
 
-.work-point .dot {
-  width: 4px;
-  height: 4px;
-  background: white;
-}
-
-/* 強調状態 */
-.active .indicator {
-  background: cyan;
-  box-shadow: 0 0 10px cyan;
-}
-
-.active-point .dot {
-  transform: scale(2);
-  background: cyan;
-}
-</style>
-
-<!-- ========================= -->
-<!-- SCRIPT -->
-<!-- ========================= -->
 <script>
-let filters = { tag: null };
+  let currentTag = null;
+  let currentYear = null; 
+  let audioContext = null;
+  let source = null;
+  let gainNode = null;
+  let distNode, delayNode, delayGain, reverbNode, reverbGain;
+  let isStarted = false;
+  let isPlaying = true;
+  let baseHue = 0;
+  let currentSpeed = 1.0;
+  
+  let wheelActiveUid = null;
 
-function applyFilters() {
-  document.querySelectorAll("[data-work]").forEach(el => {
-    const tags = el.dataset.tags?.split(",") || [];
-    let visible = true;
-
-    if (filters.tag && !tags.includes(filters.tag)) {
-      visible = false;
-    }
-
-    el.style.display = visible ? "block" : "none";
-  });
-}
-
-window.setTag = (tag) => {
-  filters.tag = tag;
-  applyFilters();
-};
-
-/* =========================
-   ROTARY LOGIC
-========================= */
-
-const rotary = document.getElementById('rotary');
-const list = document.getElementById('rotary-list');
-
-if (rotary && list) {
-  const items = Array.from(list.children);
-  const itemHeight = 80;
-  const totalHeight = items.length * itemHeight;
-
-  const centerPos = Math.floor(50000 / itemHeight) * itemHeight;
-  rotary.scrollTop = centerPos;
-
-  function update() {
-    const scrollY = rotary.scrollTop - centerPos;
-
-    items.forEach((item, i) => {
-      const pos = i * itemHeight - scrollY;
-      const wrapped = ((pos % totalHeight) + totalHeight) % totalHeight;
-
-      item.style.transform = `translateY(${rotary.scrollTop + wrapped}px)`;
+  window.copyContact = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      const toast = document.getElementById('copy-toast');
+      toast.classList.add('is-visible');
+      setTimeout(() => toast.classList.remove('is-visible'), 2000);
     });
+  };
 
-    updateActive();
-  }
+  // --------------------------------------------------
+  // ⚙️ 統合フィルタリングロジック
+  // --------------------------------------------------
+  function applyFilters() {
+    const allWorks = document.querySelectorAll("[data-work]");
+    
+    document.querySelectorAll("button[id^='btn-tag-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
+    const activeTagBtn = currentTag ? document.getElementById(`btn-tag-${currentTag}`) : document.getElementById('btn-tag-all');
+    activeTagBtn?.classList.add('border-cyan-500', 'text-cyan-400');
 
-  function updateActive() {
-    const center = rotary.scrollTop + rotary.clientHeight / 2;
+    document.querySelectorAll("button[id^='btn-year-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
+    const activeYearBtn = currentYear ? document.getElementById(`btn-year-${currentYear}`) : document.getElementById('btn-year-all');
+    activeYearBtn?.classList.add('border-cyan-500', 'text-cyan-400');
 
-    let closest = null;
-    let minDist = Infinity;
+    allWorks.forEach((el) => {
+      const tags = (el.getAttribute('data-tags') || "").split(",").map(t => t.trim()).filter(Boolean);
+      const year = el.getAttribute('data-year');
+      const uid = parseInt(el.getAttribute('data-uid'));
+      
+      const tagMatch = !currentTag || tags.includes(currentTag);
+      const yearMatch = !currentYear || year === currentYear;
 
-    items.forEach((item) => {
-      const rect = item.getBoundingClientRect();
-      const itemCenter = rect.top + rect.height / 2;
-      const dist = Math.abs(window.innerHeight/2 - itemCenter);
-
-      if (dist < minDist) {
-        minDist = dist;
-        closest = item;
+      if (tagMatch && yearMatch) {
+        // ホイールで選択されているか判定
+        if (uid === wheelActiveUid) {
+          el.classList.add('is-active');
+          el.classList.remove('is-inactive');
+        } else {
+          el.classList.add('is-inactive');
+          el.classList.remove('is-active');
+        }
+        el.style.display = "block";
+      } else {
+        el.classList.remove('is-active');
+        el.style.display = "none"; // フィルタ外は非表示
       }
     });
-
-    document.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.active-point').forEach(el => el.classList.remove('active-point'));
-
-    if (closest) {
-      closest.classList.add('active');
-
-      const id = closest.dataset.id;
-      const point = document.querySelector(`.work-point[data-id="${id}"]`);
-      if (point) point.classList.add('active-point');
-    }
   }
 
-  rotary.addEventListener('scroll', update);
-  update();
-}
+  window.setTag = (tag) => { if (!isStarted) startExperience(); currentTag = tag; applyFilters(); };
+  window.setYear = (year) => { if (!isStarted) startExperience(); currentYear = year; applyFilters(); };
+
+  // --------------------------------------------------
+  // 📜 Rotary Scroll Logic
+  // --------------------------------------------------
+  const rotary = document.getElementById('rotary');
+  const list = document.getElementById('rotary-list');
+  
+  if (rotary && list) {
+    const items = Array.from(list.children);
+    const itemHeight = 50; // .rotary-item の height に合わせる
+    const totalHeight = items.length * itemHeight;
+    const centerPos = Math.floor(50000 / itemHeight) * itemHeight;
+    rotary.scrollTop = centerPos;
+
+    let scrollTimeout;
+
+    function updateRotary() {
+      const scrollY = rotary.scrollTop - centerPos;
+      
+      items.forEach((item, i) => {
+        const pos = i * itemHeight - scrollY;
+        const wrapped = ((pos % totalHeight) + totalHeight) % totalHeight;
+        item.style.transform = `translateY(${rotary.scrollTop + wrapped}px)`;
+      });
+
+      updateActiveItem();
+    }
+
+    function updateActiveItem() {
+      const containerRect = rotary.getBoundingClientRect();
+      const centerY = containerRect.top + containerRect.height / 2;
+
+      let closest = null;
+      let minDist = Infinity;
+
+      items.forEach((item) => {
+        const rect = item.getBoundingClientRect();
+        const itemCenter = rect.top + rect.height / 2;
+        const dist = Math.abs(centerY - itemCenter);
+
+        if (dist < minDist) {
+          minDist = dist;
+          closest = item;
+        }
+      });
+
+      items.forEach(el => el.classList.remove('is-focused'));
+
+      if (closest) {
+        closest.classList.add('is-focused');
+        wheelActiveUid = parseInt(closest.getAttribute('data-uid'));
+        applyFilters(); // マップ側のハイライトも更新
+      }
+    }
+
+    rotary.addEventListener('scroll', () => {
+      updateRotary();
+      // スクロール停止時にピッタリ中央にスナップさせる処理
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const current = rotary.scrollTop;
+        const target = Math.round(current / itemHeight) * itemHeight;
+        rotary.scrollTo({ top: target, behavior: 'smooth' });
+      }, 150);
+    });
+
+    updateRotary();
+
+    // マップクリック時にホイールを回す
+    window.syncWheelToMap = (uid) => {
+      const targetIdx = items.findIndex(item => parseInt(item.getAttribute('data-uid')) === uid);
+      if (targetIdx === -1) return;
+
+      const scrollY = rotary.scrollTop - centerPos;
+      const currentIdx = Math.round(scrollY / itemHeight);
+      
+      const targetPos = centerPos + (targetIdx * itemHeight);
+      rotary.scrollTo({ top: targetPos, behavior: 'smooth' });
+    };
+  }
+
+  // --------------------------------------------------
+  // 🎵 オーディオ関連 (省略せずに維持)
+  // --------------------------------------------------
+  function updateVisualShift() {
+    if (!isStarted) return;
+    if (isPlaying && currentSpeed > 0) {
+      const cycleSpeed = 0.1 * Math.pow(currentSpeed, 3);
+      baseHue = (baseHue + cycleSpeed) % 360;
+    }
+    const speedDelta = currentSpeed - 1.0;
+    const shiftHue = baseHue + (speedDelta * 50);
+    const brightness = 0.9 + (Math.pow(Math.abs(speedDelta), 1.5) * 1.5);
+    const contrast = 1.0 + (Math.abs(speedDelta) * 0.8);
+    const saturation = 0.5 + (currentSpeed * 1.2);
+    const invert = currentSpeed > 1.5 ? (currentSpeed - 1.5) * 0.4 : 0;
+    
+    document.body.style.filter = `hue-rotate(${shiftHue}deg) saturate(${saturation}) brightness(${brightness}) contrast(${contrast}) invert(${invert})`;
+    
+    const status = document.getElementById('doppler-status');
+    if (status) {
+      if (currentSpeed === 0) status.innerText = `Shift: Time Frozen`;
+      else if (currentSpeed > 1.8) status.innerText = `Shift: Critical Singularity`;
+      else if (currentSpeed > 1.2) status.innerText = `Shift: Blue (Warping)`;
+      else if (currentSpeed < 0.8) status.innerText = `Shift: Red (Distant)`;
+      else status.innerText = `Shift: Stable`;
+    }
+    requestAnimationFrame(updateVisualShift);
+  }
+
+  function createImpulse(duration, decay) {
+    const rate = audioContext.sampleRate;
+    const length = rate * duration;
+    const impulse = audioContext.createBuffer(2, length, rate);
+    for (let i = 0; i < 2; i++) {
+      const data = impulse.getChannelData(i);
+      for (let j = 0; j < length; j++) { data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, decay); }
+    }
+    return impulse;
+  }
+
+  function makeDistortionCurve(amount) {
+    const k = amount || 50;
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < n_samples; ++i) {
+      const x = (i * 2) / n_samples - 1;
+      curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
+  }
+
+  function togglePlayback() {
+    if (!audioContext) return;
+    if (isPlaying) { audioContext.suspend(); isPlaying = false; document.getElementById('play-pause-btn').innerText = "Resume Transmission"; }
+    else { audioContext.resume(); isPlaying = true; document.getElementById('play-pause-btn').innerText = "Pause Transmission"; }
+  }
+
+  async function startExperience() {
+    if (isStarted) return;
+    isStarted = true;
+    document.getElementById('start-overlay').classList.add('hidden');
+    document.body.classList.remove('is-blurred');
+    document.body.style.overflow = 'auto';
+    updateVisualShift();
+
+    try {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const response = await fetch('/SITE_th.mp3');
+      source = audioContext.createBufferSource();
+      source.buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+      source.loop = true;
+
+      distNode = audioContext.createWaveShaper(); distNode.oversample = '4x';
+      delayNode = audioContext.createDelay(2.0); delayGain = audioContext.createGain(); delayGain.gain.value = 0;
+      reverbNode = audioContext.createConvolver(); reverbNode.buffer = createImpulse(2.5, 4.0);
+      reverbGain = audioContext.createGain(); reverbGain.gain.value = 0;
+      gainNode = audioContext.createGain(); gainNode.gain.value = 0.5;
+
+      source.connect(distNode);
+      distNode.connect(delayNode); delayNode.connect(delayGain); delayGain.connect(delayNode); delayGain.connect(gainNode);
+      distNode.connect(reverbNode); reverbNode.connect(reverbGain); reverbGain.connect(gainNode);
+      distNode.connect(gainNode); gainNode.connect(audioContext.destination);
+      source.start(0);
+
+      document.getElementById('play-pause-btn').addEventListener('click', togglePlayback);
+      document.querySelectorAll('.work-trigger').forEach(t => t.addEventListener('click', () => isPlaying && togglePlayback()));
+      document.getElementById('vol-fader').addEventListener('input', (e) => gainNode.gain.value = parseFloat(e.target.value));
+      document.getElementById('speed-fader').addEventListener('input', (e) => { currentSpeed = parseFloat(e.target.value); source.playbackRate.value = currentSpeed; });
+      document.getElementById('dist-fader').addEventListener('input', (e) => distNode.curve = makeDistortionCurve(parseInt(e.target.value)));
+      document.getElementById('delay-fader').addEventListener('input', (e) => { delayNode.delayTime.value = 0.4; delayGain.gain.value = parseFloat(e.target.value); });
+      document.getElementById('reverb-fader').addEventListener('input', (e) => reverbGain.gain.value = parseFloat(e.target.value));
+      
+      const vBar = document.getElementById('v-bar');
+      setInterval(() => {
+        if (!isPlaying || currentSpeed === 0) { if(vBar) vBar.style.width = '0%'; return; }
+        const level = Math.random() * (gainNode.gain.value * 100);
+        if(vBar) vBar.style.width = `${level}%`;
+      }, 100);
+    } catch (e) { console.error(e); }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.classList.add('is-blurred');
+    document.getElementById('start-overlay')?.addEventListener('click', startExperience);
+  });
 </script>
