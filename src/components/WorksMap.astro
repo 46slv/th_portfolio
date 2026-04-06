@@ -8,6 +8,9 @@ const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
 
 // マップとホイールを同期させるためのユニークIDを付与
 const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
+
+// ロータリーホイール用（時系列降順にソート）
+const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.year));
 ---
 
 <style>
@@ -58,6 +61,9 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
   }
   :global(body:not(.is-blurred)) .main-layout { opacity: 1; }
 
+  /* --------------------------------------------------
+   * 🗺️ マップコンテナとポイント設定
+   * -------------------------------------------------- */
   .map-container { perspective: 1200px; transform-style: preserve-3d; position: relative; isolation: isolate; }
   
   @keyframes float {
@@ -68,40 +74,60 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
 
   [data-work] { 
     position: absolute; 
-    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
-    transform: translate(-50%, 50%); 
-    will-change: transform, opacity;
-  }
-  /* ホイールやフィルタでアクティブになった時 */
-  [data-work].is-active { 
-    opacity: 1; z-index: 200 !important; 
-    transform: translate(-50%, 50%) translateZ(120px) scale(1.4); 
-    filter: drop-shadow(0 0 15px rgba(34, 211, 238, 0.8)); 
-  }
-  [data-work].is-active .bg-white {
-    transform: scale(2);
-    background: cyan;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
+    will-change: transform;
+    opacity: 1; /* 元の明るさを維持 */
   }
 
-  [data-work].is-inactive { 
-    opacity: 0.15; z-index: 0; 
-    transform: translate(-50%, 50%) translateZ(-100px) scale(0.8); 
+  [data-work].is-active { 
+    z-index: 200 !important; 
+    /* 将来的なグロー追加のための余白 */
   }
+
+  [data-work].is-filtered-out {
+    opacity: 0.05 !important;
+    pointer-events: none;
+    transform: translate(-50%, 50%) translateZ(-100px) scale(0.5) !important;
+  }
+
   .animate-float { animation: float 6s ease-in-out infinite; }
 
-  /* 🎚️ オーディオHUD */
-  .audio-hud { 
-    display: flex; flex-direction: column; gap: 14px; padding: 20px; 
-    background: rgba(9, 9, 11, 0.8); border: 1px solid rgba(34, 211, 238, 0.1); 
-    height: fit-content; position: relative; z-index: 20; backdrop-filter: blur(10px); 
+  /* ツールチップの制御 */
+  .work-tooltip {
+    opacity: 0; pointer-events: none;
+    transform: translateY(10px);
+    transition: all 0.3s ease-out;
   }
+  /* ホバー または ホイール選択時 にツールチップを表示 */
+  [data-work].is-active .work-tooltip,
+  [data-work]:hover .work-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  /* --------------------------------------------------
+   * 🎚️ 右側パネル（HUD + ホイール）
+   * -------------------------------------------------- */
+  .right-panel {
+    display: flex; flex-direction: column; gap: 16px;
+    position: relative; z-index: 20;
+  }
+
+  .hud-box {
+    background: rgba(9, 9, 11, 0.8);
+    border: 1px solid rgba(34, 211, 238, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
   .control-group { display: flex; flex-direction: column; gap: 6px; }
   .control-label { font-size: 8px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.8; }
   input[type="range"] { appearance: none; background: #18181b; height: 2px; outline: none; width: 100%; }
   input[type="range"]::-webkit-slider-thumb { appearance: none; width: 8px; height: 8px; background: #22d3ee; border-radius: 50%; cursor: pointer; box-shadow: 0 0 5px #22d3ee; }
-  .hud-divider { height: 1px; background: rgba(34, 211, 238, 0.05); margin: 6px 0; }
 
-  /* 📜 【新規】ロータリースクローラー */
+  /* 📜 ロータリースクローラー */
   .rotary-viewport {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -109,19 +135,13 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
   .rotary-viewport::-webkit-scrollbar { display: none; }
 
   .rotary-item {
-    height: 50px;
-    display: flex;
-    align-items: center;
-    will-change: transform;
-    opacity: 0.3;
-    transition: opacity 0.3s;
-    cursor: pointer;
+    height: 50px; display: flex; align-items: center;
+    will-change: transform; opacity: 0.3; transition: opacity 0.3s; cursor: pointer;
   }
   .rotary-indicator {
     width: 4px; height: 4px; border-radius: 50%; background: #555; transition: all 0.3s;
   }
 
-  /* 中央にフォーカスされた状態 */
   .rotary-item.is-focused { opacity: 1; }
   .rotary-item.is-focused .rotary-indicator {
     background: cyan; box-shadow: 0 0 8px cyan; transform: scale(1.5);
@@ -184,7 +204,7 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
               data-uid={work._uid}
               data-tags={work.tags?.join(",") ?? ""} 
               data-year={work.year}
-              class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused] is-inactive" 
+              class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]" 
               style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
               onclick={`syncWheelToMap(${work._uid})`}
             >
@@ -194,7 +214,7 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
                 <div class="w-1 h-1 bg-white transition-all"></div>
               </div>
 
-              <div class={`absolute mb-2 w-[220px] z-[300] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
+              <div class={`work-tooltip absolute mb-2 w-[220px] z-[300] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
                 <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
                   {ytId && (
                     <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
@@ -214,9 +234,9 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
                         ))}
                       </div>
                     )}
-                    <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50">
+                    <a href={work.url} target="_blank" class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50 hover:bg-cyan-900/30 hover:text-cyan-400 transition-colors pointer-events-auto">
                       <span>Access Data</span><span>→</span>
-                    </div>
+                    </a>
                   </div>
                 </div>
               </div>
@@ -227,43 +247,47 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
     </div>
   </div>
 
-  <aside class="audio-hud">
-    <div class="control-group"><label class="control-label">Master Gain</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
-    <div class="control-group"><label class="control-label">Temporal Velocity</label><input type="range" id="speed-fader" min="0" max="2" step="0.01" value="1.0"></div>
+  <div class="right-panel">
     
-    <div class="hud-divider"></div>
-    
-    <div class="relative h-[220px]" style="mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);">
-      <div id="rotary" class="rotary-viewport absolute inset-0 overflow-y-auto">
-        <div style="height:100000px;"></div>
-        <div id="rotary-list" class="absolute top-0 left-0 w-full">
-          {mappedWorks.map((work) => (
-            <div class="rotary-item absolute w-full px-2" data-uid={work._uid} onclick={`syncWheelToMap(${work._uid})`}>
-              <div class="flex gap-3 items-center w-full">
-                <div class="rotary-indicator"></div>
-                <div class="overflow-hidden">
-                  <div class="text-[8px] text-zinc-500 font-mono">{(work.artist ?? "").toUpperCase()}</div>
-                  <div class="item-title text-xs text-zinc-400 truncate w-[180px] transition-colors">{work.title}</div>
+    <aside class="hud-box">
+      <div class="control-group"><label class="control-label">Master Gain</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
+      <div class="control-group"><label class="control-label">Temporal Velocity</label><input type="range" id="speed-fader" min="0" max="2" step="0.01" value="1.0"></div>
+      <div class="control-group"><label class="control-label">Distortion (Entropy)</label><input type="range" id="dist-fader" min="0" max="100" step="1" value="0"></div>
+      <div class="control-group"><label class="control-label">Delay (Echoes)</label><input type="range" id="delay-fader" min="0" max="0.8" step="0.01" value="0"></div>
+      <div class="control-group"><label class="control-label">Reverb (Space)</label><input type="range" id="reverb-fader" min="0" max="1" step="0.01" value="0"></div>
+
+      <div class="mt-2 pt-2 border-t border-zinc-800">
+        <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div></div>
+        <p id="doppler-status" class="text-[6px] text-cyan-900 mt-2 uppercase tracking-tighter">Shift: Stable</p>
+        <button id="play-pause-btn" class="mt-4 w-full border border-cyan-900/50 text-cyan-500 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-all">Pause Transmission</button>
+      </div>
+    </aside>
+
+    <aside class="hud-box !p-0 overflow-hidden">
+      <div class="px-4 pt-4 pb-2 border-b border-zinc-800">
+        <h3 class="text-[8px] text-zinc-500 uppercase tracking-widest">Archive Data</h3>
+      </div>
+      <div class="relative h-[200px]" style="mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);">
+        <div id="rotary" class="rotary-viewport absolute inset-0 overflow-y-auto">
+          <div style="height:100000px;"></div>
+          <div id="rotary-list" class="absolute top-0 left-0 w-full">
+            {wheelWorks.map((work) => (
+              <div class="rotary-item absolute w-full px-4" data-uid={work._uid} onclick={`syncWheelToMap(${work._uid})`}>
+                <div class="flex gap-3 items-center w-full">
+                  <div class="rotary-indicator"></div>
+                  <div class="overflow-hidden">
+                    <div class="text-[8px] text-zinc-500 font-mono">{(work.artist ?? "").toUpperCase()}</div>
+                    <div class="item-title text-[10px] text-zinc-400 truncate w-[160px] transition-colors">{work.title}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </aside>
 
-    <div class="hud-divider"></div>
-
-    <div class="control-group"><label class="control-label">Distortion (Entropy)</label><input type="range" id="dist-fader" min="0" max="100" step="1" value="0"></div>
-    <div class="control-group"><label class="control-label">Delay (Echoes)</label><input type="range" id="delay-fader" min="0" max="0.8" step="0.01" value="0"></div>
-    <div class="control-group"><label class="control-label">Reverb (Space)</label><input type="range" id="reverb-fader" min="0" max="1" step="0.01" value="0"></div>
-
-    <div class="mt-2 pt-2 border-t border-zinc-800">
-      <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div></div>
-      <p id="doppler-status" class="text-[6px] text-cyan-900 mt-2 uppercase tracking-tighter">Shift: Stable</p>
-      <button id="play-pause-btn" class="mt-4 w-full border border-cyan-900/50 text-cyan-500 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-all">Pause Transmission</button>
-    </div>
-  </aside>
+  </div>
 </div>
 
 <script>
@@ -289,9 +313,9 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
   };
 
   // --------------------------------------------------
-  // ⚙️ 統合フィルタリングロジック
+  // ⚙️ 統合フィルタリング & 状態管理
   // --------------------------------------------------
-  function applyFilters() {
+  function applyGlobalStates() {
     const allWorks = document.querySelectorAll("[data-work]");
     
     document.querySelectorAll("button[id^='btn-tag-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
@@ -311,82 +335,69 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
       const yearMatch = !currentYear || year === currentYear;
 
       if (tagMatch && yearMatch) {
-        // ホイールで選択されているか判定
+        el.classList.remove('is-filtered-out');
+        // ホイールで選択されているものに is-active を付与
         if (uid === wheelActiveUid) {
           el.classList.add('is-active');
-          el.classList.remove('is-inactive');
         } else {
-          el.classList.add('is-inactive');
           el.classList.remove('is-active');
         }
-        el.style.display = "block";
       } else {
         el.classList.remove('is-active');
-        el.style.display = "none"; // フィルタ外は非表示
+        el.classList.add('is-filtered-out');
       }
     });
   }
 
-  window.setTag = (tag) => { if (!isStarted) startExperience(); currentTag = tag; applyFilters(); };
-  window.setYear = (year) => { if (!isStarted) startExperience(); currentYear = year; applyFilters(); };
+  window.setTag = (tag) => { if (!isStarted) startExperience(); currentTag = tag; applyGlobalStates(); };
+  window.setYear = (year) => { if (!isStarted) startExperience(); currentYear = year; applyGlobalStates(); };
 
   // --------------------------------------------------
-  // 📜 Rotary Scroll Logic
+  // 📜 Rotary Scroll Logic (完全同期版)
   // --------------------------------------------------
   const rotary = document.getElementById('rotary');
   const list = document.getElementById('rotary-list');
   
   if (rotary && list) {
     const items = Array.from(list.children);
-    const itemHeight = 50; // .rotary-item の height に合わせる
-    const totalHeight = items.length * itemHeight;
-    const centerPos = Math.floor(50000 / itemHeight) * itemHeight;
-    rotary.scrollTop = centerPos;
+    const numItems = items.length;
+    const itemHeight = 50; 
+    const totalHeight = numItems * itemHeight;
+    const centerPos = Math.floor(50000 / itemHeight) * itemHeight; // 基準値
+    const containerHeight = 200;
 
+    rotary.scrollTop = centerPos;
     let scrollTimeout;
 
     function updateRotary() {
       const scrollY = rotary.scrollTop - centerPos;
       
+      // 中央に来る要素の絶対インデックスを計算
+      const currentAbsoluteIndex = Math.round(scrollY / itemHeight);
+      const activeIndex = ((currentAbsoluteIndex % numItems) + numItems) % numItems;
+
       items.forEach((item, i) => {
         const pos = i * itemHeight - scrollY;
         const wrapped = ((pos % totalHeight) + totalHeight) % totalHeight;
-        item.style.transform = `translateY(${rotary.scrollTop + wrapped}px)`;
-      });
+        const offset = (containerHeight / 2) - (itemHeight / 2);
+        
+        item.style.transform = `translateY(${rotary.scrollTop + wrapped - offset}px)`;
 
-      updateActiveItem();
-    }
-
-    function updateActiveItem() {
-      const containerRect = rotary.getBoundingClientRect();
-      const centerY = containerRect.top + containerRect.height / 2;
-
-      let closest = null;
-      let minDist = Infinity;
-
-      items.forEach((item) => {
-        const rect = item.getBoundingClientRect();
-        const itemCenter = rect.top + rect.height / 2;
-        const dist = Math.abs(centerY - itemCenter);
-
-        if (dist < minDist) {
-          minDist = dist;
-          closest = item;
+        // フォーカス状態の更新
+        if (i === activeIndex) {
+          item.classList.add('is-focused');
+          wheelActiveUid = parseInt(item.getAttribute('data-uid'));
+        } else {
+          item.classList.remove('is-focused');
         }
       });
 
-      items.forEach(el => el.classList.remove('is-focused'));
-
-      if (closest) {
-        closest.classList.add('is-focused');
-        wheelActiveUid = parseInt(closest.getAttribute('data-uid'));
-        applyFilters(); // マップ側のハイライトも更新
-      }
+      applyGlobalStates(); // 選択状況をマップに即座に反映
     }
 
     rotary.addEventListener('scroll', () => {
       updateRotary();
-      // スクロール停止時にピッタリ中央にスナップさせる処理
+      // スクロール停止時にピッタリ中央にスナップ
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         const current = rotary.scrollTop;
@@ -397,21 +408,29 @@ const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
 
     updateRotary();
 
-    // マップクリック時にホイールを回す
+    // マップクリック時にホイールを回す (ズレなし保証版)
     window.syncWheelToMap = (uid) => {
       const targetIdx = items.findIndex(item => parseInt(item.getAttribute('data-uid')) === uid);
       if (targetIdx === -1) return;
 
       const scrollY = rotary.scrollTop - centerPos;
-      const currentIdx = Math.round(scrollY / itemHeight);
+      const currentAbsoluteIdx = Math.round(scrollY / itemHeight);
+      const currentModIdx = ((currentAbsoluteIdx % numItems) + numItems) % numItems;
       
-      const targetPos = centerPos + (targetIdx * itemHeight);
-      rotary.scrollTo({ top: targetPos, behavior: 'smooth' });
+      let diff = targetIdx - currentModIdx;
+      // 最短距離で回す
+      if (diff > numItems / 2) diff -= numItems;
+      if (diff < -numItems / 2) diff += numItems;
+
+      const targetAbsoluteIdx = currentAbsoluteIdx + diff;
+      const targetScroll = centerPos + (targetAbsoluteIdx * itemHeight);
+      
+      rotary.scrollTo({ top: targetScroll, behavior: 'smooth' });
     };
   }
 
   // --------------------------------------------------
-  // 🎵 オーディオ関連 (省略せずに維持)
+  // 🎵 オーディオ関連
   // --------------------------------------------------
   function updateVisualShift() {
     if (!isStarted) return;
