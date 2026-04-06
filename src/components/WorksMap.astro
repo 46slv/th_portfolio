@@ -2,190 +2,231 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
-const allTags = [...new Set(works.flatMap(w => w.tags ?? []))].sort();
-const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
+// タグ一覧
+const allTags = [...new Set(works.flatMap(w => w.tags ?? []))];
 ---
 
-<style>
-  :global(body) {
-    background-color: #020205;
-    margin: 0;
-    color: white;
-    min-height: 100vh;
-  }
+<!-- ========================= -->
+<!-- FILTER UI -->
+<!-- ========================= -->
+<div class="max-w-4xl mx-auto mb-4 flex flex-wrap gap-2 text-xs">
+  <button onclick="setTag(null)">ALL</button>
 
-  .main-layout {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 20px;
-    max-width: 1400px;
-    margin: 20px auto;
-    padding: 0 20px;
-    font-family: monospace;
-  }
+  {allTags.map(tag => (
+    <button onclick={`setTag("${tag}")`}>
+      {tag}
+    </button>
+  ))}
+</div>
 
-  .map-container {
-    position: relative;
-  }
+<!-- ========================= -->
+<!-- MAP -->
+<!-- ========================= -->
+<div class="relative w-full max-w-4xl mx-auto aspect-square bg-zinc-950 border border-zinc-800 overflow-hidden font-mono text-[10px] sm:text-xs">
 
-  [data-work] {
-    position: absolute;
-    transform: translate(-50%, 50%);
-  }
+  <div class="absolute inset-0 opacity-20" 
+       style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;">
+  </div>
 
-  /* -------------------------------
-     Rotary Wheel
-  -------------------------------- */
-  .rotary-container {
-    position: relative;
-    width: 260px;
-    height: 260px;
-    border: 1px solid rgba(34, 211, 238, 0.1);
-    overflow: hidden;
-  }
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div class="w-full h-[1px] bg-zinc-800"></div>
+    <div class="absolute h-full w-[1px] bg-zinc-800"></div>
+  </div>
 
-  .rotary-wheel {
-    position: absolute;
-    inset: 0;
-    transform-origin: center;
-    transition: transform 0.6s cubic-bezier(0.33, 1, 0.68, 1);
-  }
-
-  .rotary-item {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform-origin: center center;
-    font-size: 10px;
-    color: #71717a;
-    white-space: nowrap;
-    pointer-events: none;
-    text-align: center;
-    width: 140px;
-    margin-left: -70px;
-  }
-
-  .rotary-item.is-active {
-    color: #22d3ee;
-    font-weight: bold;
-    text-shadow: 0 0 8px rgba(34, 211, 238, 0.5);
-  }
-
-  .rotary-center {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
-
-  .rotary-active {
-    font-size: 10px;
-    color: #22d3ee;
-    border: 1px solid rgba(34, 211, 238, 0.3);
-    padding: 6px 10px;
-    background: rgba(0, 0, 0, 0.6);
-  }
-</style>
-
-<div class="main-layout">
-  <div class="map-container">
-    {works.map((work) => {
+  <div class="absolute inset-16 sm:inset-24">
+    {works.map((work, i) => {
       const left = ((work.x + 100) / 200) * 100;
       const bottom = ((work.y + 100) / 200) * 100;
+
       return (
         <div 
           data-work
+          data-id={i}
+          data-tags={work.tags?.join(",") ?? ""}
+          class="work-point group absolute -translate-x-1/2 translate-y-1/2 cursor-crosshair"
           style={`left:${left}%; bottom:${bottom}%`}
         >
-          ●
+          <div class="relative w-4 h-4 flex items-center justify-center">
+            <div class="cross"></div>
+            <div class="dot"></div>
+          </div>
         </div>
       );
     })}
   </div>
+</div>
 
-  <aside>
-    <div class="rotary-container">
-      <div id="rotary-wheel" class="rotary-wheel">
+<!-- ========================= -->
+<!-- ROTARY -->
+<!-- ========================= -->
+<section class="mt-20 max-w-4xl mx-auto">
+  <div class="relative h-[320px]" style="mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);">
+    
+    <div id="rotary" class="rotary-viewport absolute inset-0 overflow-y-auto">
+      <div style="height:100000px;"></div>
+
+      <div id="rotary-list" class="absolute top-0 left-0 w-full">
         {works.map((work, i) => (
-          <div class="rotary-item" data-index={i}>
-            {work.title}
+          <div class="rotary-item absolute w-full" data-id={i}>
+            <div class="flex gap-4 items-center">
+              <div class="indicator"></div>
+
+              <div>
+                <div class="text-[10px] text-zinc-500">
+                  {(work.artist ?? "").toUpperCase()}
+                </div>
+                <div class="text-sm text-zinc-300">
+                  {work.title}
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
-      <div class="rotary-center">
-        <div id="rotary-active" class="rotary-active">SELECT</div>
-      </div>
     </div>
-  </aside>
-</div>
+  </div>
+</section>
 
+<!-- ========================= -->
+<!-- STYLE -->
+<!-- ========================= -->
+<style>
+.rotary-viewport {
+  -webkit-overflow-scrolling: touch;
+}
+
+.rotary-item {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  will-change: transform;
+}
+
+.indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #888;
+  transition: all 0.3s;
+}
+
+.work-point .cross {
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  background: #555;
+}
+.work-point .cross::after {
+  content: "";
+  position: absolute;
+  width: 1px;
+  height: 100%;
+  background: #555;
+  left: 50%;
+  top: -50%;
+}
+
+.work-point .dot {
+  width: 4px;
+  height: 4px;
+  background: white;
+}
+
+/* 強調状態 */
+.active .indicator {
+  background: cyan;
+  box-shadow: 0 0 10px cyan;
+}
+
+.active-point .dot {
+  transform: scale(2);
+  background: cyan;
+}
+</style>
+
+<!-- ========================= -->
+<!-- SCRIPT -->
+<!-- ========================= -->
 <script>
-  let rotaryIndex = 0;
-  let rotaryItems = [];
-  let total = 0;
+let filters = { tag: null };
 
-  function initRotary() {
-    const wheel = document.getElementById('rotary-wheel');
-    if (!wheel) return;
+function applyFilters() {
+  document.querySelectorAll("[data-work]").forEach(el => {
+    const tags = el.dataset.tags?.split(",") || [];
+    let visible = true;
 
-    rotaryItems = Array.from(wheel.querySelectorAll('.rotary-item'));
-    total = rotaryItems.length;
+    if (filters.tag && !tags.includes(filters.tag)) {
+      visible = false;
+    }
 
-    const step = 360 / total;
-    const radius = 100;
+    el.style.display = visible ? "block" : "none";
+  });
+}
 
-    // 円形配置
-    rotaryItems.forEach((el, i) => {
-      const angle = step * i;
-      el.style.transform = `
-        rotate(${angle}deg)
-        translateY(-${radius}px)
-        rotate(${-angle}deg)
-      `;
-    });
+window.setTag = (tag) => {
+  filters.tag = tag;
+  applyFilters();
+};
 
-    update();
-  }
+/* =========================
+   ROTARY LOGIC
+========================= */
+
+const rotary = document.getElementById('rotary');
+const list = document.getElementById('rotary-list');
+
+if (rotary && list) {
+  const items = Array.from(list.children);
+  const itemHeight = 80;
+  const totalHeight = items.length * itemHeight;
+
+  const centerPos = Math.floor(50000 / itemHeight) * itemHeight;
+  rotary.scrollTop = centerPos;
 
   function update() {
-    const wheel = document.getElementById('rotary-wheel');
-    const display = document.getElementById('rotary-active');
-    if (!wheel) return;
+    const scrollY = rotary.scrollTop - centerPos;
 
-    const step = 360 / total;
-    const angle = -rotaryIndex * step;
+    items.forEach((item, i) => {
+      const pos = i * itemHeight - scrollY;
+      const wrapped = ((pos % totalHeight) + totalHeight) % totalHeight;
 
-    wheel.style.transform = `rotate(${angle}deg)`;
+      item.style.transform = `translateY(${rotary.scrollTop + wrapped}px)`;
+    });
 
-    rotaryItems.forEach(el => el.classList.remove('is-active'));
+    updateActive();
+  }
 
-    const active = rotaryItems[rotaryIndex];
-    if (active) {
-      active.classList.add('is-active');
-      if (display) display.innerText = active.innerText;
+  function updateActive() {
+    const center = rotary.scrollTop + rotary.clientHeight / 2;
+
+    let closest = null;
+    let minDist = Infinity;
+
+    items.forEach((item) => {
+      const rect = item.getBoundingClientRect();
+      const itemCenter = rect.top + rect.height / 2;
+      const dist = Math.abs(window.innerHeight/2 - itemCenter);
+
+      if (dist < minDist) {
+        minDist = dist;
+        closest = item;
+      }
+    });
+
+    document.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.active-point').forEach(el => el.classList.remove('active-point'));
+
+    if (closest) {
+      closest.classList.add('active');
+
+      const id = closest.dataset.id;
+      const point = document.querySelector(`.work-point[data-id="${id}"]`);
+      if (point) point.classList.add('active-point');
     }
   }
 
-  function rotate(dir) {
-    rotaryIndex += dir;
-
-    if (rotaryIndex < 0) rotaryIndex = total - 1;
-    if (rotaryIndex >= total) rotaryIndex = 0;
-
-    update();
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    requestAnimationFrame(initRotary);
-
-    document.addEventListener('wheel', (e) => {
-      if (Math.abs(e.deltaY) < 10) return;
-
-      if (e.deltaY > 0) rotate(1);
-      else rotate(-1);
-    }, { passive: true });
-  });
+  rotary.addEventListener('scroll', update);
+  update();
+}
 </script>
