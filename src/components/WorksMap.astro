@@ -2,199 +2,76 @@
 import { works } from '../data/works';
 import '../styles/global.css';
 
-// 🔥 フィルタリング用データの抽出
 const allTags = [...new Set(works.flatMap(w => w.tags ?? []))].sort();
 const allYears = [...new Set(works.map(w => String(w.year)))].sort().reverse();
 
 // マップとホイールを同期させるためのユニークIDを付与
 const mappedWorks = works.map((w, i) => ({ ...w, _uid: i }));
-
-// ロータリーホイール用（時系列降順にソート）
-const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.year));
 ---
 
 <style>
-  /* --------------------------------------------------
-   * 🌫️ 【仕様固定】画面全体の初期状態（ブラー）
-   * -------------------------------------------------- */
-  :global(body.is-blurred) {
-    filter: blur(20px) saturate(0.5);
-    pointer-events: none;
-    overflow: hidden;
-  }
+  /* 全体レイアウトは維持 */
+  :global(body.is-blurred) { filter: blur(20px) saturate(0.5); pointer-events: none; overflow: hidden; }
+  :global(body) { background-color: #020205; margin: 0; color: white; min-height: 100vh; transition: filter 0.4s; }
 
-  :global(body) {
-    background-color: #020205; 
-    margin: 0;
-    color: white;
-    min-height: 100vh;
-    transition: filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
-  }
-
-  #start-overlay {
-    position: fixed; inset: 0; z-index: 9999;
-    display: flex; flex-direction: column; gap: 16px;
-    align-items: center; justify-content: center;
-    background: rgba(0, 0, 0, 0.95);
-    cursor: pointer; pointer-events: auto !important;
-    transition: opacity 0.8s ease, visibility 0.8s;
-  }
-  #start-overlay.hidden { opacity: 0; visibility: hidden; }
-
-  .contact-bar {
-    display: flex; justify-content: flex-end; padding: 10px 20px;
-    font-size: 10px; letter-spacing: 0.2em;
-    border-bottom: 1px solid rgba(34, 211, 238, 0.1);
-    position: relative; z-index: 10;
-  }
-  .contact-link { color: #71717a; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: color 0.3s ease; }
-  .contact-link:hover { color: #22d3ee; }
-  .copy-feedback { position: absolute; right: 0; top: 120%; background: #22d3ee; color: #000; padding: 2px 6px; font-weight: bold; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
-  .copy-feedback.is-visible { opacity: 1; }
-
-  /* 🔵 レイアウト構成 */
   .main-layout {
-    display: grid; grid-template-columns: 1fr 260px; gap: 20px;
-    max-width: 1200px; margin: 20px auto;
-    font-family: 'JetBrains Mono', monospace;
-    opacity: 0; transition: opacity 1s ease 0.5s;
+    display: grid; grid-template-columns: 1fr 280px; gap: 20px;
+    max-width: 1200px; margin: 20px auto; font-family: 'JetBrains Mono', monospace;
+    opacity: 0; transition: opacity 1s;
   }
   :global(body:not(.is-blurred)) .main-layout { opacity: 1; }
 
-  /* --------------------------------------------------
-   * 🗺️ マップコンテナとポイント設定
-   * -------------------------------------------------- */
-  .map-container { perspective: 1200px; transform-style: preserve-3d; position: relative; isolation: isolate; }
+  /* 🗺️ マップポイント */
+  [data-work] { position: absolute; transition: transform 0.6s; opacity: 1; z-index: 10; }
+  [data-work].is-filtered-out { opacity: 0; pointer-events: none; transform: scale(0); }
   
-  @keyframes float {
-    0%, 100% { transform: translate(-50%, 50%) rotate(0deg); }
-    33% { transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg); }
-    66% { transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg); }
+  /* 🌟 アクティブ（選択中）のグロー効果 */
+  [data-work].is-active { z-index: 100 !important; }
+  [data-work].is-active .point-core {
+    background: #fff; box-shadow: 0 0 15px 2px cyan; transform: scale(1.5);
   }
 
-  [data-work] { 
-    position: absolute; 
-    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); 
-    will-change: transform;
-    opacity: 1; /* 元の明るさを維持 */
-  }
-
-  [data-work].is-active { 
-    z-index: 200 !important; 
-    /* 将来的なグロー追加のための余白 */
-  }
-
-  [data-work].is-filtered-out {
-    opacity: 0.05 !important;
-    pointer-events: none;
-    transform: translate(-50%, 50%) translateZ(-100px) scale(0.5) !important;
-  }
-
-  .animate-float { animation: float 6s ease-in-out infinite; }
-
-  /* ツールチップの制御 */
+  /* 🗨️ ツールチップ（情報表示） */
   .work-tooltip {
-    opacity: 0; pointer-events: none;
-    transform: translateY(10px);
-    transition: all 0.3s ease-out;
+    position: absolute; width: 240px; opacity: 0; pointer-events: none;
+    transform: translateY(10px); transition: all 0.2s ease; z-index: 200;
   }
-  /* ホバー または ホイール選択時 にツールチップを表示 */
-  [data-work].is-active .work-tooltip,
-  [data-work]:hover .work-tooltip {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
+  /* 表示優先度の制御用クラス */
+  [data-work].show-info .work-tooltip {
+    opacity: 1; pointer-events: auto; transform: translateY(0);
   }
 
-  /* --------------------------------------------------
-   * 🎚️ 右側パネル（HUD + ホイール）
-   * -------------------------------------------------- */
-  .right-panel {
-    display: flex; flex-direction: column; gap: 16px;
-    position: relative; z-index: 20;
-  }
-
+  /* 🎚️ 右パネル構成 */
+  .right-panel { display: flex; flex-direction: column; gap: 16px; }
   .hud-box {
-    background: rgba(9, 9, 11, 0.8);
-    border: 1px solid rgba(34, 211, 238, 0.1);
-    backdrop-filter: blur(10px);
-    padding: 20px;
-    display: flex; flex-direction: column; gap: 14px;
+    background: rgba(9, 9, 11, 0.9); border: 1px solid rgba(34, 211, 238, 0.1);
+    backdrop-filter: blur(10px); padding: 15px;
   }
 
-  .control-group { display: flex; flex-direction: column; gap: 6px; }
-  .control-label { font-size: 8px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.8; }
-  input[type="range"] { appearance: none; background: #18181b; height: 2px; outline: none; width: 100%; }
-  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 8px; height: 8px; background: #22d3ee; border-radius: 50%; cursor: pointer; box-shadow: 0 0 5px #22d3ee; }
-
-  /* 📜 ロータリースクローラー */
-  .rotary-viewport {
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
+  /* 📜 ロータリー */
+  .rotary-container { position: relative; height: 300px; overflow: hidden; }
+  .rotary-viewport { height: 100%; overflow-y: auto; scrollbar-width: none; }
   .rotary-viewport::-webkit-scrollbar { display: none; }
-
   .rotary-item {
-    height: 50px; display: flex; align-items: center;
-    will-change: transform; opacity: 0.3; transition: opacity 0.3s; cursor: pointer;
+    height: 60px; display: flex; align-items: center; px: 15px;
+    opacity: 0.2; transition: all 0.3s; cursor: pointer;
   }
-  .rotary-indicator {
-    width: 4px; height: 4px; border-radius: 50%; background: #555; transition: all 0.3s;
-  }
-
-  .rotary-item.is-focused { opacity: 1; }
-  .rotary-item.is-focused .rotary-indicator {
-    background: cyan; box-shadow: 0 0 8px cyan; transform: scale(1.5);
-  }
-  .rotary-item.is-focused .item-title {
-    color: cyan; font-weight: bold;
-  }
+  .rotary-item.is-visible { display: flex; }
+  .rotary-item.is-hidden { display: none; }
+  .rotary-item.is-focused { opacity: 1; color: cyan; }
 </style>
 
-<div id="start-overlay">
-  <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">Initialize System</span>
-  <p class="text-zinc-600 text-[8px] uppercase tracking-widest mt-2">Click Anywhere to Begin</p>
+<div id="start-overlay" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black cursor-pointer">
+  <span class="border border-cyan-500 text-cyan-500 px-6 py-3 tracking-[0.5em] animate-pulse">INITIATE SYSTEM</span>
 </div>
 
-<div class="contact-bar">
-  <div class="contact-link" onclick="copyContact('info@corecreative.jp')">
-    <span class="text-zinc-500">CONTACT:</span>
-    <span id="contact-text">info@corecreative.jp</span>
-    <div id="copy-toast" class="copy-feedback">COPIED</div>
-  </div>
-</div>
-
-<div class="max-w-4xl mx-auto pt-6 px-4 space-y-4">
-  <div class="flex flex-wrap gap-2 text-[10px]">
-    <button id="btn-tag-all" onclick="setTag(null)" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all uppercase">All Tags</button>
-    {allTags.map(tag => (
-      <button id={`btn-tag-${tag}`} onclick={`setTag("${tag}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{tag}</button>
-    ))}
-  </div>
-  <div class="flex flex-wrap gap-2 text-[10px] opacity-70">
-    <button id="btn-year-all" onclick="setYear(null)" class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">All Years</button>
-    {allYears.map(year => (
-      <button id={`btn-year-${year}`} onclick={`setYear("${year}")`} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{year}</button>
-    ))}
-  </div>
-</div>
-
-<div class="main-layout">
-  <div class="relative aspect-square px-4">
-    <div id="map-target" class="map-container w-full h-full bg-zinc-950/40 border border-zinc-800 overflow-hidden font-mono text-[10px]">
-      <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
+<div class="main-layout px-4">
+  <div class="relative aspect-square">
+    <div id="map-target" class="w-full h-full bg-zinc-950/40 border border-zinc-800 relative overflow-hidden">
+      <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(cyan 1px, transparent 1px); background-size: 30px 30px;"></div>
       
-      <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
-        <div class="w-full h-[1px] bg-zinc-800"></div>
-        <div class="absolute h-full w-[1px] bg-zinc-800"></div>
-      </div>
-      <div class="absolute top-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Maniac [+]</div>
-      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Popular [-]</div>
-      <div class="absolute left-4 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-left">Electro [L]</div>
-      <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-right">Acoustic [R]</div>
-
       <div class="absolute inset-16 sm:inset-24">
-        {mappedWorks.map((work, index) => {
+        {mappedWorks.map((work) => {
           const left = ((work.x + 100) / 200) * 100;
           const bottom = ((work.y + 100) / 200) * 100;
           const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#\&\?]*)/)?.[1];
@@ -204,40 +81,21 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
               data-uid={work._uid}
               data-tags={work.tags?.join(",") ?? ""} 
               data-year={work.year}
-              class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]" 
-              style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
-              onclick={`syncWheelToMap(${work._uid})`}
+              class="group" 
+              style={`left: ${left}%; bottom: ${bottom}%;`}
             >
-              <div class="relative w-4 h-4 flex items-center justify-center work-trigger">
-                <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
-                <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
-                <div class="w-1 h-1 bg-white transition-all"></div>
+              <div class="relative w-6 h-6 flex items-center justify-center cursor-pointer" 
+                   onmouseenter={`handlePointHover(${work._uid}, true)`}
+                   onmouseleave={`handlePointHover(${work._uid}, false)`}
+                   onclick={`syncWheelToMap(${work._uid})`}>
+                <div class="point-core w-1.5 h-1.5 bg-zinc-500 transition-all duration-300"></div>
               </div>
 
-              <div class={`work-tooltip absolute mb-2 w-[220px] z-[300] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
-                <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
-                  {ytId && (
-                    <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
-                      <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]" loading="lazy" />
-                    </div>
-                  )}
-                  <div class="p-3">
-                    <div class="flex justify-between items-start mb-1 uppercase text-[8px]">
-                      <p class="text-cyan-500/70">ID: {work.artist}</p>
-                      <p class="text-zinc-500">{work.year}</p>
-                    </div>
-                    <p class="text-white font-bold leading-tight mb-2 line-clamp-2">{work.title}</p>
-                    {work.tags && (
-                      <div class="flex gap-1 mt-1 flex-wrap mb-3">
-                        {work.tags.map(tag => (
-                          <span class="text-[7px] bg-zinc-800 text-zinc-400 px-1 border border-zinc-700/50">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    <a href={work.url} target="_blank" class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50 hover:bg-cyan-900/30 hover:text-cyan-400 transition-colors pointer-events-auto">
-                      <span>Access Data</span><span>→</span>
-                    </a>
-                  </div>
+              <div class={`work-tooltip ${bottom > 70 ? 'top-8' : 'bottom-8'} ${left > 70 ? 'right-0' : 'left-0'}`}>
+                <div class="bg-zinc-900 border border-cyan-500/50 p-3 shadow-2xl">
+                  {ytId && <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} class="w-full aspect-video object-cover mb-2" />}
+                  <p class="text-[9px] text-cyan-400 mb-1">{work.artist} / {work.year}</p>
+                  <p class="text-xs font-bold leading-tight">{work.title}</p>
                 </div>
               </div>
             </div>
@@ -245,294 +103,155 @@ const wheelWorks = [...mappedWorks].sort((a, b) => Number(b.year) - Number(a.yea
         })}
       </div>
     </div>
+    <div class="flex flex-wrap gap-2 mt-4 text-[10px]">
+      <button onclick="setFilter('tag', null)" class="px-2 py-1 border border-zinc-700">ALL TAGS</button>
+      {allTags.map(tag => <button id={`btn-tag-${tag}`} onclick={`setFilter('tag', '${tag}')`} class="px-2 py-1 border border-zinc-800">{tag}</button>)}
+    </div>
   </div>
 
   <div class="right-panel">
-    
-    <aside class="hud-box">
-      <div class="control-group"><label class="control-label">Master Gain</label><input type="range" id="vol-fader" min="0" max="1" step="0.01" value="0.5"></div>
-      <div class="control-group"><label class="control-label">Temporal Velocity</label><input type="range" id="speed-fader" min="0" max="2" step="0.01" value="1.0"></div>
-      <div class="control-group"><label class="control-label">Distortion (Entropy)</label><input type="range" id="dist-fader" min="0" max="100" step="1" value="0"></div>
-      <div class="control-group"><label class="control-label">Delay (Echoes)</label><input type="range" id="delay-fader" min="0" max="0.8" step="0.01" value="0"></div>
-      <div class="control-group"><label class="control-label">Reverb (Space)</label><input type="range" id="reverb-fader" min="0" max="1" step="0.01" value="0"></div>
-
-      <div class="mt-2 pt-2 border-t border-zinc-800">
-        <div id="v-meter" class="h-1 w-full bg-zinc-900 overflow-hidden"><div id="v-bar" class="h-full bg-cyan-400 w-0 transition-all duration-100"></div></div>
-        <p id="doppler-status" class="text-[6px] text-cyan-900 mt-2 uppercase tracking-tighter">Shift: Stable</p>
-        <button id="play-pause-btn" class="mt-4 w-full border border-cyan-900/50 text-cyan-500 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-all">Pause Transmission</button>
-      </div>
+    <aside class="hud-box space-y-4">
+      <div><label class="text-[8px] text-cyan-500">MASTER GAIN</label><input type="range" class="w-full" id="vol-fader"></div>
+      <div><label class="text-[8px] text-cyan-500">TEMPORAL VELOCITY</label><input type="range" class="w-full" id="speed-fader"></div>
+      <div><label class="text-[8px] text-cyan-500">DISTORTION (ENTROPY)</label><input type="range" class="w-full" id="dist-fader"></div>
+      <div><label class="text-[8px] text-cyan-500">DELAY (ECHOES)</label><input type="range" class="w-full" id="delay-fader"></div>
+      <div><label class="text-[8px] text-cyan-500">REVERB (SPACE)</label><input type="range" class="w-full" id="reverb-fader"></div>
+      <div class="pt-2 border-t border-zinc-800 text-[8px] text-cyan-900 uppercase" id="doppler-status">SHIFT: STABLE</div>
+      <button id="play-pause-btn" class="w-full border border-cyan-900 text-cyan-500 text-[8px] py-1">PAUSE TRANSMISSION</button>
     </aside>
 
-    <aside class="hud-box !p-0 overflow-hidden">
-      <div class="px-4 pt-4 pb-2 border-b border-zinc-800">
-        <h3 class="text-[8px] text-zinc-500 uppercase tracking-widest">Archive Data</h3>
-      </div>
-      <div class="relative h-[200px]" style="mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);">
-        <div id="rotary" class="rotary-viewport absolute inset-0 overflow-y-auto">
-          <div style="height:100000px;"></div>
-          <div id="rotary-list" class="absolute top-0 left-0 w-full">
-            {wheelWorks.map((work) => (
-              <div class="rotary-item absolute w-full px-4" data-uid={work._uid} onclick={`syncWheelToMap(${work._uid})`}>
-                <div class="flex gap-3 items-center w-full">
-                  <div class="rotary-indicator"></div>
-                  <div class="overflow-hidden">
-                    <div class="text-[8px] text-zinc-500 font-mono">{(work.artist ?? "").toUpperCase()}</div>
-                    <div class="item-title text-[10px] text-zinc-400 truncate w-[160px] transition-colors">{work.title}</div>
-                  </div>
+    <aside class="hud-box !p-0 overflow-hidden flex flex-col">
+      <div class="p-3 border-b border-zinc-800 text-[8px] text-zinc-500 uppercase tracking-widest">Archive Works</div>
+      <div class="rotary-container">
+        <div id="rotary-viewport" class="rotary-viewport">
+          <div style="height: 120px;"></div> <div id="rotary-list">
+            {mappedWorks.map((work) => (
+              <div class="rotary-item" data-uid={work._uid} onclick={`syncWheelToMap(${work._uid})`}>
+                <div class="w-1 h-1 bg-current rounded-full mr-3"></div>
+                <div class="truncate">
+                  <div class="text-[7px] opacity-50 uppercase">{work.artist}</div>
+                  <div class="text-[10px] leading-none">{work.title}</div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+          <div style="height: 120px;"></div> </div>
       </div>
     </aside>
-
   </div>
 </div>
 
 <script>
   let currentTag = null;
-  let currentYear = null; 
-  let audioContext = null;
-  let source = null;
-  let gainNode = null;
-  let distNode, delayNode, delayGain, reverbNode, reverbGain;
+  let currentYear = null;
   let isStarted = false;
-  let isPlaying = true;
-  let baseHue = 0;
-  let currentSpeed = 1.0;
-  
+  let isScrolling = false;
   let wheelActiveUid = null;
+  let hoverActiveUid = null;
 
-  window.copyContact = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      const toast = document.getElementById('copy-toast');
-      toast.classList.add('is-visible');
-      setTimeout(() => toast.classList.remove('is-visible'), 2000);
+  // --------------------------------------------------
+  // 🎯 同期 & 表示ロジック
+  // --------------------------------------------------
+  function updateDisplayState() {
+    const allPoints = document.querySelectorAll('[data-work]');
+    
+    // 優先順位: ホバーがあればホバーを、なければホイールを表示
+    const activeUid = hoverActiveUid !== null ? hoverActiveUid : wheelActiveUid;
+
+    allPoints.forEach(el => {
+      const uid = parseInt(el.dataset.uid);
+      
+      // フィルタ判定
+      const tags = el.dataset.tags.split(',');
+      const year = el.dataset.year;
+      const isMatch = (!currentTag || tags.includes(currentTag)) && (!currentYear || year === currentYear);
+      
+      el.classList.toggle('is-filtered-out', !isMatch);
+      el.classList.toggle('is-active', uid === wheelActiveUid);
+      
+      // 情報パネル表示（アクティブなUIDかつフィルタに合致している場合のみ）
+      el.classList.toggle('show-info', isMatch && uid === activeUid);
     });
+
+    // ロータリー側のハイライト
+    document.querySelectorAll('.rotary-item').forEach(item => {
+      const uid = parseInt(item.dataset.uid);
+      item.classList.toggle('is-focused', uid === wheelActiveUid);
+    });
+  }
+
+  // ホバー処理
+  window.handlePointHover = (uid, isEnter) => {
+    if (isEnter) {
+      hoverActiveUid = uid;
+    } else {
+      hoverActiveUid = null;
+    }
+    updateDisplayState();
   };
 
   // --------------------------------------------------
-  // ⚙️ 統合フィルタリング & 状態管理
+  // 📜 ロータリー制御 (数学的同期)
   // --------------------------------------------------
-  function applyGlobalStates() {
-    const allWorks = document.querySelectorAll("[data-work]");
+  const viewport = document.getElementById('rotary-viewport');
+  const itemHeight = 60;
+
+  viewport.addEventListener('scroll', () => {
+    hoverActiveUid = null; // スクロール中はホバー解除を優先
+    const scrollPos = viewport.scrollTop;
     
-    document.querySelectorAll("button[id^='btn-tag-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
-    const activeTagBtn = currentTag ? document.getElementById(`btn-tag-${currentTag}`) : document.getElementById('btn-tag-all');
-    activeTagBtn?.classList.add('border-cyan-500', 'text-cyan-400');
+    // フィルタで表示されている要素だけを取得
+    const visibleItems = Array.from(document.querySelectorAll('.rotary-item:not(.is-hidden)'));
+    if (visibleItems.length === 0) return;
 
-    document.querySelectorAll("button[id^='btn-year-']").forEach(btn => btn.classList.remove('border-cyan-500', 'text-cyan-400'));
-    const activeYearBtn = currentYear ? document.getElementById(`btn-year-${currentYear}`) : document.getElementById('btn-year-all');
-    activeYearBtn?.classList.add('border-cyan-500', 'text-cyan-400');
-
-    allWorks.forEach((el) => {
-      const tags = (el.getAttribute('data-tags') || "").split(",").map(t => t.trim()).filter(Boolean);
-      const year = el.getAttribute('data-year');
-      const uid = parseInt(el.getAttribute('data-uid'));
-      
-      const tagMatch = !currentTag || tags.includes(currentTag);
-      const yearMatch = !currentYear || year === currentYear;
-
-      if (tagMatch && yearMatch) {
-        el.classList.remove('is-filtered-out');
-        // ホイールで選択されているものに is-active を付与
-        if (uid === wheelActiveUid) {
-          el.classList.add('is-active');
-        } else {
-          el.classList.remove('is-active');
-        }
-      } else {
-        el.classList.remove('is-active');
-        el.classList.add('is-filtered-out');
-      }
-    });
-  }
-
-  window.setTag = (tag) => { if (!isStarted) startExperience(); currentTag = tag; applyGlobalStates(); };
-  window.setYear = (year) => { if (!isStarted) startExperience(); currentYear = year; applyGlobalStates(); };
-
-  // --------------------------------------------------
-  // 📜 Rotary Scroll Logic (完全同期版)
-  // --------------------------------------------------
-  const rotary = document.getElementById('rotary');
-  const list = document.getElementById('rotary-list');
-  
-  if (rotary && list) {
-    const items = Array.from(list.children);
-    const numItems = items.length;
-    const itemHeight = 50; 
-    const totalHeight = numItems * itemHeight;
-    const centerPos = Math.floor(50000 / itemHeight) * itemHeight; // 基準値
-    const containerHeight = 200;
-
-    rotary.scrollTop = centerPos;
-    let scrollTimeout;
-
-    function updateRotary() {
-      const scrollY = rotary.scrollTop - centerPos;
-      
-      // 中央に来る要素の絶対インデックスを計算
-      const currentAbsoluteIndex = Math.round(scrollY / itemHeight);
-      const activeIndex = ((currentAbsoluteIndex % numItems) + numItems) % numItems;
-
-      items.forEach((item, i) => {
-        const pos = i * itemHeight - scrollY;
-        const wrapped = ((pos % totalHeight) + totalHeight) % totalHeight;
-        const offset = (containerHeight / 2) - (itemHeight / 2);
-        
-        item.style.transform = `translateY(${rotary.scrollTop + wrapped - offset}px)`;
-
-        // フォーカス状態の更新
-        if (i === activeIndex) {
-          item.classList.add('is-focused');
-          wheelActiveUid = parseInt(item.getAttribute('data-uid'));
-        } else {
-          item.classList.remove('is-focused');
-        }
-      });
-
-      applyGlobalStates(); // 選択状況をマップに即座に反映
-    }
-
-    rotary.addEventListener('scroll', () => {
-      updateRotary();
-      // スクロール停止時にピッタリ中央にスナップ
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        const current = rotary.scrollTop;
-        const target = Math.round(current / itemHeight) * itemHeight;
-        rotary.scrollTo({ top: target, behavior: 'smooth' });
-      }, 150);
-    });
-
-    updateRotary();
-
-    // マップクリック時にホイールを回す (ズレなし保証版)
-    window.syncWheelToMap = (uid) => {
-      const targetIdx = items.findIndex(item => parseInt(item.getAttribute('data-uid')) === uid);
-      if (targetIdx === -1) return;
-
-      const scrollY = rotary.scrollTop - centerPos;
-      const currentAbsoluteIdx = Math.round(scrollY / itemHeight);
-      const currentModIdx = ((currentAbsoluteIdx % numItems) + numItems) % numItems;
-      
-      let diff = targetIdx - currentModIdx;
-      // 最短距離で回す
-      if (diff > numItems / 2) diff -= numItems;
-      if (diff < -numItems / 2) diff += numItems;
-
-      const targetAbsoluteIdx = currentAbsoluteIdx + diff;
-      const targetScroll = centerPos + (targetAbsoluteIdx * itemHeight);
-      
-      rotary.scrollTo({ top: targetScroll, behavior: 'smooth' });
-    };
-  }
-
-  // --------------------------------------------------
-  // 🎵 オーディオ関連
-  // --------------------------------------------------
-  function updateVisualShift() {
-    if (!isStarted) return;
-    if (isPlaying && currentSpeed > 0) {
-      const cycleSpeed = 0.1 * Math.pow(currentSpeed, 3);
-      baseHue = (baseHue + cycleSpeed) % 360;
-    }
-    const speedDelta = currentSpeed - 1.0;
-    const shiftHue = baseHue + (speedDelta * 50);
-    const brightness = 0.9 + (Math.pow(Math.abs(speedDelta), 1.5) * 1.5);
-    const contrast = 1.0 + (Math.abs(speedDelta) * 0.8);
-    const saturation = 0.5 + (currentSpeed * 1.2);
-    const invert = currentSpeed > 1.5 ? (currentSpeed - 1.5) * 0.4 : 0;
+    // 中央に最も近い要素のインデックスを計算
+    const index = Math.round(scrollPos / itemHeight);
+    const safeIndex = Math.max(0, Math.min(index, visibleItems.length - 1));
     
-    document.body.style.filter = `hue-rotate(${shiftHue}deg) saturate(${saturation}) brightness(${brightness}) contrast(${contrast}) invert(${invert})`;
-    
-    const status = document.getElementById('doppler-status');
-    if (status) {
-      if (currentSpeed === 0) status.innerText = `Shift: Time Frozen`;
-      else if (currentSpeed > 1.8) status.innerText = `Shift: Critical Singularity`;
-      else if (currentSpeed > 1.2) status.innerText = `Shift: Blue (Warping)`;
-      else if (currentSpeed < 0.8) status.innerText = `Shift: Red (Distant)`;
-      else status.innerText = `Shift: Stable`;
+    const newUid = parseInt(visibleItems[safeIndex].dataset.uid);
+    if (wheelActiveUid !== newUid) {
+      wheelActiveUid = newUid;
+      updateDisplayState();
     }
-    requestAnimationFrame(updateVisualShift);
-  }
-
-  function createImpulse(duration, decay) {
-    const rate = audioContext.sampleRate;
-    const length = rate * duration;
-    const impulse = audioContext.createBuffer(2, length, rate);
-    for (let i = 0; i < 2; i++) {
-      const data = impulse.getChannelData(i);
-      for (let j = 0; j < length; j++) { data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, decay); }
-    }
-    return impulse;
-  }
-
-  function makeDistortionCurve(amount) {
-    const k = amount || 50;
-    const n_samples = 44100;
-    const curve = new Float32Array(n_samples);
-    const deg = Math.PI / 180;
-    for (let i = 0; i < n_samples; ++i) {
-      const x = (i * 2) / n_samples - 1;
-      curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
-    }
-    return curve;
-  }
-
-  function togglePlayback() {
-    if (!audioContext) return;
-    if (isPlaying) { audioContext.suspend(); isPlaying = false; document.getElementById('play-pause-btn').innerText = "Resume Transmission"; }
-    else { audioContext.resume(); isPlaying = true; document.getElementById('play-pause-btn').innerText = "Pause Transmission"; }
-  }
-
-  async function startExperience() {
-    if (isStarted) return;
-    isStarted = true;
-    document.getElementById('start-overlay').classList.add('hidden');
-    document.body.classList.remove('is-blurred');
-    document.body.style.overflow = 'auto';
-    updateVisualShift();
-
-    try {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const response = await fetch('/SITE_th.mp3');
-      source = audioContext.createBufferSource();
-      source.buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
-      source.loop = true;
-
-      distNode = audioContext.createWaveShaper(); distNode.oversample = '4x';
-      delayNode = audioContext.createDelay(2.0); delayGain = audioContext.createGain(); delayGain.gain.value = 0;
-      reverbNode = audioContext.createConvolver(); reverbNode.buffer = createImpulse(2.5, 4.0);
-      reverbGain = audioContext.createGain(); reverbGain.gain.value = 0;
-      gainNode = audioContext.createGain(); gainNode.gain.value = 0.5;
-
-      source.connect(distNode);
-      distNode.connect(delayNode); delayNode.connect(delayGain); delayGain.connect(delayNode); delayGain.connect(gainNode);
-      distNode.connect(reverbNode); reverbNode.connect(reverbGain); reverbGain.connect(gainNode);
-      distNode.connect(gainNode); gainNode.connect(audioContext.destination);
-      source.start(0);
-
-      document.getElementById('play-pause-btn').addEventListener('click', togglePlayback);
-      document.querySelectorAll('.work-trigger').forEach(t => t.addEventListener('click', () => isPlaying && togglePlayback()));
-      document.getElementById('vol-fader').addEventListener('input', (e) => gainNode.gain.value = parseFloat(e.target.value));
-      document.getElementById('speed-fader').addEventListener('input', (e) => { currentSpeed = parseFloat(e.target.value); source.playbackRate.value = currentSpeed; });
-      document.getElementById('dist-fader').addEventListener('input', (e) => distNode.curve = makeDistortionCurve(parseInt(e.target.value)));
-      document.getElementById('delay-fader').addEventListener('input', (e) => { delayNode.delayTime.value = 0.4; delayGain.gain.value = parseFloat(e.target.value); });
-      document.getElementById('reverb-fader').addEventListener('input', (e) => reverbGain.gain.value = parseFloat(e.target.value));
-      
-      const vBar = document.getElementById('v-bar');
-      setInterval(() => {
-        if (!isPlaying || currentSpeed === 0) { if(vBar) vBar.style.width = '0%'; return; }
-        const level = Math.random() * (gainNode.gain.value * 100);
-        if(vBar) vBar.style.width = `${level}%`;
-      }, 100);
-    } catch (e) { console.error(e); }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    document.body.classList.add('is-blurred');
-    document.getElementById('start-overlay')?.addEventListener('click', startExperience);
   });
+
+  window.syncWheelToMap = (uid) => {
+    const visibleItems = Array.from(document.querySelectorAll('.rotary-item:not(.is-hidden)'));
+    const targetIdx = visibleItems.findIndex(item => parseInt(item.dataset.uid) === uid);
+    if (targetIdx !== -1) {
+      viewport.scrollTo({ top: targetIdx * itemHeight, behavior: 'smooth' });
+    }
+  };
+
+  // --------------------------------------------------
+  // ⚡ フィルタリング
+  // --------------------------------------------------
+  window.setFilter = (type, value) => {
+    if (type === 'tag') currentTag = value;
+    
+    // ロータリーリストの表示/非表示を切り替え
+    document.querySelectorAll('.rotary-item').forEach(item => {
+      const el = document.querySelector(`[data-work][data-uid="${item.dataset.uid}"]`);
+      const tags = el.dataset.tags.split(',');
+      const isMatch = !currentTag || tags.includes(currentTag);
+      item.classList.toggle('is-hidden', !isMatch);
+    });
+
+    updateDisplayState();
+    // フィルタ後に一番上の要素にスクロール
+    viewport.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // 開始処理
+  function startExperience() {
+    isStarted = true;
+    document.getElementById('start-overlay').style.display = 'none';
+    document.body.classList.remove('is-blurred');
+    // 初期選択
+    const firstItem = document.querySelector('.rotary-item:not(.is-hidden)');
+    if (firstItem) wheelActiveUid = parseInt(firstItem.dataset.uid);
+    updateDisplayState();
+  }
+
+  document.getElementById('start-overlay').addEventListener('click', startExperience);
 </script>
