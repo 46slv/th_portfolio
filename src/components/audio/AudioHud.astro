@@ -1,0 +1,27 @@
+---
+import AudioControls from './AudioControls.astro';
+import VolumeMeter from './VolumeMeter.astro';
+---
+
+<aside class="audio-hud">
+  <AudioControls />
+  <div class="mt-4 pt-4 border-t border-zinc-800">
+    <VolumeMeter />
+    <p id="doppler-status" class="text-[6px] text-cyan-900 mt-2 uppercase tracking-tighter">Shift: Stable</p>
+    <button id="play-pause-btn" type="button" class="mt-4 w-full border border-cyan-900/50 text-cyan-500 text-[8px] py-1 uppercase tracking-widest hover:bg-cyan-500/10 transition-all">Pause Transmission</button>
+  </div>
+</aside>
+
+<style>
+  .audio-hud {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px;
+    background: rgba(9, 9, 11, 0.8);
+    border: 1px solid rgba(34, 211, 238, 0.1);
+    height: fit-content;
+    position: relative;
+    z-index: 20;
+  }
+</style>

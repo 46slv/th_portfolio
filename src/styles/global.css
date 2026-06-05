@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+body {
+  background-color: #020205;
+  margin: 0;
+  color: white;
+  min-height: 100vh;
+}
+
+#site-shell {
+  transition: filter 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+body.is-blurred {
+  overflow: hidden;
+}
+
+body.is-blurred #site-shell {
+  filter: blur(20px) saturate(0.5);
+  pointer-events: none;
+}
+
+body:not(.is-blurred) #site-shell {
+  filter: none !important;
+  pointer-events: auto;
+}

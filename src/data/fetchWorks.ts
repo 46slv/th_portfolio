@@ -1,3 +1,5 @@
+import type { Work } from "../types/work";
+
 const BASE =
   "https://opensheet.elk.sh/1SUNeimLX56E4fBopXi7Dxg-VHRTp9keTad4lmVtirR0";
 
@@ -32,7 +34,7 @@ function parseValue(value: any, type: string) {
   }
 }
 
-export async function fetchWorks() {
+export async function fetchWorks(): Promise<Work[]> {
   const [works, schemaRows] = await Promise.all([
     fetchSheet("Works"),
     fetchSheet("Schema"),
@@ -68,6 +70,6 @@ export async function fetchWorks() {
       parsed.year = "Unknown";
     }
 
-    return parsed;
+    return parsed as Work;
   });
 }

@@ -1,0 +1,46 @@
+---
+import type { Work } from '../../types/work';
+
+interface Props {
+  work: Work;
+  left: number;
+  bottom: number;
+}
+
+const { work, left, bottom } = Astro.props;
+const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#&?]*)/)?.[1];
+---
+
+<div class={`absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
+  <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
+    {ytId && (
+      <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
+        <img
+          src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`}
+          class="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-[600ms]"
+          loading="lazy"
+          alt={`${work.title} thumbnail`}
+        />
+      </div>
+    )}
+    <div class="p-3">
+      <div class="flex justify-between items-start mb-1 uppercase text-[8px]">
+        <p class="text-cyan-500/70">ID: {work.artist}</p>
+        <p class="text-zinc-500">{work.year}</p>
+      </div>
+      <p class="text-white font-bold leading-tight mb-2 line-clamp-2">{work.title}</p>
+
+      {work.tags && (
+        <div class="flex gap-1 mt-1 flex-wrap mb-3">
+          {work.tags.map((tag) => (
+            <span class="text-[7px] bg-zinc-800 text-zinc-400 px-1 border border-zinc-700/50">{tag}</span>
+          ))}
+        </div>
+      )}
+
+      <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50">
+        <span>Access Data</span><span>-&gt;</span>
+      </div>
+    </div>
+  </div>
+</div>

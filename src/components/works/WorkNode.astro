@@ -1,0 +1,68 @@
+---
+import type { Work } from '../../types/work';
+import WorkTooltip from './WorkTooltip.astro';
+
+interface Props {
+  work: Work;
+  index: number;
+}
+
+const { work, index } = Astro.props;
+const left = ((work.x + 100) / 200) * 100;
+const bottom = ((work.y + 100) / 200) * 100;
+---
+
+<div
+  data-work
+  data-tags={work.tags?.join(",") ?? ""}
+  data-year={work.year}
+  class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]"
+  style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
+>
+  <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center work-trigger">
+    <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
+    <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
+    <div class="w-1 h-1 bg-white"></div>
+  </a>
+  <WorkTooltip work={work} left={left} bottom={bottom} />
+</div>
+
+<style>
+  @keyframes float {
+    0%,
+    100% {
+      transform: translate(-50%, 50%) rotate(0deg);
+    }
+    33% {
+      transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg);
+    }
+    66% {
+      transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg);
+    }
+  }
+
+  [data-work] {
+    position: absolute;
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translate(-50%, 50%);
+    will-change: transform, opacity;
+  }
+
+  [data-work].is-active {
+    opacity: 1;
+    z-index: 100;
+    transform: translate(-50%, 50%) translateZ(120px) scale(1.2);
+    filter: drop-shadow(0 0 15px rgba(34, 211, 238, 0.8));
+  }
+
+  [data-work].is-inactive {
+    opacity: 0.1;
+    z-index: 0;
+    transform: translate(-50%, 50%) translateZ(-300px) scale(0.7);
+    pointer-events: none;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+</style>

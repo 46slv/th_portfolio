@@ -1,0 +1,14 @@
+---
+interface Props {
+  tags: string[];
+}
+
+const { tags } = Astro.props;
+---
+
+<div class="flex flex-wrap gap-2 text-[10px]">
+  <button type="button" data-filter-tag="__all__" class="px-2 py-1 border border-zinc-700 hover:text-cyan-400 transition-all uppercase">All Tags</button>
+  {tags.map((tag) => (
+    <button type="button" data-filter-tag={tag} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{tag}</button>
+  ))}
+</div>
