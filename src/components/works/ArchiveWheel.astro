@@ -1,0 +1,425 @@
+---
+import type { Work } from '../../types/work';
+
+interface WheelEntry {
+  id: string;
+  work: Work;
+}
+
+interface Props {
+  entries: WheelEntry[];
+}
+
+const { entries } = Astro.props;
+---
+
+<section id="archive-wheel" class="archive-wheel" aria-label="Works archive wheel" tabindex="0">
+  <button
+    type="button"
+    class="archive-wheel__toggle"
+    data-wheel-toggle
+    aria-label="Toggle archive wheel"
+    aria-expanded="true"
+  >
+    <span class="archive-wheel__toggle-mark"></span>
+  </button>
+  <div class="archive-wheel__rail" data-wheel-rail>
+    {entries.map(({ id, work }, index) => (
+      <button
+        type="button"
+        class="archive-wheel__item"
+        data-wheel-work
+        data-work-id={id}
+        data-wheel-index={index}
+        aria-label={`${work.title} / ${work.artist}`}
+      >
+        <span class="archive-wheel__year">{work.year}</span>
+        <span class="archive-wheel__title">{work.title || 'Untitled'}</span>
+        <span class="archive-wheel__artist">{work.artist || 'Unknown'}</span>
+      </button>
+    ))}
+  </div>
+</section>
+
+<style>
+  .archive-wheel {
+    position: fixed;
+    right: 0;
+    bottom: clamp(14px, 3vw, 30px);
+    z-index: 60;
+    width: min(380px, calc(100vw - 18px));
+    height: min(410px, 46vh);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 18px 34px 18px 16px;
+    background: transparent;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px);
+    transition:
+      opacity 0.45s ease,
+      transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .archive-wheel::before {
+    content: "";
+    position: absolute;
+    right: -118px;
+    top: 50%;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    background:
+      radial-gradient(circle, rgba(34, 211, 238, 0.18) 0 1px, transparent 2px),
+      radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.14), rgba(34, 211, 238, 0.04) 42%, transparent 68%);
+    border: 1px solid rgba(34, 211, 238, 0.16);
+    box-shadow:
+      inset 0 0 32px rgba(34, 211, 238, 0.08),
+      0 0 28px rgba(34, 211, 238, 0.06);
+    pointer-events: none;
+  }
+
+  .archive-wheel::after {
+    content: "";
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    width: 1px;
+    height: 66%;
+    transform: translateY(-50%);
+    background: linear-gradient(transparent, rgba(34, 211, 238, 0.36), transparent);
+    pointer-events: none;
+  }
+
+  :global(body:not(.is-blurred)) .archive-wheel {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  :global(body:not(.is-blurred)) .archive-wheel.is-collapsed {
+    transform: translateX(calc(100% - 34px));
+  }
+
+  .archive-wheel:focus-visible {
+    outline: 1px solid rgba(34, 211, 238, 0.7);
+    outline-offset: 3px;
+  }
+
+  .archive-wheel__toggle {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    z-index: 4;
+    width: 28px;
+    height: 76px;
+    border: 1px solid rgba(34, 211, 238, 0.36);
+    border-right: 0;
+    border-radius: 8px 0 0 8px;
+    background: rgba(2, 2, 5, 0.58);
+    color: #22d3ee;
+    cursor: pointer;
+    transform: translate(-3px, -50%);
+    transition:
+      background 0.25s ease,
+      border-color 0.25s ease;
+  }
+
+  .archive-wheel__toggle:hover {
+    background: rgba(8, 47, 73, 0.42);
+    border-color: rgba(34, 211, 238, 0.72);
+  }
+
+  .archive-wheel__toggle-mark {
+    position: absolute;
+    inset: 0;
+  }
+
+  .archive-wheel__toggle-mark::before,
+  .archive-wheel__toggle-mark::after {
+    content: "";
+    position: absolute;
+    left: 11px;
+    width: 8px;
+    height: 1px;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+    transform-origin: left center;
+    transition: transform 0.25s ease;
+  }
+
+  .archive-wheel__toggle-mark::before {
+    top: 35px;
+    transform: rotate(36deg);
+  }
+
+  .archive-wheel__toggle-mark::after {
+    top: 41px;
+    transform: rotate(-36deg);
+  }
+
+  .archive-wheel.is-collapsed .archive-wheel__toggle-mark::before {
+    transform: rotate(-36deg);
+  }
+
+  .archive-wheel.is-collapsed .archive-wheel__toggle-mark::after {
+    transform: rotate(36deg);
+  }
+
+  .archive-wheel__rail {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    touch-action: pan-y;
+  }
+
+  .archive-wheel__item {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: min(300px, calc(100vw - 70px));
+    min-height: 46px;
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    grid-template-areas:
+      "year title"
+      "year artist";
+    column-gap: 10px;
+    align-items: center;
+    border: 0;
+    border-right: 1px solid rgba(113, 113, 122, 0.42);
+    background: transparent;
+    color: #d4d4d8;
+    font: inherit;
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+    padding: 7px 12px 7px 4px;
+    cursor: pointer;
+    transform-origin: right center;
+    transition:
+      opacity 0.45s ease,
+      filter 0.45s ease,
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      color 0.35s ease,
+      border-color 0.35s ease;
+  }
+
+  .archive-wheel__item.is-hidden {
+    display: none;
+  }
+
+  .archive-wheel__item.is-selected {
+    color: #ffffff;
+    border-color: rgba(34, 211, 238, 0.92);
+    text-shadow: 0 0 14px rgba(34, 211, 238, 0.54);
+  }
+
+  .archive-wheel__year {
+    grid-area: year;
+    color: #22d3ee;
+    font-size: 8px;
+    letter-spacing: 0.16em;
+    opacity: 0.72;
+  }
+
+  .archive-wheel__title {
+    grid-area: title;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .archive-wheel__artist {
+    grid-area: artist;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #71717a;
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    line-height: 1.25;
+  }
+
+  @media (max-width: 760px) {
+    .archive-wheel {
+      right: 0;
+      bottom: 10px;
+      width: min(330px, calc(100vw - 10px));
+      height: 310px;
+      padding: 14px 28px 14px 12px;
+    }
+
+    .archive-wheel::before {
+      right: -110px;
+      width: 250px;
+      height: 250px;
+    }
+
+    .archive-wheel__item {
+      width: min(270px, calc(100vw - 54px));
+    }
+  }
+</style>
+
+<script>
+  import { getSelectedWork, setSelectedWork, subscribe } from '../../lib/workSelectionStore';
+
+  const wheel = document.getElementById('archive-wheel');
+  const rail = wheel?.querySelector<HTMLElement>('[data-wheel-rail]');
+  const toggle = wheel?.querySelector<HTMLButtonElement>('[data-wheel-toggle]');
+  const items = Array.from(document.querySelectorAll<HTMLElement>('[data-wheel-work]'));
+  const rowGap = 48;
+  let selectedIndex = 0;
+  let dragging = false;
+  let dragStartY = 0;
+  let dragStartIndex = 0;
+
+  function setCollapsed(collapsed: boolean) {
+    wheel?.classList.toggle('is-collapsed', collapsed);
+    toggle?.setAttribute('aria-expanded', String(!collapsed));
+  }
+
+  function visibleItems() {
+    return items.filter((item) => !item.classList.contains('is-hidden'));
+  }
+
+  function clampIndex(index: number) {
+    const list = visibleItems();
+    if (!list.length) return 0;
+    return Math.max(0, Math.min(index, list.length - 1));
+  }
+
+  function syncFilteredItems() {
+    items.forEach((item) => {
+      const id = item.dataset.workId;
+      const mapNode = id ? document.querySelector<HTMLElement>(`[data-work][data-work-id="${CSS.escape(id)}"]`) : null;
+      item.classList.toggle('is-hidden', Boolean(mapNode?.classList.contains('is-inactive')));
+    });
+
+    const selectedId = getSelectedWork();
+    const list = visibleItems();
+    if (!list.length) {
+      setSelectedWork(null);
+      layoutWheel();
+      return;
+    }
+
+    const selectedVisibleIndex = list.findIndex((item) => item.dataset.workId === selectedId);
+    if (selectedVisibleIndex >= 0) {
+      selectedIndex = selectedVisibleIndex;
+    } else {
+      selectedIndex = clampIndex(selectedIndex);
+      setSelectedWork(list[selectedIndex]?.dataset.workId ?? null);
+    }
+
+    layoutWheel();
+  }
+
+  function selectVisibleIndex(index: number) {
+    const list = visibleItems();
+    if (!list.length) return;
+    selectedIndex = clampIndex(index);
+    setSelectedWork(list[selectedIndex]?.dataset.workId ?? null);
+  }
+
+  function layoutWheel() {
+    const list = visibleItems();
+    const selectedId = getSelectedWork();
+    if (!list.length) {
+      rail?.setAttribute('data-empty', 'true');
+      return;
+    }
+
+    rail?.removeAttribute('data-empty');
+    const selectedVisibleIndex = list.findIndex((item) => item.dataset.workId === selectedId);
+    if (selectedVisibleIndex >= 0) selectedIndex = selectedVisibleIndex;
+
+    items.forEach((item) => {
+      if (item.classList.contains('is-hidden')) return;
+
+      const visibleIndex = list.indexOf(item);
+      const distance = visibleIndex - selectedIndex;
+      const abs = Math.abs(distance);
+      const curveX = Math.min(54, abs * abs * 5.5);
+      const rotate = distance * -2.8;
+      const opacity = abs === 0 ? 1 : abs === 1 ? 0.7 : abs === 2 ? 0.4 : 0.15;
+      const blur = abs === 0 ? 0 : abs === 1 ? 2 : abs === 2 ? 5 : 10;
+      const scale = abs === 0 ? 1 : abs === 1 ? 0.95 : abs === 2 ? 0.85 : 0.75;
+
+      item.classList.toggle('is-selected', abs === 0);
+      item.style.opacity = String(opacity);
+      item.style.filter = `blur(${blur}px)`;
+      item.style.transform = `translate3d(${-curveX}px, ${distance * rowGap}px, 0) rotate(${rotate}deg) scale(${scale})`;
+      item.style.pointerEvents = abs > 3 ? 'none' : 'auto';
+    });
+  }
+
+  wheel?.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    setCollapsed(false);
+    selectVisibleIndex(selectedIndex + (event.deltaY > 0 ? 1 : -1));
+  }, { passive: false });
+
+  wheel?.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      selectVisibleIndex(selectedIndex + 1);
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      selectVisibleIndex(selectedIndex - 1);
+    }
+  });
+
+  wheel?.addEventListener('pointerdown', (event) => {
+    if ((event.target as HTMLElement).closest('[data-wheel-toggle]')) return;
+    setCollapsed(false);
+    dragging = true;
+    dragStartY = event.clientY;
+    dragStartIndex = selectedIndex;
+    wheel.setPointerCapture(event.pointerId);
+  });
+
+  wheel?.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    const delta = Math.round((event.clientY - dragStartY) / rowGap);
+    selectVisibleIndex(dragStartIndex - delta);
+  });
+
+  wheel?.addEventListener('pointerup', (event) => {
+    dragging = false;
+    wheel.releasePointerCapture(event.pointerId);
+  });
+
+  items.forEach((item) => {
+    item.addEventListener('mouseenter', () => {
+      if (!item.classList.contains('is-hidden')) {
+        setSelectedWork(item.dataset.workId ?? null);
+      }
+    });
+
+    item.addEventListener('click', () => {
+      if (!item.classList.contains('is-hidden')) {
+        setSelectedWork(item.dataset.workId ?? null);
+      }
+    });
+  });
+
+  toggle?.addEventListener('click', () => {
+    setCollapsed(!wheel?.classList.contains('is-collapsed'));
+  });
+
+  subscribe(layoutWheel);
+  window.addEventListener('work-filters-applied', syncFilteredItems);
+  syncFilteredItems();
+</script>

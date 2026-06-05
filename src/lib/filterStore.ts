@@ -53,4 +53,6 @@ export function applyWorkFilters() {
       el.classList.remove("is-active");
     }
   });
+
+  window.dispatchEvent(new CustomEvent("work-filters-applied"));
 }

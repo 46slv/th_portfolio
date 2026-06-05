@@ -4,11 +4,17 @@ import AudioHud from './audio/AudioHud.astro';
 import TagFilter from './filters/TagFilter.astro';
 import YearFilter from './filters/YearFilter.astro';
 import ContactBar from './layout/ContactBar.astro';
+import ArchiveWheel from './works/ArchiveWheel.astro';
 import WorkNode from './works/WorkNode.astro';
+import { getWorkId } from '../lib/workIds';
 import '../styles/global.css';
 
 const allTags = [...new Set(works.flatMap((work) => work.tags ?? []))].sort();
 const allYears = [...new Set(works.map((work) => String(work.year)))].sort().reverse();
+const wheelEntries = works.map((work, index) => ({
+  id: getWorkId(work, index),
+  work,
+}));
 ---
 
 <ContactBar />
@@ -33,13 +39,15 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
       <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-right">Acoustic [R]</div>
 
       <div class="absolute inset-16 sm:inset-24">
-        {works.map((work, index) => <WorkNode work={work} index={index} />)}
+        {works.map((work, index) => <WorkNode work={work} index={index} workId={getWorkId(work, index)} />)}
       </div>
     </div>
   </div>
 
   <AudioHud />
 </div>
+
+<ArchiveWheel entries={wheelEntries} />
 
 <style>
   .main-layout {
@@ -83,6 +91,7 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
     togglePlayback,
   } from '../lib/audio/audioEngine';
   import { applyWorkFilters, setTag, setYear } from '../lib/filterStore';
+  import { getSelectedWork, setSelectedWork, subscribe } from '../lib/workSelectionStore';
   import { setPlaybackRate, startVisualShift } from './effects/VisualShift';
 
   let isStarted = false;
@@ -155,6 +164,28 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
     });
   }
 
+  function bindWorkSelection() {
+    let restoreAfterHover: string | null = null;
+
+    document.querySelectorAll<HTMLElement>('[data-work][data-work-id]').forEach((node) => {
+      node.addEventListener('mouseenter', () => {
+        restoreAfterHover = getSelectedWork();
+        setSelectedWork(node.dataset.workId ?? null);
+      });
+
+      node.addEventListener('mouseleave', () => {
+        setSelectedWork(restoreAfterHover);
+        restoreAfterHover = null;
+      });
+    });
+
+    subscribe((selectedId) => {
+      document.querySelectorAll<HTMLElement>('[data-work][data-work-id]').forEach((node) => {
+        node.classList.toggle('is-selected', Boolean(selectedId && node.dataset.workId === selectedId));
+      });
+    });
+  }
+
   function bindAudioControls() {
     const playPauseButton = document.getElementById('play-pause-btn');
     playPauseButton?.addEventListener('click', async () => {
@@ -193,6 +224,7 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
   function initWorksMap() {
     bindContactCopy();
     bindFilters();
+    bindWorkSelection();
     bindAudioControls();
     applyWorkFilters();
     document.getElementById('start-overlay')?.addEventListener('click', startExperience);

@@ -5,15 +5,17 @@ import WorkTooltip from './WorkTooltip.astro';
 interface Props {
   work: Work;
   index: number;
+  workId: string;
 }
 
-const { work, index } = Astro.props;
+const { work, index, workId } = Astro.props;
 const left = ((work.x + 100) / 200) * 100;
 const bottom = ((work.y + 100) / 200) * 100;
 ---
 
 <div
   data-work
+  data-work-id={workId}
   data-tags={work.tags?.join(",") ?? ""}
   data-year={work.year}
   class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]"
@@ -53,6 +55,19 @@ const bottom = ((work.y + 100) / 200) * 100;
     z-index: 100;
     transform: translate(-50%, 50%) translateZ(120px) scale(1.2);
     filter: drop-shadow(0 0 15px rgba(34, 211, 238, 0.8));
+  }
+
+  [data-work].is-selected {
+    opacity: 1;
+    z-index: 120;
+    transform: translate(-50%, 50%) translateZ(150px) scale(1.26);
+    filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.95));
+  }
+
+  :global([data-work].is-selected .work-tooltip) {
+    opacity: 1;
+    pointer-events: auto;
+    transition-delay: 0ms;
   }
 
   [data-work].is-inactive {
