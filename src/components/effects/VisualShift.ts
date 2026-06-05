@@ -8,9 +8,9 @@ function updateStatus() {
   if (!status) return;
 
   if (playbackRate === 0) status.innerText = "Shift: Time Frozen";
-  else if (playbackRate > 1.8) status.innerText = "Shift: Critical Singularity";
-  else if (playbackRate > 1.2) status.innerText = "Shift: Blue (Warping)";
-  else if (playbackRate < 0.8) status.innerText = "Shift: Red (Distant)";
+  else if (playbackRate > 1.8) status.innerText = "Redshift: Event Horizon";
+  else if (playbackRate > 1.2) status.innerText = "Redshift: Relativistic";
+  else if (playbackRate < 0.8) status.innerText = "Blueshift: Receding Time";
   else status.innerText = "Shift: Stable";
 }
 
@@ -18,18 +18,21 @@ function frame() {
   if (!active) return;
 
   if (playbackRate > 0) {
-    const cycleSpeed = 0.1 * Math.pow(playbackRate, 3);
+    const cycleSpeed = 0.015 * Math.pow(playbackRate, 2);
     baseHue = (baseHue + cycleSpeed) % 360;
   }
 
-  const speedDelta = playbackRate - 1;
-  const shiftHue = baseHue + speedDelta * 50;
-  const brightness = 0.9 + Math.pow(Math.abs(speedDelta), 1.5) * 1.5;
-  const contrast = 1 + Math.abs(speedDelta) * 0.8;
-  const saturation = 0.5 + playbackRate * 1.2;
-  const invert = playbackRate > 1.5 ? (playbackRate - 1.5) * 0.4 : 0;
+  const delta = playbackRate - 1;
+  const redshift = Math.max(0, delta);
+  const blueshift = Math.max(0, -delta);
+  const shiftHue = baseHue + redshift * 155 - blueshift * 72;
+  const brightness = 0.92 + redshift * 0.38 + blueshift * 0.12;
+  const contrast = 1 + redshift * 0.48 + blueshift * 0.16;
+  const saturation = 1 + redshift * 1.65 + blueshift * 0.85;
+  const sepia = Math.min(0.72, redshift * 0.58);
+  const invert = redshift > 0.82 ? (redshift - 0.82) * 0.12 : 0;
 
-  document.body.style.filter = `hue-rotate(${shiftHue}deg) saturate(${saturation}) brightness(${brightness}) contrast(${contrast}) invert(${invert})`;
+  document.body.style.filter = `sepia(${sepia}) hue-rotate(${shiftHue}deg) saturate(${saturation}) brightness(${brightness}) contrast(${contrast}) invert(${invert})`;
   updateStatus();
   animationFrame = requestAnimationFrame(frame);
 }

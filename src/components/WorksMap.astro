@@ -91,7 +91,7 @@ const wheelEntries = works.map((work, index) => ({
     togglePlayback,
   } from '../lib/audio/audioEngine';
   import { applyWorkFilters, setTag, setYear } from '../lib/filterStore';
-  import { getSelectedWork, setSelectedWork, subscribe } from '../lib/workSelectionStore';
+  import { subscribe } from '../lib/workSelectionStore';
   import { setPlaybackRate, startVisualShift } from './effects/VisualShift';
 
   let isStarted = false;
@@ -165,22 +165,9 @@ const wheelEntries = works.map((work, index) => ({
   }
 
   function bindWorkSelection() {
-    let restoreAfterHover: string | null = null;
-
-    document.querySelectorAll<HTMLElement>('[data-work][data-work-id]').forEach((node) => {
-      node.addEventListener('mouseenter', () => {
-        restoreAfterHover = getSelectedWork();
-        setSelectedWork(node.dataset.workId ?? null);
-      });
-
-      node.addEventListener('mouseleave', () => {
-        setSelectedWork(restoreAfterHover);
-        restoreAfterHover = null;
-      });
-    });
-
+    const workNodes = Array.from(document.querySelectorAll<HTMLElement>('[data-work][data-work-id]'));
     subscribe((selectedId) => {
-      document.querySelectorAll<HTMLElement>('[data-work][data-work-id]').forEach((node) => {
+      workNodes.forEach((node) => {
         node.classList.toggle('is-selected', Boolean(selectedId && node.dataset.workId === selectedId));
       });
     });

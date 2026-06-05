@@ -11,8 +11,8 @@ const { work, left, bottom } = Astro.props;
 const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#&?]*)/)?.[1];
 ---
 
-<div class={`work-tooltip absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out delay-1200 group-hover:delay-[400ms] ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
-  <div class="bg-black/95 border-l-2 border-cyan-500 backdrop-blur-xl shadow-2xl overflow-hidden">
+<div class={`work-tooltip absolute mb-2 w-[220px] z-[100] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 ease-out delay-300 group-hover:delay-100 ${bottom > 70 ? 'top-6' : 'bottom-full'} ${left > 70 ? 'right-4' : 'left-4'}`}>
+  <div class="bg-black/95 border-l-2 border-cyan-500 shadow-2xl overflow-hidden">
     {ytId && (
       <div class="w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
         <img
