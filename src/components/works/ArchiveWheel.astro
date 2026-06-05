@@ -287,6 +287,9 @@ const { entries } = Astro.props;
   function setCollapsed(collapsed: boolean) {
     wheel?.classList.toggle('is-collapsed', collapsed);
     toggle?.setAttribute('aria-expanded', String(!collapsed));
+    if (collapsed) {
+      setSelectedWork(null);
+    }
   }
 
   function visibleItems() {
@@ -319,7 +322,9 @@ const { entries } = Astro.props;
       selectedIndex = selectedVisibleIndex;
     } else {
       selectedIndex = clampIndex(selectedIndex);
-      setSelectedWork(list[selectedIndex]?.dataset.workId ?? null);
+      if (selectedId) {
+        setSelectedWork(null);
+      }
     }
 
     layoutWheel();
@@ -402,14 +407,9 @@ const { entries } = Astro.props;
   });
 
   items.forEach((item) => {
-    item.addEventListener('mouseenter', () => {
-      if (!item.classList.contains('is-hidden')) {
-        setSelectedWork(item.dataset.workId ?? null);
-      }
-    });
-
     item.addEventListener('click', () => {
       if (!item.classList.contains('is-hidden')) {
+        setCollapsed(false);
         setSelectedWork(item.dataset.workId ?? null);
       }
     });

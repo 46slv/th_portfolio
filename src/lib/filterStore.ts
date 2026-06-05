@@ -20,7 +20,6 @@ export function getYear() {
 export function applyWorkFilters() {
   const tag = getTag();
   const year = getYear();
-  const hasActiveFilter = Boolean(tag || year);
 
   document.querySelectorAll("button[data-filter-tag]").forEach((btn) => {
     btn.classList.remove("border-cyan-500", "text-cyan-400");
@@ -47,10 +46,11 @@ export function applyWorkFilters() {
 
     if (tagMatch && yearMatch) {
       el.classList.remove("is-inactive");
-      el.classList.toggle("is-active", hasActiveFilter);
+      el.classList.remove("is-active");
     } else {
       el.classList.add("is-inactive");
       el.classList.remove("is-active");
+      el.classList.remove("is-selected");
     }
   });
 
