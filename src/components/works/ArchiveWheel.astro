@@ -13,17 +13,25 @@ interface Props {
 const { entries } = Astro.props;
 ---
 
-<section id="archive-wheel" class="archive-wheel" aria-label="Works archive wheel" tabindex="0">
+<section id="archive-wheel" class="archive-wheel is-collapsed" aria-label="Works archive wheel" tabindex="0">
   <button
     type="button"
     class="archive-wheel__toggle"
     data-wheel-toggle
     aria-label="Toggle archive wheel"
-    aria-expanded="true"
+    aria-expanded="false"
   >
     <span class="archive-wheel__toggle-mark"></span>
   </button>
-  <div class="archive-wheel__rail" data-wheel-rail>
+  <div class="archive-wheel__step-controls" data-wheel-step-controls aria-label="Archive wheel rotation controls">
+    <button type="button" class="archive-wheel__step" data-wheel-step="-1" aria-label="Previous work">
+      <span class="archive-wheel__step-mark archive-wheel__step-mark--up"></span>
+    </button>
+    <button type="button" class="archive-wheel__step" data-wheel-step="1" aria-label="Next work">
+      <span class="archive-wheel__step-mark archive-wheel__step-mark--down"></span>
+    </button>
+  </div>
+  <div class="archive-wheel__rail" data-wheel-rail inert aria-hidden="true">
     {entries.map(({ id, work }, index) => (
       <button
         type="button"
@@ -44,18 +52,21 @@ const { entries } = Astro.props;
 <style>
   .archive-wheel {
     position: fixed;
-    right: 0;
+    right: clamp(8px, 2vw, 18px);
     bottom: clamp(14px, 3vw, 30px);
     z-index: 60;
-    width: min(380px, calc(100vw - 18px));
+    width: min(390px, calc(100vw - 16px));
     height: min(410px, 46vh);
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding: 18px 34px 18px 16px;
+    padding: 18px 46px 18px 16px;
     background: transparent;
     opacity: 0;
     pointer-events: none;
+    overflow: clip;
+    contain: paint;
+    isolation: isolate;
     transform: translateY(10px);
     transition:
       opacity 0.45s ease,
@@ -65,7 +76,7 @@ const { entries } = Astro.props;
   .archive-wheel::before {
     content: "";
     position: absolute;
-    right: -118px;
+    right: -80px;
     top: 50%;
     width: 300px;
     height: 300px;
@@ -79,28 +90,30 @@ const { entries } = Astro.props;
       inset 0 0 32px rgba(34, 211, 238, 0.08),
       0 0 28px rgba(34, 211, 238, 0.06);
     pointer-events: none;
+    transition: opacity 0.32s ease;
   }
 
   .archive-wheel::after {
     content: "";
     position: absolute;
-    right: 18px;
+    right: 44px;
     top: 50%;
     width: 1px;
     height: 66%;
     transform: translateY(-50%);
     background: linear-gradient(transparent, rgba(34, 211, 238, 0.36), transparent);
     pointer-events: none;
+    transition: opacity 0.32s ease;
   }
 
   :global(body:not(.is-blurred)) .archive-wheel {
     opacity: 1;
-    pointer-events: auto;
     transform: translateY(0);
   }
 
-  :global(body:not(.is-blurred)) .archive-wheel.is-collapsed {
-    transform: translateX(calc(100% - 34px));
+  .archive-wheel.is-collapsed::before,
+  .archive-wheel.is-collapsed::after {
+    opacity: 0;
   }
 
   .archive-wheel:focus-visible {
@@ -110,18 +123,18 @@ const { entries } = Astro.props;
 
   .archive-wheel__toggle {
     position: absolute;
-    left: 0;
+    right: 0;
     top: 50%;
     z-index: 4;
-    width: 28px;
+    width: 34px;
     height: 76px;
     border: 1px solid rgba(34, 211, 238, 0.36);
-    border-right: 0;
-    border-radius: 8px 0 0 8px;
+    border-radius: 8px;
     background: rgba(2, 2, 5, 0.58);
     color: #22d3ee;
     cursor: pointer;
-    transform: translate(-3px, -50%);
+    pointer-events: auto;
+    transform: translateY(-50%);
     transition:
       background 0.25s ease,
       border-color 0.25s ease;
@@ -141,7 +154,7 @@ const { entries } = Astro.props;
   .archive-wheel__toggle-mark::after {
     content: "";
     position: absolute;
-    left: 11px;
+    left: 12px;
     width: 8px;
     height: 1px;
     background: currentColor;
@@ -168,12 +181,104 @@ const { entries } = Astro.props;
     transform: rotate(36deg);
   }
 
+  .archive-wheel__step-controls {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    z-index: 3;
+    width: 34px;
+    height: 34px;
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  .archive-wheel.is-collapsed .archive-wheel__step-controls {
+    pointer-events: none;
+  }
+
+  .archive-wheel__step {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 26px;
+    height: 26px;
+    border: 1px solid rgba(34, 211, 238, 0.28);
+    border-radius: 6px;
+    background: rgba(2, 2, 5, 0.54);
+    color: #22d3ee;
+    cursor: pointer;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%);
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease,
+      opacity 0.22s ease,
+      transform 0.2s ease;
+  }
+
+  .archive-wheel__step[data-wheel-step="-1"] {
+    transform: translate(-50%, -72px);
+  }
+
+  .archive-wheel__step[data-wheel-step="1"] {
+    transform: translate(-50%, 46px);
+  }
+
+  .archive-wheel.is-collapsed .archive-wheel__step {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+  }
+
+  .archive-wheel__step:hover {
+    background: rgba(8, 47, 73, 0.38);
+    border-color: rgba(34, 211, 238, 0.68);
+  }
+
+  .archive-wheel__step:active {
+    opacity: 0.82;
+  }
+
+  .archive-wheel__step-mark {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-left: 1px solid currentColor;
+    border-top: 1px solid currentColor;
+    box-shadow: -2px -2px 8px rgba(34, 211, 238, 0.26);
+  }
+
+  .archive-wheel__step-mark--up {
+    transform: translate(-50%, -32%) rotate(45deg);
+  }
+
+  .archive-wheel__step-mark--down {
+    transform: translate(-50%, -68%) rotate(225deg);
+  }
+
   .archive-wheel__rail {
     position: relative;
     width: 100%;
     height: 100%;
     overflow: hidden;
+    pointer-events: auto;
     touch-action: pan-y;
+    clip-path: inset(0 0 0 0);
+    transform: translateX(0);
+    transition:
+      clip-path 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.32s ease,
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .archive-wheel.is-collapsed .archive-wheel__rail {
+    clip-path: inset(0 0 0 100%);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(24px);
   }
 
   .archive-wheel__item {
@@ -252,15 +357,15 @@ const { entries } = Astro.props;
 
   @media (max-width: 760px) {
     .archive-wheel {
-      right: 0;
+      right: 6px;
       bottom: 10px;
-      width: min(330px, calc(100vw - 10px));
+      width: min(340px, calc(100vw - 12px));
       height: 310px;
-      padding: 14px 28px 14px 12px;
+      padding: 14px 42px 14px 12px;
     }
 
     .archive-wheel::before {
-      right: -110px;
+      right: -72px;
       width: 250px;
       height: 250px;
     }
@@ -277,19 +382,26 @@ const { entries } = Astro.props;
   const wheel = document.getElementById('archive-wheel');
   const rail = wheel?.querySelector<HTMLElement>('[data-wheel-rail]');
   const toggle = wheel?.querySelector<HTMLButtonElement>('[data-wheel-toggle]');
+  const stepButtons = Array.from(wheel?.querySelectorAll<HTMLButtonElement>('[data-wheel-step]') ?? []);
   const items = Array.from(document.querySelectorAll<HTMLElement>('[data-wheel-work]'));
   const rowGap = 48;
-  const wheelStepThreshold = 140;
+  const wheelScrollDistance = 110;
+  const minWheelStep = 0.08;
+  const wheelSettleDelay = 170;
   const dragStepDistance = 76;
   let selectedIndex = 0;
+  let wheelOffset = 0;
   let dragging = false;
   let dragStartY = 0;
-  let dragStartIndex = 0;
-  let wheelDelta = 0;
+  let dragStartOffset = 0;
+  let rotating = false;
+  let settleTimer = 0;
 
   function setCollapsed(collapsed: boolean) {
     wheel?.classList.toggle('is-collapsed', collapsed);
     toggle?.setAttribute('aria-expanded', String(!collapsed));
+    rail?.toggleAttribute('inert', collapsed);
+    rail?.setAttribute('aria-hidden', String(collapsed));
     if (collapsed) {
       setSelectedWork(null);
     }
@@ -303,6 +415,21 @@ const { entries } = Astro.props;
     const list = visibleItems();
     if (!list.length) return 0;
     return Math.max(0, Math.min(index, list.length - 1));
+  }
+
+  function clampOffset(index: number) {
+    return clampIndex(index);
+  }
+
+  function nearestIndex() {
+    return clampIndex(Math.round(wheelOffset));
+  }
+
+  function clearSettleTimer() {
+    if (settleTimer) {
+      window.clearTimeout(settleTimer);
+      settleTimer = 0;
+    }
   }
 
   function syncFilteredItems() {
@@ -323,8 +450,10 @@ const { entries } = Astro.props;
     const selectedVisibleIndex = list.findIndex((item) => item.dataset.workId === selectedId);
     if (selectedVisibleIndex >= 0) {
       selectedIndex = selectedVisibleIndex;
+      wheelOffset = selectedVisibleIndex;
     } else {
       selectedIndex = clampIndex(selectedIndex);
+      wheelOffset = selectedIndex;
       if (selectedId) {
         setSelectedWork(null);
       }
@@ -337,7 +466,34 @@ const { entries } = Astro.props;
     const list = visibleItems();
     if (!list.length) return;
     selectedIndex = clampIndex(index);
+    wheelOffset = selectedIndex;
     setSelectedWork(list[selectedIndex]?.dataset.workId ?? null);
+    layoutWheel();
+  }
+
+  function setWheelOffset(index: number) {
+    wheelOffset = clampOffset(index);
+    layoutWheel();
+  }
+
+  function snapToNearest() {
+    clearSettleTimer();
+    rotating = false;
+    selectVisibleIndex(nearestIndex());
+  }
+
+  function scheduleSnap() {
+    clearSettleTimer();
+    settleTimer = window.setTimeout(snapToNearest, wheelSettleDelay);
+  }
+
+  function rotateBy(delta: number) {
+    const list = visibleItems();
+    if (!list.length || !delta) return;
+    setCollapsed(false);
+    rotating = true;
+    setWheelOffset(wheelOffset + delta);
+    scheduleSnap();
   }
 
   function layoutWheel() {
@@ -350,21 +506,26 @@ const { entries } = Astro.props;
 
     rail?.removeAttribute('data-empty');
     const selectedVisibleIndex = list.findIndex((item) => item.dataset.workId === selectedId);
-    if (selectedVisibleIndex >= 0) selectedIndex = selectedVisibleIndex;
+    if (!rotating && selectedVisibleIndex >= 0) {
+      selectedIndex = selectedVisibleIndex;
+      wheelOffset = selectedVisibleIndex;
+    }
+
+    const centerIndex = nearestIndex();
 
     items.forEach((item) => {
       if (item.classList.contains('is-hidden')) return;
 
       const visibleIndex = list.indexOf(item);
-      const distance = visibleIndex - selectedIndex;
+      const distance = visibleIndex - wheelOffset;
       const abs = Math.abs(distance);
       const curveX = Math.min(54, abs * abs * 5.5);
       const rotate = distance * -2.8;
-      const opacity = abs === 0 ? 1 : abs === 1 ? 0.86 : abs === 2 ? 0.68 : 0.42;
-      const blur = abs === 0 ? 0 : abs === 1 ? 0.5 : abs === 2 ? 1.1 : 2.2;
-      const scale = abs === 0 ? 1 : abs === 1 ? 0.97 : abs === 2 ? 0.92 : 0.86;
+      const opacity = abs < 0.45 ? 1 : abs < 1.45 ? 0.86 : abs < 2.45 ? 0.68 : 0.42;
+      const blur = abs < 0.45 ? 0 : abs < 1.45 ? 0.5 : abs < 2.45 ? 1.1 : 2.2;
+      const scale = abs < 0.45 ? 1 : abs < 1.45 ? 0.97 : abs < 2.45 ? 0.92 : 0.86;
 
-      item.classList.toggle('is-selected', abs === 0);
+      item.classList.toggle('is-selected', visibleIndex === centerIndex);
       item.style.opacity = String(opacity);
       item.style.filter = `blur(${blur}px)`;
       item.style.transform = `translate3d(${-curveX}px, ${distance * rowGap}px, 0) rotate(${rotate}deg) scale(${scale})`;
@@ -374,13 +535,12 @@ const { entries } = Astro.props;
 
   wheel?.addEventListener('wheel', (event) => {
     event.preventDefault();
-    setCollapsed(false);
-    wheelDelta += event.deltaY;
-    if (Math.abs(wheelDelta) < wheelStepThreshold) return;
-
-    const direction = wheelDelta > 0 ? 1 : -1;
-    selectVisibleIndex(selectedIndex + direction);
-    wheelDelta -= direction * wheelStepThreshold;
+    const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+    const rawDelta = event.deltaY * modeMultiplier;
+    const direction = Math.sign(rawDelta);
+    if (!direction) return;
+    const delta = direction * Math.max(Math.abs(rawDelta) / wheelScrollDistance, minWheelStep);
+    rotateBy(delta);
   }, { passive: false });
 
   wheel?.addEventListener('keydown', (event) => {
@@ -396,22 +556,36 @@ const { entries } = Astro.props;
 
   wheel?.addEventListener('pointerdown', (event) => {
     if ((event.target as HTMLElement).closest('[data-wheel-toggle]')) return;
+    if ((event.target as HTMLElement).closest('[data-wheel-step]')) return;
     setCollapsed(false);
+    clearSettleTimer();
+    rotating = true;
     dragging = true;
     dragStartY = event.clientY;
-    dragStartIndex = selectedIndex;
+    dragStartOffset = wheelOffset;
     wheel.setPointerCapture(event.pointerId);
   });
 
   wheel?.addEventListener('pointermove', (event) => {
     if (!dragging) return;
-    const delta = Math.trunc((event.clientY - dragStartY) / dragStepDistance);
-    selectVisibleIndex(dragStartIndex - delta);
+    const delta = (event.clientY - dragStartY) / dragStepDistance;
+    setWheelOffset(dragStartOffset - delta);
   });
 
   wheel?.addEventListener('pointerup', (event) => {
     dragging = false;
-    wheel.releasePointerCapture(event.pointerId);
+    if (wheel.hasPointerCapture(event.pointerId)) {
+      wheel.releasePointerCapture(event.pointerId);
+    }
+    snapToNearest();
+  });
+
+  wheel?.addEventListener('pointercancel', (event) => {
+    dragging = false;
+    if (wheel.hasPointerCapture(event.pointerId)) {
+      wheel.releasePointerCapture(event.pointerId);
+    }
+    snapToNearest();
   });
 
   items.forEach((item) => {
@@ -425,6 +599,16 @@ const { entries } = Astro.props;
 
   toggle?.addEventListener('click', () => {
     setCollapsed(!wheel?.classList.contains('is-collapsed'));
+  });
+
+  stepButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const direction = Number(button.dataset.wheelStep);
+      if (!direction) return;
+      clearSettleTimer();
+      rotating = false;
+      selectVisibleIndex(selectedIndex + direction);
+    });
   });
 
   subscribe(layoutWheel);

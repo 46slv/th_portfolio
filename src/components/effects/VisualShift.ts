@@ -3,6 +3,13 @@ let baseHue = 0;
 let playbackRate = 1;
 let active = false;
 
+function shiftTargets() {
+  return [
+    document.getElementById("site-shell"),
+    document.getElementById("archive-wheel"),
+  ].filter((target): target is HTMLElement => Boolean(target));
+}
+
 function updateStatus() {
   const status = document.getElementById("doppler-status");
   if (!status) return;
@@ -32,7 +39,10 @@ function frame() {
   const sepia = Math.min(0.72, redshift * 0.58);
   const invert = redshift > 0.82 ? (redshift - 0.82) * 0.12 : 0;
 
-  document.body.style.filter = `sepia(${sepia}) hue-rotate(${shiftHue}deg) saturate(${saturation}) brightness(${brightness}) contrast(${contrast}) invert(${invert})`;
+  const filter = `sepia(${sepia}) hue-rotate(${shiftHue}deg) saturate(${saturation}) brightness(${brightness}) contrast(${contrast}) invert(${invert})`;
+  shiftTargets().forEach((target) => {
+    target.style.filter = filter;
+  });
   updateStatus();
   animationFrame = requestAnimationFrame(frame);
 }
@@ -46,7 +56,9 @@ export function startVisualShift() {
 export function stopVisualShift() {
   active = false;
   cancelAnimationFrame(animationFrame);
-  document.body.style.filter = "";
+  shiftTargets().forEach((target) => {
+    target.style.filter = "";
+  });
 }
 
 export function setPlaybackRate(rate: number) {

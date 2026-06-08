@@ -1,8 +1,16 @@
 ---
 import '../styles/global.css';
 import WorksMap from '../components/WorksMap.astro';
+import ArchiveWheel from '../components/works/ArchiveWheel.astro';
 import Footer from '../components/layout/Footer.astro';
 import StartOverlay from '../components/startup/StartOverlay.astro';
+import { works } from '../data/works';
+import { getWorkId } from '../lib/workIds';
+
+const wheelEntries = works.map((work, index) => ({
+  id: getWorkId(work, index),
+  work,
+}));
 ---
 
 <html lang="ja">
@@ -28,5 +36,6 @@ import StartOverlay from '../components/startup/StartOverlay.astro';
 
       <Footer />
     </div>
+    <ArchiveWheel entries={wheelEntries} />
   </body>
 </html>

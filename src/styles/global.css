@@ -21,6 +21,6 @@ body.is-blurred #site-shell {
 }
 
 body:not(.is-blurred) #site-shell {
-  filter: none !important;
+  filter: none;
   pointer-events: auto;
 }
