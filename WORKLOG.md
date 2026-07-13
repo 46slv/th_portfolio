@@ -105,6 +105,12 @@ This file records implementation notes, current behavior, and debugging context 
   - `document.querySelectorAll('[data-work].is-active').length`
   - `document.querySelectorAll('[data-wheel-work]:not(.is-hidden)').length`
 
+## Deployment Recovery (2026-07-13)
+
+- GitHub Pages depends on `.github/workflows/deploy.yml`.
+- The deployment workflow was repaired after unresolved merge conflict markers caused Actions runs to fail.
+- The site is built as a static Astro site and continues to use the existing GitHub Pages deployment job.
+
 ## Follow-up Ideas
 
 - If map hover still feels heavy, consider rendering only one tooltip node globally instead of one tooltip per work.

@@ -11,7 +11,6 @@ permissions:
   id-token: write
 
 jobs:
-<<<<<<< HEAD
   build:
     runs-on: ubuntu-latest
     steps:
@@ -20,16 +19,7 @@ jobs:
       - name: Install, build, and upload with Astro
         uses: withastro/action@v3
         with:
-          node-version: 22 # ここを追加：Astro v6に対応させる
-=======
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install, build, and upload with Astro
-        uses: withastro/action@v3
->>>>>>> 9f1dbef (fix: remove base path)
+          node-version: 22
 
   deploy:
     needs: build
