@@ -12,7 +12,7 @@
 - Archive Wheelの入力更新をrequestAnimationFrameでまとめ、ドラッグ中のtransitionを停止。
 - 作品ごとのTooltipを単一の共有Tooltipへ統合。
 - YouTubeサムネイルをホバー・フォーカス時にだけ読み込むよう変更。
-- 全作品の常時浮遊アニメーションを削除。
+- 全作品の常時浮遊アニメーションを、外側ノードから16pxの内側マーカーへ移して維持。
 - Reverb impulseをReverb初回使用時まで遅延。
 - 音量メーターを24fps、`scaleX()`、値変更時のみの描画へ変更。
 - 完全な空行と色指定しかないSpreadsheet行を描画対象から除外。

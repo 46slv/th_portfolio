@@ -35,7 +35,7 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
       <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-right">Acoustic [R]</div>
 
       <div class="absolute inset-16 sm:inset-24">
-        {works.map((work, index) => <WorkNode work={work} workId={getWorkId(work, index)} />)}
+        {works.map((work, index) => <WorkNode work={work} index={index} workId={getWorkId(work, index)} />)}
       </div>
       <SharedWorkTooltip />
     </div>

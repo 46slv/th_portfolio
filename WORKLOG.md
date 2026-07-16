@@ -16,6 +16,7 @@ This file records implementation notes, current behavior, and debugging context 
 - The Archive Wheel UI lives in `src/components/works/ArchiveWheel.astro`.
 - Map points are rendered by `src/components/works/WorkNode.astro`.
 - A single shared tooltip is rendered by `src/components/works/SharedWorkTooltip.astro`.
+- Constant map-point floating is a required visual behavior and must not be removed during performance work.
 
 ## Implemented Changes
 
@@ -64,6 +65,14 @@ This file records implementation notes, current behavior, and debugging context 
   - Reduced scale values.
   - Removed tooltip `backdrop-blur`.
   - Shortened tooltip transition.
+
+### Map Point Motion
+
+- Every valid work point keeps a constant, slow six-second floating animation.
+- The outer node remains responsible for coordinates, filtering, selection scale, and Tooltip anchoring.
+- Only the inner 16px marker animates, preventing its transform from competing with outer-node state transforms.
+- A deterministic per-index negative delay distributes animation phases without runtime randomness.
+- Hover and keyboard focus pause the relevant marker; reduced-motion settings stop the animation globally.
 
 ### Visual Shift
 

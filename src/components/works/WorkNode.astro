@@ -3,14 +3,16 @@ import type { Work } from '../../types/work';
 
 interface Props {
   work: Work;
+  index: number;
   workId: string;
 }
 
-const { work, workId } = Astro.props;
+const { work, index, workId } = Astro.props;
 const left = ((work.x + 100) / 200) * 100;
 const bottom = ((work.y + 100) / 200) * 100;
 const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#&?]*)/)?.[1];
 const thumbnailUrl = ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : '';
+const floatDelay = -(((index * 37) % 60) / 10);
 ---
 
 <div
@@ -31,7 +33,9 @@ const thumbnailUrl = ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` :
     rel="noopener noreferrer"
     aria-label={`${work.title || 'Untitled'} / ${work.artist || 'Unknown'} / ${work.year}`}
     aria-describedby="work-tooltip"
-    class="relative w-4 h-4 flex items-center justify-center work-trigger"
+    data-point-float
+    class="relative w-4 h-4 flex items-center justify-center work-trigger point-float"
+    style={`animation-delay: ${floatDelay}s;`}
   >
     <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
     <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
@@ -40,6 +44,19 @@ const thumbnailUrl = ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` :
 </div>
 
 <style>
+  @keyframes point-float {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+    33% {
+      transform: translate3d(4px, -6px, 0) rotate(1deg);
+    }
+    66% {
+      transform: translate3d(-3px, -2px, 0) rotate(-1deg);
+    }
+  }
+
   [data-work] {
     position: absolute;
     transition:
@@ -71,6 +88,15 @@ const thumbnailUrl = ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` :
     z-index: 0;
     transform: translate(-50%, 50%) translateZ(-300px) scale(0.7);
     pointer-events: none;
+  }
+
+  .point-float {
+    animation: point-float 6s ease-in-out infinite;
+  }
+
+  .group:hover .point-float,
+  .group:focus-within .point-float {
+    animation-play-state: paused;
   }
 
 </style>

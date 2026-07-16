@@ -43,7 +43,7 @@ The production deployment remains unverified until GitHub Actions completes.
 - Map hover updated global selection and caused both map and Wheel synchronization.
 - Wheel layout updated all 105 items and used repeated `indexOf()` searches.
 - Every work rendered its own Tooltip and many hidden thumbnails loaded immediately.
-- Every map point ran a permanent floating animation.
+- Every map point animated its outer node, where the same transform property also handled selection and filtering.
 - Reverb impulse and full audio decode were part of the startup path.
 - The meter wrote layout-affecting width values every frame.
 - 23 presentation-only Spreadsheet rows became empty work items.
@@ -54,7 +54,7 @@ The production deployment remains unverified until GitHub Actions completes.
 - Restored CSS-only hover and constant-time selected-node updates.
 - Limited Wheel rendering to nearby entries and coalesced continuous input.
 - Replaced per-work Tooltip instances with one lazy shared Tooltip.
-- Removed permanent point animation.
+- Moved permanent point animation from the outer node to its small inner marker.
 - Deferred Reverb impulse creation.
 - Changed metering to 24fps `scaleX()` updates that stop when paused or hidden.
 - Filtered rows without meaningful work content.
@@ -80,3 +80,37 @@ The production deployment remains unverified until GitHub Actions completes.
 - Long continuous Wheel drag/scroll in the Codex browser.
 - Safari and mobile-device behavior.
 - Production deployment and slow-network audio timing.
+
+## 2026-07-16: Required map-point motion was removed
+
+### Symptoms
+
+Map points no longer moved continuously, so the map lost its intended living, unstable visual character.
+
+### Cause
+
+The performance pass treated constant point motion as optional decoration even though `TH Portfolio サイト仕様書.md` defines floating animation for every node.
+
+### Fix
+
+- Restored a six-second continuous floating animation for every valid point.
+- Applied animation to the inner 16px marker instead of the outer coordinate and selection node.
+- Distributed phases with deterministic per-point delays.
+- Kept hover and focus pause behavior and the reduced-motion exception.
+
+### Prevention
+
+- Treat constant map-point floating as a non-removable visual requirement.
+- Record mandatory behavior in the formal specification, README performance rules, decisions, worklog, and test plan.
+- Optimize the animation target, amplitude, and timing before considering removal.
+
+### Verification
+
+- `npm run build` succeeds.
+- Generated HTML contains `data-point-float` for every generated work node.
+- `git diff --check` succeeds.
+
+### Unverified
+
+- Visual amplitude and timing on the production site.
+- Long-session GPU and battery impact on lower-end mobile devices.

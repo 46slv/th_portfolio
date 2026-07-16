@@ -21,6 +21,11 @@
 
 ## Works Map
 
+- [x] 生成HTMLの全作品ノードに `data-point-float` が存在する
+- [ ] 全ポイントが約6秒周期で常時ゆっくり揺れる
+- [ ] ポイントごとの開始位相が分散している
+- [ ] ホバー・フォーカス中だけ対象ポイントの揺れが停止する
+- [ ] 選択・フィルターの外側transformと内側の揺れが競合しない
 - [ ] ホバーで共有Tooltipが表示される
 - [ ] ホバーで `selectedWorkId` が変わらない
 - [ ] フォーカスで共有Tooltipが表示される
@@ -59,7 +64,7 @@
 
 ## Accessibility And Environment
 
-- [ ] `prefers-reduced-motion: reduce`
+- [ ] `prefers-reduced-motion: reduce` でポイントの常時浮遊が停止する
 - [ ] 760px以下のレイアウト
 - [ ] Windows Chromium
 - [ ] macOS Safari
