@@ -1,0 +1,52 @@
+<div
+  id="work-tooltip"
+  class="shared-work-tooltip"
+  role="tooltip"
+  aria-hidden="true"
+>
+  <div class="bg-black/95 border-l-2 border-cyan-500 shadow-2xl overflow-hidden">
+    <div data-tooltip-media class="hidden w-full aspect-video bg-zinc-900 overflow-hidden border-b border-zinc-800">
+      <img
+        data-tooltip-image
+        class="w-full h-full object-cover"
+        loading="lazy"
+        decoding="async"
+        alt=""
+      />
+    </div>
+    <div class="p-3">
+      <div class="flex justify-between items-start mb-1 uppercase text-[8px]">
+        <p data-tooltip-artist class="text-cyan-500/70"></p>
+        <p data-tooltip-year class="text-zinc-500"></p>
+      </div>
+      <p data-tooltip-title class="text-white font-bold leading-tight mb-2 line-clamp-2"></p>
+      <div data-tooltip-tags class="hidden text-[7px] text-zinc-400 mb-3"></div>
+      <div class="flex items-center justify-between text-[9px] text-zinc-400 border border-zinc-800 px-2 py-1.5 uppercase bg-zinc-900/50">
+        <span>Access Data</span><span>-&gt;</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .shared-work-tooltip {
+    position: absolute;
+    z-index: 200;
+    width: 220px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(4px);
+    transition:
+      opacity 0.12s ease-out,
+      transform 0.12s ease-out,
+      visibility 0s linear 0.12s;
+  }
+
+  .shared-work-tooltip.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    transition-delay: 0s;
+  }
+</style>

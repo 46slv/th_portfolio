@@ -1,16 +1,16 @@
 ---
 import type { Work } from '../../types/work';
-import WorkTooltip from './WorkTooltip.astro';
 
 interface Props {
   work: Work;
-  index: number;
   workId: string;
 }
 
-const { work, index, workId } = Astro.props;
+const { work, workId } = Astro.props;
 const left = ((work.x + 100) / 200) * 100;
 const bottom = ((work.y + 100) / 200) * 100;
+const ytId = work.url?.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^#&?]*)/)?.[1];
+const thumbnailUrl = ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : '';
 ---
 
 <div
@@ -18,31 +18,28 @@ const bottom = ((work.y + 100) / 200) * 100;
   data-work-id={workId}
   data-tags={work.tags?.join(",") ?? ""}
   data-year={work.year}
-  class="group absolute cursor-crosshair animate-float hover:[animation-play-state:paused]"
-  style={`left: ${left}%; bottom: ${bottom}%; animation-delay: ${index * 0.2}s; z-index: ${Math.round(bottom)};`}
+  data-tooltip-title={work.title || 'Untitled'}
+  data-tooltip-artist={work.artist || 'Unknown'}
+  data-tooltip-tags={work.tags?.join(' | ') ?? ''}
+  data-tooltip-thumbnail={thumbnailUrl}
+  class="group absolute cursor-crosshair"
+  style={`left: ${left}%; bottom: ${bottom}%; z-index: ${Math.round(bottom)};`}
 >
-  <a href={work.url} target="_blank" class="relative w-4 h-4 flex items-center justify-center work-trigger">
+  <a
+    href={work.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label={`${work.title || 'Untitled'} / ${work.artist || 'Unknown'} / ${work.year}`}
+    aria-describedby="work-tooltip"
+    class="relative w-4 h-4 flex items-center justify-center work-trigger"
+  >
     <div class="absolute w-full h-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
     <div class="absolute h-full w-[1px] bg-zinc-600 group-hover:bg-cyan-400"></div>
     <div class="w-1 h-1 bg-white"></div>
   </a>
-  <WorkTooltip work={work} left={left} bottom={bottom} />
 </div>
 
 <style>
-  @keyframes float {
-    0%,
-    100% {
-      transform: translate(-50%, 50%) rotate(0deg);
-    }
-    33% {
-      transform: translate(calc(-50% + 4px), calc(50% - 6px)) rotate(1deg);
-    }
-    66% {
-      transform: translate(calc(-50% - 3px), calc(50% - 2px)) rotate(-1deg);
-    }
-  }
-
   [data-work] {
     position: absolute;
     transition:
@@ -51,7 +48,8 @@ const bottom = ((work.y + 100) / 200) * 100;
     transform: translate(-50%, 50%);
   }
 
-  [data-work]:hover {
+  [data-work]:hover,
+  [data-work]:focus-within {
     z-index: 90;
     transform: translate(-50%, 50%) scale(1.08);
   }
@@ -68,12 +66,6 @@ const bottom = ((work.y + 100) / 200) * 100;
     transform: translate(-50%, 50%) scale(1.18);
   }
 
-  :global([data-work].is-selected .work-tooltip) {
-    opacity: 1;
-    pointer-events: auto;
-    transition-delay: 0ms;
-  }
-
   [data-work].is-inactive {
     opacity: 0.1;
     z-index: 0;
@@ -81,7 +73,4 @@ const bottom = ((work.y + 100) / 200) * 100;
     pointer-events: none;
   }
 
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
 </style>

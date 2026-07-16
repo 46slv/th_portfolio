@@ -1,13 +1,23 @@
+const FRAME_INTERVAL = 1000 / 15;
+
 let animationFrame = 0;
 let baseHue = 0;
 let playbackRate = 1;
 let active = false;
+let lastFrameTime = 0;
+let lastFilter = "";
+let targets: HTMLElement[] = [];
+
+const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 function shiftTargets() {
-  return [
-    document.getElementById("site-shell"),
-    document.getElementById("archive-wheel"),
-  ].filter((target): target is HTMLElement => Boolean(target));
+  if (!targets.length) {
+    targets = [
+      document.getElementById("site-shell"),
+      document.getElementById("archive-wheel"),
+    ].filter((target): target is HTMLElement => Boolean(target));
+  }
+  return targets;
 }
 
 function updateStatus() {
@@ -21,11 +31,26 @@ function updateStatus() {
   else status.innerText = "Shift: Stable";
 }
 
-function frame() {
-  if (!active) return;
+function isNeutralRate() {
+  return Math.abs(playbackRate - 1) < 0.001;
+}
 
-  if (playbackRate > 0) {
-    const cycleSpeed = 0.015 * Math.pow(playbackRate, 2);
+function clearFilter() {
+  if (!lastFilter && shiftTargets().every((target) => !target.style.filter)) return;
+  shiftTargets().forEach((target) => {
+    target.style.filter = "";
+  });
+  lastFilter = "";
+}
+
+function applyFilter(advanceHue: boolean) {
+  if (isNeutralRate()) {
+    clearFilter();
+    return;
+  }
+
+  if (advanceHue && playbackRate > 0) {
+    const cycleSpeed = 0.06 * Math.pow(playbackRate, 2);
     baseHue = (baseHue + cycleSpeed) % 360;
   }
 
@@ -40,28 +65,70 @@ function frame() {
   const invert = redshift > 0.82 ? (redshift - 0.82) * 0.12 : 0;
 
   const filter = `sepia(${sepia}) hue-rotate(${shiftHue}deg) saturate(${saturation}) brightness(${brightness}) contrast(${contrast}) invert(${invert})`;
+  if (filter === lastFilter) return;
+
   shiftTargets().forEach((target) => {
     target.style.filter = filter;
   });
-  updateStatus();
+  lastFilter = filter;
+}
+
+function frame(timestamp: number) {
+  animationFrame = 0;
+  if (!active || document.hidden || isNeutralRate()) {
+    if (isNeutralRate()) clearFilter();
+    return;
+  }
+
+  if (reduceMotionQuery.matches || playbackRate === 0) {
+    applyFilter(false);
+    return;
+  }
+
+  if (timestamp - lastFrameTime >= FRAME_INTERVAL) {
+    lastFrameTime = timestamp;
+    applyFilter(true);
+  }
+
   animationFrame = requestAnimationFrame(frame);
+}
+
+function syncVisualShift() {
+  cancelAnimationFrame(animationFrame);
+  animationFrame = 0;
+
+  if (!active) return;
+  if (isNeutralRate()) {
+    clearFilter();
+    return;
+  }
+
+  applyFilter(false);
+  if (!document.hidden && !reduceMotionQuery.matches && playbackRate > 0) {
+    lastFrameTime = 0;
+    animationFrame = requestAnimationFrame(frame);
+  }
 }
 
 export function startVisualShift() {
   if (active) return;
   active = true;
-  frame();
+  updateStatus();
+  syncVisualShift();
 }
 
 export function stopVisualShift() {
   active = false;
   cancelAnimationFrame(animationFrame);
-  shiftTargets().forEach((target) => {
-    target.style.filter = "";
-  });
+  animationFrame = 0;
+  clearFilter();
 }
 
 export function setPlaybackRate(rate: number) {
-  playbackRate = rate;
+  playbackRate = Math.max(0, rate);
   updateStatus();
+  syncVisualShift();
 }
+
+document.addEventListener("visibilitychange", syncVisualShift);
+reduceMotionQuery.addEventListener("change", syncVisualShift);

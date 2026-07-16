@@ -10,6 +10,7 @@ type AudioState = {
   analyser: AnalyserNode;
   meterData: Uint8Array;
   distortionAmount: number;
+  reverbReady: boolean;
   isPlaying: boolean;
 };
 
@@ -123,7 +124,6 @@ export async function startAudio() {
   delayGain.gain.value = 0;
 
   const reverb = context.createConvolver();
-  reverb.buffer = createImpulse(context, 2.5, 4);
   const reverbGain = context.createGain();
   reverbGain.gain.value = 0;
 
@@ -144,6 +144,7 @@ export async function startAudio() {
     analyser,
     meterData: new Uint8Array(analyser.frequencyBinCount),
     distortionAmount: 0,
+    reverbReady: false,
     isPlaying: true,
   };
 
@@ -192,7 +193,15 @@ export function setDelay(value: number) {
 
 export function setReverb(value: number) {
   if (!state) return;
+  if (value > 0 && !state.reverbReady) {
+    state.reverb.buffer = createImpulse(state.context, 2.5, 4);
+    state.reverbReady = true;
+  }
   state.reverbGain.gain.setTargetAtTime(value, state.context.currentTime, 0.015);
+}
+
+export function isAudioPlaying() {
+  return Boolean(state?.isPlaying && state.context.state === "running");
 }
 
 export function getMeterLevel() {

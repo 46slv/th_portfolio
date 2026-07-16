@@ -1,43 +1,75 @@
-# Astro Starter Kit: Minimal
+# TH Portfolio
 
-```sh
-npm create astro@latest -- --template minimal
+Talich Helfenの作品を、座標マップ・フィルター・Archive Wheel・音声演出から探索するAstro製ポートフォリオサイトです。
+
+## Environment
+
+- Node.js 22.12以上
+- Astro 6
+- Tailwind CSS 4
+- TypeScript
+- Static output / GitHub Pages
+
+## Setup
+
+```powershell
+npm install
+npm run dev
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+本番ビルドと確認:
 
-## 🚀 Project Structure
+```powershell
+npm run build
+npm run preview -- --host 127.0.0.1
+```
 
-Inside of your Astro project, you'll see the following folders and files:
+## Main Features
+
+- Tag・Yearフィルター
+- 二次元座標上のWorks Map
+- 共有Tooltipとホバー時サムネイル読み込み
+- 作品選択と同期するArchive Wheel
+- BGM、音量、再生速度、Distortion、Delay、Reverb
+- `prefers-reduced-motion` 対応
+- マウス、タッチ、キーボード操作
+
+## Project Structure
 
 ```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+src/
+  components/
+    audio/
+    effects/
+    filters/
+    layout/
+    startup/
+    works/
+  data/
+  lib/
+  pages/
+  styles/
+public/
+  SITE_th.mp3
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Data
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+作品データはGoogle SpreadsheetをOpenSheet経由でビルド時に取得します。
+完全に空の行や、色指定しか存在しない行は描画対象から除外します。
 
-Any static assets, like images, can be placed in the `public/` directory.
+## Performance Rules
 
-## 🧞 Commands
+- 地図ホバーで永続選択を変更しない。
+- Tooltipとサムネイルを作品数分生成しない。
+- Archive Wheelは中央付近の項目だけを描画更新する。
+- 折り畳み中のArchive Wheelを再レイアウトしない。
+- 標準再生速度ではサイト全体へCSS filterを適用しない。
+- 非表示タブでは継続的な描画ループを停止する。
+- Reverb impulseは必要になるまで生成しない。
 
-All commands are run from the root of the project, from a terminal:
+詳細は [PERFORMANCE_FIX_PLAN.md](./PERFORMANCE_FIX_PLAN.md)、[WORKLOG.md](./WORKLOG.md)、[TEST_PLAN.md](./TEST_PLAN.md) を参照してください。
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+## Deployment
 
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+`main` へのpushで `.github/workflows/deploy.yml` がAstroをビルドし、GitHub Pagesへデプロイします。

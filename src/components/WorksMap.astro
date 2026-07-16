@@ -5,6 +5,7 @@ import TagFilter from './filters/TagFilter.astro';
 import YearFilter from './filters/YearFilter.astro';
 import ContactBar from './layout/ContactBar.astro';
 import WorkNode from './works/WorkNode.astro';
+import SharedWorkTooltip from './works/SharedWorkTooltip.astro';
 import { getWorkId } from '../lib/workIds';
 import '../styles/global.css';
 
@@ -34,8 +35,9 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
       <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-right">Acoustic [R]</div>
 
       <div class="absolute inset-16 sm:inset-24">
-        {works.map((work, index) => <WorkNode work={work} index={index} workId={getWorkId(work, index)} />)}
+        {works.map((work, index) => <WorkNode work={work} workId={getWorkId(work, index)} />)}
       </div>
+      <SharedWorkTooltip />
     </div>
   </div>
 
@@ -75,6 +77,7 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
 <script>
   import {
     getMeterLevel,
+    isAudioPlaying,
     setDelay,
     setDistortion,
     setReverb,
@@ -84,18 +87,49 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
     togglePlayback,
   } from '../lib/audio/audioEngine';
   import { applyWorkFilters, setTag, setYear } from '../lib/filterStore';
-  import { setSelectedWork, subscribe } from '../lib/workSelectionStore';
+  import { subscribe } from '../lib/workSelectionStore';
   import { setPlaybackRate, startVisualShift } from './effects/VisualShift';
 
   let isStarted = false;
   let meterFrame = 0;
+  let lastMeterTime = 0;
+  let lastMeterScale = -1;
+  const meterInterval = 1000 / 24;
 
-  function updateMeter() {
+  function renderMeter(value: number) {
     const vBar = document.getElementById('v-bar');
-    if (vBar) {
-      vBar.style.width = `${(getMeterLevel() * 100).toFixed(1)}%`;
+    const scale = Math.round(Math.max(0, Math.min(1, value)) * 100) / 100;
+    if (!vBar || scale === lastMeterScale) return;
+    lastMeterScale = scale;
+    vBar.style.transform = `scaleX(${scale})`;
+  }
+
+  function updateMeter(timestamp: number) {
+    meterFrame = 0;
+    if (document.hidden) return;
+
+    if (timestamp - lastMeterTime >= meterInterval) {
+      lastMeterTime = timestamp;
+      renderMeter(getMeterLevel());
     }
+
+    if (isAudioPlaying()) {
+      meterFrame = requestAnimationFrame(updateMeter);
+    } else {
+      renderMeter(0);
+    }
+  }
+
+  function startMeter() {
+    if (meterFrame || document.hidden || !isAudioPlaying()) return;
+    lastMeterTime = 0;
     meterFrame = requestAnimationFrame(updateMeter);
+  }
+
+  function stopMeter() {
+    cancelAnimationFrame(meterFrame);
+    meterFrame = 0;
+    renderMeter(0);
   }
 
   async function startExperience() {
@@ -116,7 +150,7 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
 
     try {
       await startAudio();
-      updateMeter();
+      startMeter();
     } catch (error) {
       console.error(error);
     }
@@ -159,38 +193,121 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
 
   function bindWorkSelection() {
     const workNodes = Array.from(document.querySelectorAll<HTMLElement>('[data-work][data-work-id]'));
+    const nodeById = new Map<string, HTMLElement>();
     const mapTarget = document.getElementById('map-target');
-    let pendingSelectionFrame = 0;
-    let lastMapFocusId: string | null = null;
+    const tooltip = document.getElementById('work-tooltip');
+    const tooltipTitle = tooltip?.querySelector<HTMLElement>('[data-tooltip-title]');
+    const tooltipArtist = tooltip?.querySelector<HTMLElement>('[data-tooltip-artist]');
+    const tooltipYear = tooltip?.querySelector<HTMLElement>('[data-tooltip-year]');
+    const tooltipTags = tooltip?.querySelector<HTMLElement>('[data-tooltip-tags]');
+    const tooltipMedia = tooltip?.querySelector<HTMLElement>('[data-tooltip-media]');
+    const tooltipImage = tooltip?.querySelector<HTMLImageElement>('[data-tooltip-image]');
+    let selectedNode: HTMLElement | null = null;
+    let previewNode: HTMLElement | null = null;
 
-    function selectMapWork(node: HTMLElement | null) {
-      const id = node?.dataset.workId;
-      if (!id || node?.classList.contains('is-inactive') || id === lastMapFocusId) return;
-      lastMapFocusId = id;
-      cancelAnimationFrame(pendingSelectionFrame);
-      pendingSelectionFrame = requestAnimationFrame(() => {
-        setSelectedWork(id);
-      });
+    workNodes.forEach((node) => {
+      const id = node.dataset.workId;
+      if (id) nodeById.set(id, node);
+    });
+
+    function positionTooltip(node: HTMLElement) {
+      if (!tooltip || !mapTarget) return;
+      const nodeRect = node.getBoundingClientRect();
+      const mapRect = mapTarget.getBoundingClientRect();
+      const tooltipWidth = 220;
+      const tooltipHeight = tooltip.offsetHeight || 180;
+      const preferredLeft = nodeRect.left - mapRect.left + 18;
+      const left = Math.max(8, Math.min(preferredLeft, mapRect.width - tooltipWidth - 8));
+      const above = nodeRect.top - mapRect.top - tooltipHeight - 10;
+      const top = above >= 8 ? above : Math.min(mapRect.height - tooltipHeight - 8, nodeRect.bottom - mapRect.top + 10);
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${Math.max(8, top)}px`;
+    }
+
+    function showTooltip(node: HTMLElement | null) {
+      if (!node || !tooltip || node.classList.contains('is-inactive')) return;
+
+      const title = node.dataset.tooltipTitle || 'Untitled';
+      const artist = node.dataset.tooltipArtist || 'Unknown';
+      const tags = node.dataset.tooltipTags || '';
+      const thumbnail = node.dataset.tooltipThumbnail || '';
+
+      if (tooltipTitle) tooltipTitle.textContent = title;
+      if (tooltipArtist) tooltipArtist.textContent = `ID: ${artist}`;
+      if (tooltipYear) tooltipYear.textContent = node.dataset.year || 'Unknown';
+      if (tooltipTags) {
+        tooltipTags.textContent = tags;
+        tooltipTags.classList.toggle('hidden', !tags);
+      }
+      if (tooltipImage && tooltipMedia) {
+        if (thumbnail) {
+          if (tooltipImage.dataset.currentSrc !== thumbnail) {
+            tooltipImage.src = thumbnail;
+            tooltipImage.dataset.currentSrc = thumbnail;
+          }
+          tooltipImage.alt = `${title} thumbnail`;
+          tooltipMedia.classList.remove('hidden');
+        } else {
+          tooltipMedia.classList.add('hidden');
+          tooltipImage.removeAttribute('src');
+          delete tooltipImage.dataset.currentSrc;
+          tooltipImage.alt = '';
+        }
+      }
+
+      positionTooltip(node);
+      tooltip.classList.add('is-visible');
+      tooltip.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideTooltip() {
+      tooltip?.classList.remove('is-visible');
+      tooltip?.setAttribute('aria-hidden', 'true');
+    }
+
+    function restoreSelectedTooltip() {
+      if (previewNode) return;
+      if (selectedNode) showTooltip(selectedNode);
+      else hideTooltip();
     }
 
     mapTarget?.addEventListener('pointerover', (event) => {
       const node = (event.target as HTMLElement).closest<HTMLElement>('[data-work][data-work-id]');
-      if (!node || !mapTarget.contains(node)) return;
+      if (!node || !mapTarget.contains(node) || node === previewNode) return;
+      previewNode = node;
+      showTooltip(node);
+    });
+
+    mapTarget?.addEventListener('pointerout', (event) => {
+      const node = (event.target as HTMLElement).closest<HTMLElement>('[data-work][data-work-id]');
+      if (!node || node !== previewNode) return;
       if (event.relatedTarget instanceof Node && node.contains(event.relatedTarget)) return;
-      selectMapWork(node);
+      previewNode = null;
+      restoreSelectedTooltip();
     });
 
     mapTarget?.addEventListener('focusin', (event) => {
       const node = (event.target as HTMLElement).closest<HTMLElement>('[data-work][data-work-id]');
       if (!node || !mapTarget.contains(node)) return;
-      selectMapWork(node);
+      previewNode = node;
+      showTooltip(node);
+    });
+
+    mapTarget?.addEventListener('focusout', (event) => {
+      const node = (event.target as HTMLElement).closest<HTMLElement>('[data-work][data-work-id]');
+      if (!node || node !== previewNode) return;
+      if (event.relatedTarget instanceof Node && node.contains(event.relatedTarget)) return;
+      previewNode = null;
+      restoreSelectedTooltip();
     });
 
     subscribe((selectedId) => {
-      lastMapFocusId = selectedId;
-      workNodes.forEach((node) => {
-        node.classList.toggle('is-selected', Boolean(selectedId && node.dataset.workId === selectedId));
-      });
+      const nextNode = selectedId ? nodeById.get(selectedId) ?? null : null;
+      if (nextNode === selectedNode) return;
+      selectedNode?.classList.remove('is-selected');
+      nextNode?.classList.add('is-selected');
+      selectedNode = nextNode;
+      if (!previewNode) restoreSelectedTooltip();
     });
   }
 
@@ -199,6 +316,8 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
     playPauseButton?.addEventListener('click', async () => {
       const playing = await togglePlayback();
       playPauseButton.innerText = playing ? 'Pause Transmission' : 'Resume Transmission';
+      if (playing) startMeter();
+      else stopMeter();
     });
 
     document.querySelectorAll('.work-trigger').forEach((trigger) => {
@@ -207,6 +326,8 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
         if (playPauseButton) {
           playPauseButton.innerText = playing ? 'Pause Transmission' : 'Resume Transmission';
         }
+        if (playing) startMeter();
+        else stopMeter();
       });
     });
 
@@ -244,5 +365,13 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
     initWorksMap();
   }
 
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      cancelAnimationFrame(meterFrame);
+      meterFrame = 0;
+    } else {
+      startMeter();
+    }
+  });
   window.addEventListener('beforeunload', () => cancelAnimationFrame(meterFrame));
 </script>

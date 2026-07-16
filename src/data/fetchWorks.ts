@@ -45,7 +45,12 @@ export async function fetchWorks(): Promise<Work[]> {
     if (row.field) schema[row.field] = row.type;
   }
 
-  return works.map((row: any) => {
+  const contentFields = ["title", "artist", "release", "year", "x", "y", "url", "tags"];
+  const populatedRows = works.filter((row: any) =>
+    contentFields.some((key) => String(row[key] ?? "").trim() !== ""),
+  );
+
+  return populatedRows.map((row: any) => {
     const parsed: any = {};
 
     for (const key in row) {

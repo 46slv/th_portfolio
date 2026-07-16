@@ -1,7 +1,7 @@
-<div id="start-overlay">
+<button id="start-overlay" type="button" aria-label="Initialize site experience and audio">
   <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">Initialize System</span>
-  <p class="text-zinc-600 text-[8px] uppercase tracking-widest mt-2">Click Anywhere to Begin</p>
-</div>
+  <span class="text-zinc-600 text-[8px] uppercase tracking-widest mt-2">Click, Enter, or Space to Begin</span>
+</button>
 
 <style>
   #start-overlay {
@@ -14,6 +14,10 @@
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.95);
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
     cursor: pointer;
     pointer-events: auto;
     transition:
@@ -25,5 +29,10 @@
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
+  }
+
+  #start-overlay:focus-visible {
+    outline: 1px solid rgba(34, 211, 238, 0.85);
+    outline-offset: -8px;
   }
 </style>

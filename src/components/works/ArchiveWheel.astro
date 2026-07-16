@@ -303,13 +303,19 @@ const { entries } = Astro.props;
     text-align: right;
     padding: 7px 12px 7px 4px;
     cursor: pointer;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
     transform-origin: right center;
     transition:
       opacity 0.45s ease,
-      filter 0.45s ease,
       transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
       color 0.35s ease,
       border-color 0.35s ease;
+  }
+
+  .archive-wheel.is-dragging .archive-wheel__item {
+    transition: none;
   }
 
   .archive-wheel__item.is-hidden {
@@ -384,11 +390,13 @@ const { entries } = Astro.props;
   const toggle = wheel?.querySelector<HTMLButtonElement>('[data-wheel-toggle]');
   const stepButtons = Array.from(wheel?.querySelectorAll<HTMLButtonElement>('[data-wheel-step]') ?? []);
   const items = Array.from(document.querySelectorAll<HTMLElement>('[data-wheel-work]'));
+  const mapNodeById = new Map<string, HTMLElement>();
   const rowGap = 48;
   const wheelScrollDistance = 110;
   const minWheelStep = 0.08;
   const wheelSettleDelay = 170;
   const dragStepDistance = 76;
+  const renderRadius = 4;
   let selectedIndex = 0;
   let wheelOffset = 0;
   let dragging = false;
@@ -396,19 +404,37 @@ const { entries } = Astro.props;
   let dragStartOffset = 0;
   let rotating = false;
   let settleTimer = 0;
+  let layoutFrame = 0;
+  let pendingWheelOffset: number | null = null;
+  let visibleItemList: HTMLElement[] = [];
+  let renderedItems = new Set<HTMLElement>();
+
+  document.querySelectorAll<HTMLElement>('[data-work][data-work-id]').forEach((node) => {
+    const id = node.dataset.workId;
+    if (id) mapNodeById.set(id, node);
+  });
 
   function setCollapsed(collapsed: boolean) {
+    const wasCollapsed = Boolean(wheel?.classList.contains('is-collapsed'));
+    if (wasCollapsed === collapsed) return;
+
     wheel?.classList.toggle('is-collapsed', collapsed);
     toggle?.setAttribute('aria-expanded', String(!collapsed));
     rail?.toggleAttribute('inert', collapsed);
     rail?.setAttribute('aria-hidden', String(collapsed));
     if (collapsed) {
       setSelectedWork(null);
+    } else {
+      layoutWheel(true);
     }
   }
 
+  function rebuildVisibleItems() {
+    visibleItemList = items.filter((item) => !item.classList.contains('is-hidden'));
+  }
+
   function visibleItems() {
-    return items.filter((item) => !item.classList.contains('is-hidden'));
+    return visibleItemList;
   }
 
   function clampIndex(index: number) {
@@ -435,9 +461,11 @@ const { entries } = Astro.props;
   function syncFilteredItems() {
     items.forEach((item) => {
       const id = item.dataset.workId;
-      const mapNode = id ? document.querySelector<HTMLElement>(`[data-work][data-work-id="${CSS.escape(id)}"]`) : null;
+      const mapNode = id ? mapNodeById.get(id) : null;
       item.classList.toggle('is-hidden', Boolean(mapNode?.classList.contains('is-inactive')));
     });
+
+    rebuildVisibleItems();
 
     const selectedId = getSelectedWork();
     const list = visibleItems();
@@ -467,17 +495,36 @@ const { entries } = Astro.props;
     if (!list.length) return;
     selectedIndex = clampIndex(index);
     wheelOffset = selectedIndex;
-    setSelectedWork(list[selectedIndex]?.dataset.workId ?? null);
-    layoutWheel();
+    const nextId = list[selectedIndex]?.dataset.workId ?? null;
+    const changed = getSelectedWork() !== nextId;
+    setSelectedWork(nextId);
+    if (!changed) layoutWheel();
   }
 
   function setWheelOffset(index: number) {
-    wheelOffset = clampOffset(index);
-    layoutWheel();
+    pendingWheelOffset = clampOffset(index);
+    if (layoutFrame) return;
+
+    layoutFrame = requestAnimationFrame(() => {
+      layoutFrame = 0;
+      if (pendingWheelOffset === null) return;
+      wheelOffset = pendingWheelOffset;
+      pendingWheelOffset = null;
+      layoutWheel();
+    });
+  }
+
+  function flushWheelOffset() {
+    if (pendingWheelOffset === null) return;
+    cancelAnimationFrame(layoutFrame);
+    layoutFrame = 0;
+    wheelOffset = pendingWheelOffset;
+    pendingWheelOffset = null;
   }
 
   function snapToNearest() {
     clearSettleTimer();
+    flushWheelOffset();
     rotating = false;
     selectVisibleIndex(nearestIndex());
   }
@@ -496,11 +543,20 @@ const { entries } = Astro.props;
     scheduleSnap();
   }
 
-  function layoutWheel() {
+  function layoutWheel(force = false) {
+    if (!force && wheel?.classList.contains('is-collapsed')) return;
+
     const list = visibleItems();
     const selectedId = getSelectedWork();
     if (!list.length) {
       rail?.setAttribute('data-empty', 'true');
+      renderedItems.forEach((item) => {
+        item.classList.remove('is-selected');
+        item.style.visibility = 'hidden';
+        item.style.opacity = '0';
+        item.style.pointerEvents = 'none';
+      });
+      renderedItems.clear();
       return;
     }
 
@@ -512,25 +568,36 @@ const { entries } = Astro.props;
     }
 
     const centerIndex = nearestIndex();
+    const startIndex = Math.max(0, Math.floor(wheelOffset) - renderRadius);
+    const endIndex = Math.min(list.length - 1, Math.ceil(wheelOffset) + renderRadius);
+    const nextRenderedItems = new Set<HTMLElement>();
 
-    items.forEach((item) => {
-      if (item.classList.contains('is-hidden')) return;
-
-      const visibleIndex = list.indexOf(item);
+    for (let visibleIndex = startIndex; visibleIndex <= endIndex; visibleIndex += 1) {
+      const item = list[visibleIndex];
+      if (!item) continue;
+      nextRenderedItems.add(item);
       const distance = visibleIndex - wheelOffset;
       const abs = Math.abs(distance);
       const curveX = Math.min(54, abs * abs * 5.5);
       const rotate = distance * -2.8;
       const opacity = abs < 0.45 ? 1 : abs < 1.45 ? 0.86 : abs < 2.45 ? 0.68 : 0.42;
-      const blur = abs < 0.45 ? 0 : abs < 1.45 ? 0.5 : abs < 2.45 ? 1.1 : 2.2;
       const scale = abs < 0.45 ? 1 : abs < 1.45 ? 0.97 : abs < 2.45 ? 0.92 : 0.86;
 
       item.classList.toggle('is-selected', visibleIndex === centerIndex);
+      item.style.visibility = 'visible';
       item.style.opacity = String(opacity);
-      item.style.filter = `blur(${blur}px)`;
       item.style.transform = `translate3d(${-curveX}px, ${distance * rowGap}px, 0) rotate(${rotate}deg) scale(${scale})`;
       item.style.pointerEvents = abs > 3 ? 'none' : 'auto';
+    }
+
+    renderedItems.forEach((item) => {
+      if (nextRenderedItems.has(item)) return;
+      item.classList.remove('is-selected');
+      item.style.visibility = 'hidden';
+      item.style.opacity = '0';
+      item.style.pointerEvents = 'none';
     });
+    renderedItems = nextRenderedItems;
   }
 
   wheel?.addEventListener('wheel', (event) => {
@@ -561,6 +628,7 @@ const { entries } = Astro.props;
     clearSettleTimer();
     rotating = true;
     dragging = true;
+    wheel.classList.add('is-dragging');
     dragStartY = event.clientY;
     dragStartOffset = wheelOffset;
     wheel.setPointerCapture(event.pointerId);
@@ -574,6 +642,7 @@ const { entries } = Astro.props;
 
   wheel?.addEventListener('pointerup', (event) => {
     dragging = false;
+    wheel.classList.remove('is-dragging');
     if (wheel.hasPointerCapture(event.pointerId)) {
       wheel.releasePointerCapture(event.pointerId);
     }
@@ -582,6 +651,7 @@ const { entries } = Astro.props;
 
   wheel?.addEventListener('pointercancel', (event) => {
     dragging = false;
+    wheel.classList.remove('is-dragging');
     if (wheel.hasPointerCapture(event.pointerId)) {
       wheel.releasePointerCapture(event.pointerId);
     }
@@ -611,7 +681,11 @@ const { entries } = Astro.props;
     });
   });
 
-  subscribe(layoutWheel);
+  subscribe(() => layoutWheel());
   window.addEventListener('work-filters-applied', syncFilteredItems);
+  window.addEventListener('beforeunload', () => {
+    cancelAnimationFrame(layoutFrame);
+    clearSettleTimer();
+  });
   syncFilteredItems();
 </script>
