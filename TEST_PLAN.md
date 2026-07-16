@@ -9,6 +9,8 @@
 - [x] `null / null` のWheel項目が0件
 - [x] 有効作品とWheel項目が各82件
 - [x] 生成HTMLが約138KB
+- [ ] `waveform-scope` と `map-lissajous` が各1個だけ存在する
+- [ ] 音量バーに永続的な `scale-x-0` が残っていない
 
 ## Startup
 
@@ -53,6 +55,12 @@
 
 ## Audio
 
+- [ ] 音声開始後にHUD波形が動く
+- [ ] 音声開始後に音量レベルバーが伸縮する
+- [ ] Works Map中央にリサージュが表示される
+- [ ] リサージュがL=X、R=Y、Y軸反転、回転なしである
+- [ ] リサージュCanvasが作品ポイントのクリック・ホバーを妨げない
+- [ ] Canvas描画が最大24fps・最大512点である
 - [ ] Master Gain
 - [ ] Relativistic Shift
 - [ ] Distortion
@@ -60,7 +68,9 @@
 - [ ] Reverb初回操作
 - [ ] Pause / Resume
 - [ ] Pause中にメーターが停止する
+- [ ] Pause中にHUD波形とリサージュが停止する
 - [ ] 非表示タブ復帰後にメーターが再開する
+- [ ] 非表示タブ復帰後にHUD波形とリサージュが再開する
 
 ## Accessibility And Environment
 

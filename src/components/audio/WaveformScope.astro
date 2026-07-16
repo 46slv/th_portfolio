@@ -1,0 +1,40 @@
+<section class="waveform-scope" aria-label="Live audio waveform">
+  <div class="waveform-scope__header" aria-hidden="true">
+    <span>Signal Trace</span>
+    <span>L + R</span>
+  </div>
+  <canvas
+    id="waveform-scope"
+    width="400"
+    height="84"
+    role="img"
+    aria-label="Live mixed audio waveform"
+  ></canvas>
+</section>
+
+<style>
+  .waveform-scope {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(39, 39, 42, 0.85);
+  }
+
+  .waveform-scope__header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    color: rgba(34, 211, 238, 0.42);
+    font-size: 6px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  #waveform-scope {
+    display: block;
+    width: 100%;
+    height: 42px;
+    border-top: 1px solid rgba(39, 39, 42, 0.8);
+    border-bottom: 1px solid rgba(39, 39, 42, 0.8);
+    background: rgba(3, 7, 18, 0.45);
+  }
+</style>

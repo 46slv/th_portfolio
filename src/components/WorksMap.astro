@@ -6,6 +6,7 @@ import YearFilter from './filters/YearFilter.astro';
 import ContactBar from './layout/ContactBar.astro';
 import WorkNode from './works/WorkNode.astro';
 import SharedWorkTooltip from './works/SharedWorkTooltip.astro';
+import MapLissajous from './works/MapLissajous.astro';
 import { getWorkId } from '../lib/workIds';
 import '../styles/global.css';
 
@@ -29,6 +30,7 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
         <div class="w-full h-[1px] bg-zinc-800"></div>
         <div class="absolute h-full w-[1px] bg-zinc-800"></div>
       </div>
+      <MapLissajous />
       <div class="absolute top-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Maniac [+]</div>
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Popular [-]</div>
       <div class="absolute left-4 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-left">Electro [L]</div>
@@ -77,6 +79,7 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
 <script>
   import {
     getMeterLevel,
+    getAudioVisualFrame,
     isAudioPlaying,
     setDelay,
     setDistortion,
@@ -94,7 +97,99 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
   let meterFrame = 0;
   let lastMeterTime = 0;
   let lastMeterScale = -1;
+  let waveformGain = 1;
+  let lissajousGain = 1;
   const meterInterval = 1000 / 24;
+
+  function prepareCanvas(canvas: HTMLCanvasElement) {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const width = Math.max(1, Math.round(rect.width * dpr));
+    const height = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    return { context: canvas.getContext('2d'), width, height, dpr };
+  }
+
+  function renderWaveform(data: Float32Array | null) {
+    const canvas = document.getElementById('waveform-scope') as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const { context, width, height, dpr } = prepareCanvas(canvas);
+    if (!context) return;
+
+    context.clearRect(0, 0, width, height);
+    context.beginPath();
+    context.moveTo(0, height / 2);
+    context.lineTo(width, height / 2);
+    context.strokeStyle = 'rgba(34, 211, 238, 0.12)';
+    context.lineWidth = Math.max(1, dpr * 0.5);
+    context.stroke();
+    if (!data) return;
+
+    let peak = 0;
+    for (let index = 0; index < data.length; index += 1) {
+      peak = Math.max(peak, Math.abs(data[index]));
+    }
+    const targetGain = peak > 0.005 ? Math.min(4, 0.78 / peak) : 1;
+    waveformGain += (targetGain - waveformGain) * 0.16;
+
+    context.beginPath();
+    const step = Math.max(1, Math.floor(data.length / Math.max(1, width / dpr)));
+    let pointIndex = 0;
+    for (let index = 0; index < data.length; index += step) {
+      const x = (pointIndex / Math.max(1, Math.ceil(data.length / step) - 1)) * width;
+      const y = height / 2 - data[index] * waveformGain * height * 0.42;
+      if (pointIndex === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+      pointIndex += 1;
+    }
+    context.strokeStyle = 'rgba(103, 232, 249, 0.82)';
+    context.lineWidth = Math.max(1, dpr * 0.7);
+    context.stroke();
+  }
+
+  function renderLissajous(left: Float32Array | null, right: Float32Array | null) {
+    const canvas = document.getElementById('map-lissajous') as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const { context, width, height, dpr } = prepareCanvas(canvas);
+    if (!context) return;
+    context.clearRect(0, 0, width, height);
+    if (!left || !right) return;
+
+    const length = Math.min(left.length, right.length);
+    let peak = 0;
+    for (let index = 0; index < length; index += 1) {
+      peak = Math.max(peak, Math.abs(left[index]), Math.abs(right[index]));
+    }
+    if (peak < 0.005) return;
+    const targetGain = Math.min(5, 0.82 / peak);
+    lissajousGain += (targetGain - lissajousGain) * 0.12;
+
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const scale = Math.min(width, height) * 0.43 * lissajousGain;
+    const step = Math.max(1, Math.ceil(length / 512));
+    context.beginPath();
+    let pointIndex = 0;
+    for (let index = 0; index < length; index += step) {
+      const x = centerX + left[index] * scale;
+      const y = centerY - right[index] * scale;
+      if (pointIndex === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+      pointIndex += 1;
+    }
+    context.strokeStyle = 'rgba(103, 232, 249, 0.34)';
+    context.lineWidth = Math.max(1, dpr * 0.55);
+    context.stroke();
+  }
+
+  function renderAudioScopes() {
+    const frame = getAudioVisualFrame();
+    renderWaveform(frame?.mono ?? null);
+    renderLissajous(frame?.left ?? null, frame?.right ?? null);
+  }
 
   function renderMeter(value: number) {
     const vBar = document.getElementById('v-bar');
@@ -111,6 +206,7 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
     if (timestamp - lastMeterTime >= meterInterval) {
       lastMeterTime = timestamp;
       renderMeter(getMeterLevel());
+      renderAudioScopes();
     }
 
     if (isAudioPlaying()) {
@@ -130,6 +226,8 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
     cancelAnimationFrame(meterFrame);
     meterFrame = 0;
     renderMeter(0);
+    renderWaveform(null);
+    renderLissajous(null, null);
   }
 
   async function startExperience() {

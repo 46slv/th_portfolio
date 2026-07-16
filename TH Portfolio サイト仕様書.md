@@ -480,7 +480,7 @@ gainNode.gain
 
 ---
 
-## Temporal Velocity
+## Relativistic Shift
 
 ### 制御対象
 
@@ -525,6 +525,31 @@ ConvolverNode
 
 ---
 
+## 音声ビジュアライザー
+
+音声開始後、実際のAudioContext出力へ連動する2種類の表示を提供する。
+
+### HUD波形
+
+* Reverbコントロール直下へ配置
+* ミックス済み時間領域信号を左から右へ描画
+* 無音・一時停止中は中央の基準線を表示
+* 音量レベルバーと併存し、どちらも実際の音声へ連動
+
+### Works Mapリサージュ
+
+* 地図中央へ透過Canvasとして重ねる
+* 左チャンネルをX軸、右チャンネルをY軸としてraw-XY描画する
+* CanvasのY軸だけ上下反転し、位相スコープ用の45度回転は行わない
+* 作品ポイント、Tooltip、フィルター、Archive Wheelの操作を妨げない
+* 1フレーム最大512点、最大24fpsで描画する
+* 一時停止・非表示タブでは描画を停止する
+* `prefers-reduced-motion: reduce` では更新頻度を下げる
+
+この2表示は、サイトの「音響・視覚演出とともに作品を探索する」という体験を構成する正式要件とする。
+
+---
+
 # オーディオ構成
 
 ```text
@@ -541,8 +566,16 @@ Delay     Reverb
  └────┬─────┘
       ▼
     Gain
-      ▼
-Destination
+   ┌──┴──────────────┐
+   ▼                 ▼
+Analyser         Channel Splitter
+   │              ┌──┴──┐
+   ▼              ▼     ▼
+Destination    Left    Right
+                 │       │
+                 └───┬───┘
+                     ▼
+              Audio Visualizers
 ```
 
 ---
@@ -666,11 +699,11 @@ Google Spreadsheet障害時は作品データ取得不可。
 
 ---
 
-## Audio Meter未実装
+## Audio Visualizer実機確認
 
-AnalyserNode未使用。
+HUD波形、音量メーター、Works MapリサージュはAnalyserNodeへ接続済み。
 
-実際の音量とは連動していない。
+Safari、スマートフォン、低性能端末での長時間描画負荷は未確認。
 
 ---
 

@@ -32,6 +32,8 @@ This file records implementation notes, current behavior, and debugging context 
 - Distortion now fully bypasses `WaveShaperNode` when the distortion value is `0`.
 - Audio meter uses an `AnalyserNode` instead of random values.
 - Playback controls update through the exported audio engine API.
+- The HUD waveform uses the mixed post-gain time-domain signal.
+- The map Lissajous scope uses post-gain left/right analysers with raw XY geometry.
 
 ### Filters
 
@@ -126,7 +128,7 @@ This file records implementation notes, current behavior, and debugging context 
 - Map selection now changes only the previous and next selected nodes.
 - Replaced per-work tooltips with one shared tooltip.
 - YouTube thumbnail `src` is assigned only when a work is previewed.
-- Removed permanent floating animation from every map point.
+- Preserved permanent floating animation by moving it to each point's inner marker.
 - Archive Wheel now renders the center item plus four entries on either side.
 - Archive Wheel no longer applies per-item blur filters.
 - Wheel and drag updates are coalesced through one animation frame.
@@ -134,6 +136,8 @@ This file records implementation notes, current behavior, and debugging context 
 - Visual Shift is neutral at playback rate `1.0` and capped at 15fps otherwise.
 - Visual Shift and audio meter pause their drawing loops in hidden tabs.
 - Audio meter is capped at 24fps and uses `scaleX()` rather than width.
+- HUD waveform and map Lissajous rendering share the same capped 24fps loop.
+- Lissajous rendering is capped at 512 raw-XY points per frame and never receives pointer input.
 - Reverb impulse creation is deferred until Reverb is first enabled.
 - Spreadsheet rows containing only presentation metadata are ignored.
 - Startup overlay is a keyboard-operable button.

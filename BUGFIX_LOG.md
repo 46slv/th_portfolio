@@ -114,3 +114,36 @@ The performance pass treated constant point motion as optional decoration even t
 
 - Visual amplitude and timing on the production site.
 - Long-session GPU and battery impact on lower-end mobile devices.
+
+## 2026-07-16: Audio level display disappeared
+
+### Symptoms
+
+The audio display below the Reverb control remained empty even while the site audio was playing.
+
+### Cause
+
+`VolumeMeter.astro` retained Tailwind's `scale-x-0` utility while JavaScript wrote `transform: scaleX(...)`. Tailwind v4 applies scale through the individual CSS `scale` property, so the element stayed collapsed after the transform update.
+
+### Fix
+
+- Removed `scale-x-0` and set the initial inline transform to `scaleX(0)`.
+- Added a real mixed-signal waveform to the Audio HUD.
+- Added a post-gain stereo ChannelSplitter and raw-XY Lissajous scope to the Works Map.
+- Shared the existing capped 24fps render loop across the meter and both Canvas scopes.
+
+### Prevention
+
+- Do not mix Tailwind individual transform utilities with JavaScript writes to the transform shorthand on the same element.
+- Keep audio visualizers on one bounded rendering loop.
+- Preserve raw-XY Lissajous rules in the formal specification and test plan.
+
+### Verification
+
+- `npm run build` succeeds.
+- Generated HTML contains exactly one HUD waveform Canvas and one map Lissajous Canvas.
+- The level bar no longer contains `scale-x-0`.
+
+### Unverified
+
+- Visual behavior with the production MP3 in Safari and on mobile hardware.

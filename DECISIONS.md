@@ -1,5 +1,33 @@
 # Design Decisions
 
+## 2026-07-16: HUD波形とWorks Mapリサージュを同じ音声解析経路から描画する
+
+### Background
+
+音量レベルバーがCSS scaleの競合で見えなくなっていた。また、Works Mapには音響と地図を直接結びつける視覚表示がなかった。
+
+### Options
+
+- 音量バーだけを復旧する。
+- モノラル波形をHUDと地図の両方へ表示する。
+- HUDはミックス波形、地図はステレオraw-XYリサージュとして役割を分ける。
+
+### Decision
+
+Gain後段のAnalyserNodeからHUD波形を取得し、ChannelSplitter後段の左右AnalyserNodeから地図リサージュを描画する。リサージュはL=X、R=Y、Canvas Y反転、回転なしとする。
+
+### Reason
+
+HUDでは時間変化を読みやすくし、地図では左右の位相と広がりを視覚化できる。既存の24fpsメーターループを共有すれば、追加の常時requestAnimationFrameを増やさずに済むため。
+
+### Impact
+
+音声開始中は2つのCanvasと音量バーが更新される。描画は最大24fps・最大512点で、地図Canvasはpointer-eventsを受け取らない。
+
+### Rollback
+
+不具合時はCanvas描画だけを停止し、音声グラフと音量バーを残す。raw-XYの軸定義は変更しない。
+
 ## 2026-07-16: 地図ポイントの常時浮遊を必須要件として維持する
 
 ### Background

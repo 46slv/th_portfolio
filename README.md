@@ -31,6 +31,7 @@ npm run preview -- --host 127.0.0.1
 - 共有Tooltipとホバー時サムネイル読み込み
 - 作品選択と同期するArchive Wheel
 - BGM、音量、再生速度、Distortion、Delay、Reverb
+- 実音声へ連動するHUD波形、音量メーター、Works Mapリサージュ
 - `prefers-reduced-motion` 対応
 - マウス、タッチ、キーボード操作
 
@@ -68,6 +69,7 @@ public/
 - 折り畳み中のArchive Wheelを再レイアウトしない。
 - 標準再生速度ではサイト全体へCSS filterを適用しない。
 - 非表示タブでは継続的な描画ループを停止する。
+- 音声ビジュアライザーは最大24fps・最大512点で描画し、地図操作を妨げない。
 - Reverb impulseは必要になるまで生成しない。
 
 詳細は [PERFORMANCE_FIX_PLAN.md](./PERFORMANCE_FIX_PLAN.md)、[WORKLOG.md](./WORKLOG.md)、[TEST_PLAN.md](./TEST_PLAN.md) を参照してください。

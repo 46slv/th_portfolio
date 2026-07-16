@@ -4,6 +4,9 @@
 
 ### Changed
 
+- `scale-x-0` の競合で消えていた音量レベルバーを復旧。
+- Audio HUDへ実音声連動の時間波形を追加。
+- Works MapへL/R raw-XYリサージュ表示を追加。
 - 標準再生速度でVisual Shiftの全画面filter更新を停止。
 - Visual Shiftを最大15fpsへ制限し、非表示タブと低モーション設定に対応。
 - 地図ホバーをCSS-only previewへ戻し、Archive Wheelの永続選択と分離。

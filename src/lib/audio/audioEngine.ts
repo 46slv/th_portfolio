@@ -8,7 +8,18 @@ type AudioState = {
   reverbGain: GainNode;
   distortion: WaveShaperNode;
   analyser: AnalyserNode;
+  stereoSplitter: ChannelSplitterNode;
+  leftAnalyser: AnalyserNode;
+  rightAnalyser: AnalyserNode;
   meterData: Uint8Array;
+  waveformData: Float32Array;
+  leftWaveformData: Float32Array;
+  rightWaveformData: Float32Array;
+  visualFrame: {
+    mono: Float32Array;
+    left: Float32Array;
+    right: Float32Array;
+  };
   distortionAmount: number;
   reverbReady: boolean;
   isPlaying: boolean;
@@ -70,13 +81,26 @@ function connectEffectGraph() {
     reverbGain,
     gain,
     analyser,
+    stereoSplitter,
+    leftAnalyser,
+    rightAnalyser,
     context,
     distortionAmount,
   } = state;
 
-  [source, distortion, delay, delayGain, reverb, reverbGain, gain, analyser].forEach(
-    disconnect,
-  );
+  [
+    source,
+    distortion,
+    delay,
+    delayGain,
+    reverb,
+    reverbGain,
+    gain,
+    analyser,
+    stereoSplitter,
+    leftAnalyser,
+    rightAnalyser,
+  ].forEach(disconnect);
 
   const effectInput: AudioNode = distortionAmount > 0 ? distortion : source;
   if (distortionAmount > 0) {
@@ -99,6 +123,9 @@ function connectEffectGraph() {
   effectInput.connect(gain);
   gain.connect(analyser);
   analyser.connect(context.destination);
+  gain.connect(stereoSplitter);
+  stereoSplitter.connect(leftAnalyser, 0);
+  stereoSplitter.connect(rightAnalyser, 1);
 }
 
 export async function startAudio() {
@@ -131,6 +158,15 @@ export async function startAudio() {
   const analyser = context.createAnalyser();
   analyser.fftSize = 512;
   analyser.smoothingTimeConstant = 0.75;
+  const stereoSplitter = context.createChannelSplitter(2);
+  const leftAnalyser = context.createAnalyser();
+  const rightAnalyser = context.createAnalyser();
+  leftAnalyser.fftSize = 512;
+  rightAnalyser.fftSize = 512;
+
+  const waveformData = new Float32Array(analyser.fftSize);
+  const leftWaveformData = new Float32Array(leftAnalyser.fftSize);
+  const rightWaveformData = new Float32Array(rightAnalyser.fftSize);
 
   state = {
     context,
@@ -142,7 +178,18 @@ export async function startAudio() {
     reverbGain,
     distortion,
     analyser,
+    stereoSplitter,
+    leftAnalyser,
+    rightAnalyser,
     meterData: new Uint8Array(analyser.frequencyBinCount),
+    waveformData,
+    leftWaveformData,
+    rightWaveformData,
+    visualFrame: {
+      mono: waveformData,
+      left: leftWaveformData,
+      right: rightWaveformData,
+    },
     distortionAmount: 0,
     reverbReady: false,
     isPlaying: true,
@@ -202,6 +249,16 @@ export function setReverb(value: number) {
 
 export function isAudioPlaying() {
   return Boolean(state?.isPlaying && state.context.state === "running");
+}
+
+export function getAudioVisualFrame() {
+  if (!state || !state.isPlaying || state.context.state !== "running") return null;
+
+  state.analyser.getFloatTimeDomainData(state.waveformData);
+  state.leftAnalyser.getFloatTimeDomainData(state.leftWaveformData);
+  state.rightAnalyser.getFloatTimeDomainData(state.rightWaveformData);
+
+  return state.visualFrame;
 }
 
 export function getMeterLevel() {

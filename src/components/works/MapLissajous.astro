@@ -1,0 +1,29 @@
+<canvas
+  id="map-lissajous"
+  width="900"
+  height="900"
+  role="img"
+  aria-label="Live stereo Lissajous audio scope"
+></canvas>
+
+<style>
+  #map-lissajous {
+    position: absolute;
+    inset: 9%;
+    z-index: 1;
+    display: block;
+    width: 82%;
+    height: 82%;
+    opacity: 0.72;
+    pointer-events: none;
+  }
+
+  @media (max-width: 760px) {
+    #map-lissajous {
+      inset: 12%;
+      width: 76%;
+      height: 76%;
+      opacity: 0.58;
+    }
+  }
+</style>
