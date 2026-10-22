@@ -74,10 +74,11 @@ function createWheel() {
   wheel.querySelectorAll = (selector) => selector === '[data-wheel-step]' ? steps : [];
   const frames = new Map();
   const timers = new Map();
+  const snapDelays = [];
   let handle = 0;
   const window = new Element();
   window.innerHeight = 800;
-  window.setTimeout = (callback) => { timers.set(++handle, callback); return handle; };
+  window.setTimeout = (callback, delay) => { snapDelays.push(delay); timers.set(++handle, callback); return handle; };
   window.clearTimeout = (id) => timers.delete(id);
   const document = {
     getElementById: (id) => id === 'archive-wheel' ? wheel : null,
@@ -92,7 +93,7 @@ function createWheel() {
   Object.assign(context, selection);
   vm.runInContext(clientScript, context, { filename: 'ArchiveWheel.astro' });
   return {
-    wheel, toggle, rail, items, mapNodes, steps, window, ...selection,
+    wheel, toggle, rail, items, mapNodes, steps, window, snapDelays, ...selection,
     open: () => toggle.dispatch('click'),
     scroll: (deltaY, deltaMode = 0) => wheel.dispatch('wheel', { deltaY, deltaMode }),
     frame: () => {
@@ -198,4 +199,79 @@ test('discrete navigation, filtering, and collapsed selection keep their existin
   assert.equal(ui.getSelectedWork(), null);
   ui.toggle.dispatch('click');
   assert.equal(ui.getSelectedWork(), null);
+});
+
+for (const direction of [1, -1]) {
+for (const frameEvery of [0, 1, 10]) test(`equal signed pixel totals (${direction}) select the same work with a frame every ${frameEvery} tiny events`, () => {
+  const compact = createWheel();
+  const fragmented = createWheel();
+  for (const ui of [compact, fragmented]) {
+    ui.open();
+    ui.setSelectedWork(`work-${direction > 0 ? 2 : 9}`);
+  }
+  compact.scroll(direction * 110);
+  for (let index = 1; index <= 100; index += 1) {
+    fragmented.scroll(direction * 1.1);
+    if (frameEvery && index % frameEvery === 0) fragmented.frame();
+  }
+  for (const ui of [compact, fragmented]) {
+    ui.frame();
+    ui.settle();
+  }
+  assert.equal(compact.getSelectedWork(), `work-${direction > 0 ? 3 : 8}`);
+  assert.equal(fragmented.getSelectedWork(), compact.getSelectedWork());
+});
+}
+
+for (const [endpoint, direction] of [[0, 1], [11, -1]]) test(`opposite overscroll cancels at endpoint ${endpoint} across animation frames`, () => {
+  const ui = createWheel();
+  ui.open();
+  ui.setSelectedWork(`work-${endpoint}`);
+  ui.scroll(-direction * 440);
+  ui.frame();
+  assert.equal(ui.items.findIndex((item) => item.classList.contains('is-selected')), endpoint,
+    'visible preview stays clamped while signed overscroll remains pending');
+  ui.scroll(direction * 440);
+  ui.frame();
+  ui.settle();
+  assert.equal(ui.getSelectedWork(), `work-${endpoint}`);
+  ui.scroll(direction * 110);
+  ui.frame();
+  ui.settle();
+  assert.equal(ui.getSelectedWork(), `work-${endpoint + direction}`,
+    'settling starts the next gesture from the committed index');
+});
+
+for (const pixels of [100, 120, -100, -120]) {
+  for (const mode of [0, 1, 2]) test(`${pixels}px ordinary notch retains its effect in deltaMode ${mode}`, () => {
+    const ui = createWheel();
+    ui.open();
+    ui.setSelectedWork('work-5');
+    const multiplier = mode === 1 ? 16 : mode === 2 ? ui.window.innerHeight : 1;
+    ui.scroll(pixels / multiplier, mode);
+    assert.deepEqual(ui.pending(), { frames: 1, timers: 1 });
+    assert.deepEqual(ui.snapDelays, [170]);
+    ui.frame();
+    ui.settle();
+    assert.equal(ui.getSelectedWork(), `work-${5 + Math.sign(pixels)}`);
+  });
+}
+
+for (const afterFrame of [false, true]) test(`collapse resets cumulative overscroll ${afterFrame ? 'after' : 'before'} RAF and reopen starts fresh`, () => {
+  const ui = createWheel();
+  ui.open();
+  ui.setSelectedWork('work-5');
+  ui.scroll(2200);
+  if (afterFrame) ui.frame();
+  ui.toggle.dispatch('click');
+  assert.deepEqual(ui.pending(), { frames: 0, timers: 0 });
+  ui.frame();
+  ui.settle();
+  ui.open();
+  assert.equal(ui.getSelectedWork(), null);
+  assert.equal(ui.items.findIndex((item) => item.classList.contains('is-selected')), 5);
+  ui.scroll(110);
+  ui.frame();
+  ui.settle();
+  assert.equal(ui.getSelectedWork(), 'work-6');
 });

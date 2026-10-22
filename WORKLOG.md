@@ -199,3 +199,28 @@ This check does not classify unchecked historical checklist items as defects.
   listener or browser was opened for this task. Next acceptance check: rapid
   small trackpad scroll, immediate collapse, wait over 170ms, then confirm zero
   selected map points and no revived selection tooltip; repeat with touch drag.
+
+## Wheel Delta Follow-up (2026-10-22)
+
+Base: frozen candidate `487b3884c739fb2cf40a52d67efa9788bf4da286`, preserved in
+its original worktree. This follow-up uses a separate local branch/worktree.
+
+- The wheel/drag/swipe specification and accumulated-delta contract support
+  preserving input totals. The per-event `0.08` minimum was not a specified
+  threshold. A negative control at the frozen source reproduced the difference:
+  from entry 2, one 110px event selected entry 3, but 100 events of 1.1px selected
+  entry 10. All three tested RAF schedules failed this equivalence check.
+- Removed the per-event minimum. Wheel input now retains an unclamped signed
+  cumulative offset across RAFs until settling; only the visible preview and
+  final selected index are clamped. Equal/opposite overscroll can therefore
+  cancel at either list end. Collapse discards cumulative intent, and selection,
+  filter changes, or a new drag begin a fresh input basis.
+- The 110px scale, 170ms settle delay, line/page normalization, ordinary 100/120px
+  notches, layout, keyboard controls, and drag/swipe handlers are retained.
+- `npm test`: 29 passing deterministic cases on Node 24.14.1, including the prior
+  seven cases, signed tiny-event equivalence across RAFs, end-boundary
+  cancellation, pixel/line/page notches, and collapse before/after RAF plus reopen.
+- `npm run build`: passed using the existing copied dependencies; no install or
+  lockfile change. These are source/fixture and build results, not physical
+  wheel/trackpad acceptance. No browser/server was started for this follow-up;
+  the prior interrupted browser-input attempt remains uncertain and was not retried.

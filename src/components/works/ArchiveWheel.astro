@@ -393,7 +393,6 @@ const { entries } = Astro.props;
   const mapNodeById = new Map<string, HTMLElement>();
   const rowGap = 48;
   const wheelScrollDistance = 110;
-  const minWheelStep = 0.08;
   const wheelSettleDelay = 170;
   const dragStepDistance = 76;
   const renderRadius = 4;
@@ -406,6 +405,7 @@ const { entries } = Astro.props;
   let settleTimer = 0;
   let layoutFrame = 0;
   let pendingWheelOffset: number | null = null;
+  let wheelScrollIntent: number | null = null;
   let visibleItemList: HTMLElement[] = [];
   let renderedItems = new Set<HTMLElement>();
 
@@ -427,6 +427,7 @@ const { entries } = Astro.props;
       cancelAnimationFrame(layoutFrame);
       layoutFrame = 0;
       pendingWheelOffset = null;
+      wheelScrollIntent = null;
       rotating = false;
       dragging = false;
       wheel?.classList.remove('is-dragging');
@@ -467,6 +468,7 @@ const { entries } = Astro.props;
   }
 
   function syncFilteredItems() {
+    wheelScrollIntent = null;
     items.forEach((item) => {
       const id = item.dataset.workId;
       const mapNode = id ? mapNodeById.get(id) : null;
@@ -501,6 +503,7 @@ const { entries } = Astro.props;
   function selectVisibleIndex(index: number) {
     const list = visibleItems();
     if (!list.length) return;
+    wheelScrollIntent = null;
     selectedIndex = clampIndex(index);
     wheelOffset = selectedIndex;
     const nextId = list[selectedIndex]?.dataset.workId ?? null;
@@ -547,7 +550,9 @@ const { entries } = Astro.props;
     if (!list.length || !delta) return;
     setCollapsed(false);
     rotating = true;
-    setWheelOffset((pendingWheelOffset ?? wheelOffset) + delta);
+    // Keep signed overscroll until settling; only the visible preview is clamped.
+    wheelScrollIntent = (wheelScrollIntent ?? pendingWheelOffset ?? wheelOffset) + delta;
+    setWheelOffset(wheelScrollIntent);
     scheduleSnap();
   }
 
@@ -612,10 +617,7 @@ const { entries } = Astro.props;
     event.preventDefault();
     const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
     const rawDelta = event.deltaY * modeMultiplier;
-    const direction = Math.sign(rawDelta);
-    if (!direction) return;
-    const delta = direction * Math.max(Math.abs(rawDelta) / wheelScrollDistance, minWheelStep);
-    rotateBy(delta);
+    rotateBy(rawDelta / wheelScrollDistance);
   }, { passive: false });
 
   wheel?.addEventListener('keydown', (event) => {
@@ -634,6 +636,7 @@ const { entries } = Astro.props;
     if ((event.target as HTMLElement).closest('[data-wheel-step]')) return;
     setCollapsed(false);
     clearSettleTimer();
+    wheelScrollIntent = null;
     rotating = true;
     dragging = true;
     wheel.classList.add('is-dragging');

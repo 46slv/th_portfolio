@@ -20,6 +20,21 @@ capture, visual rendering, and audio acceptance items below remain separate.
 Historical HTML counts below describe the July dataset; today's build is recorded
 in `WORKLOG.md`.
 
+### Wheel Delta Follow-up (2026-10-22)
+
+The same `npm test` command now runs 29 deterministic cases including the seven
+original cases. The follow-up adds these source-bound checks:
+
+- [x] Equal signed pixel totals have equal effects for one event or 100 tiny events
+- [x] Cumulative intent survives no RAF, one RAF per event, or one per ten events
+- [x] Opposite overscroll cancels at both list ends across RAFs while preview stays bounded
+- [x] Positive/negative 100px and 120px notches agree in pixel, line, and page modes
+- [x] The settle timer remains 170ms
+- [x] Collapse before/after RAF discards cumulative intent and reopen starts fresh
+
+These checks do not establish physical trackpad behavior or replace the limits
+recorded for the frozen candidate's partial browser acceptance.
+
 ### Historical Build Snapshot (2026-07-16)
 
 - [x] `npm run build`
