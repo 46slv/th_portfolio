@@ -224,3 +224,23 @@ its original worktree. This follow-up uses a separate local branch/worktree.
   lockfile change. These are source/fixture and build results, not physical
   wheel/trackpad acceptance. No browser/server was started for this follow-up;
   the prior interrupted browser-input attempt remains uncertain and was not retried.
+
+## Half-step Rounding Follow-up (2026-10-22)
+
+Base: `c15fd393f236f8905030b0bada0a83abd8c57c6e`, retained in local history.
+
+- The reviewer-reported half-step discrepancy reproduced: +55px from entry 2
+  and -55px from entry 9 differed when split into 100 events. The negative
+  control failed all six exact-tie/RAF cases; all twelve adjacent-threshold
+  controls passed.
+- `nearestIndex()` now recognizes a half-step within
+  `64 * Number.EPSILON * max(1, abs(wheelOffset))` before applying `Math.round`.
+  Both preview center and settled selection already use this function. It
+  preserves upward ties and leaves the continuous offset/visual transforms intact.
+- The observed 100-addition errors were about 1.07e-14 and 7.82e-14 entries;
+  the corresponding tolerances are 3.55e-14 and 1.21e-13 entries (at most
+  1.33e-11px for these cases). Controls 0.000001px below/above the threshold
+  remain distinct, over 75,000 times farther apart than that tolerance.
+- `npm test`: 47 pass, including all prior 29 and 18 half-step/control cases.
+  `npm run build`: passed. No browser operation or remote publication occurred;
+  existing physical-input and interrupted-attempt limitations remain unchanged.

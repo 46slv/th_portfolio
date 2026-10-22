@@ -457,7 +457,12 @@ const { entries } = Astro.props;
   }
 
   function nearestIndex() {
-    return clampIndex(Math.round(wheelOffset));
+    // Absorb roundoff from tiny additions only at index half-steps. Keep the
+    // continuous offset unchanged and preserve Math.round's upward tie direction.
+    const halfStep = Math.floor(wheelOffset) + 0.5;
+    const tieTolerance = 64 * Number.EPSILON * Math.max(1, Math.abs(wheelOffset));
+    const indexOffset = Math.abs(wheelOffset - halfStep) <= tieTolerance ? halfStep : wheelOffset;
+    return clampIndex(Math.round(indexOffset));
   }
 
   function clearSettleTimer() {

@@ -35,6 +35,14 @@ original cases. The follow-up adds these source-bound checks:
 These checks do not establish physical trackpad behavior or replace the limits
 recorded for the frozen candidate's partial browser acceptance.
 
+### Half-step Rounding Follow-up (2026-10-22)
+
+`npm test` now runs 47 cases. The additional eighteen cases check +55px from
+entry 2 and -55px from entry 9 as one event or 100 fragments, under all three
+RAF schedules. Each tests the exact tie and 0.000001px below/above it, verifies
+preview and final selection, and checks that continuous visual offset is retained.
+All prior normalization, endpoint cancellation, settle and collapse cases remain.
+
 ### Historical Build Snapshot (2026-07-16)
 
 - [x] `npm run build`

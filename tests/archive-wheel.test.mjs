@@ -275,3 +275,30 @@ for (const afterFrame of [false, true]) test(`collapse resets cumulative overscr
   ui.settle();
   assert.equal(ui.getSelectedWork(), 'work-6');
 });
+
+for (const [start, signedPixels, belowIndex] of [[2, 55, 2], [9, -55, 8]]) {
+  for (const frameEvery of [0, 1, 10]) {
+    for (const thresholdDifference of [-0.000001, 0, 0.000001]) test(`half-step fragmentation from ${start}, ${signedPixels} plus ${thresholdDifference}px, RAF every ${frameEvery}`, () => {
+      const pixels = signedPixels + thresholdDifference;
+      const expected = belowIndex + (thresholdDifference < 0 ? 0 : 1);
+      for (const fragments of [1, 100]) {
+        const ui = createWheel();
+        ui.open();
+        ui.setSelectedWork(`work-${start}`);
+        for (let index = 1; index <= fragments; index += 1) {
+          ui.scroll(pixels / fragments);
+          if (frameEvery && index % frameEvery === 0) ui.frame();
+        }
+        ui.frame();
+        assert.equal(ui.items.findIndex((item) => item.classList.contains('is-selected')), expected,
+          `${fragments} fragments must choose the same preview center`);
+        const shiftY = Number(ui.items[start].style.transform.split(',')[1].trim().replace('px', ''));
+        assert.ok(Math.abs(shiftY - (-pixels / 110 * 48)) < 1e-9,
+          'index rounding must leave the continuous visual offset intact');
+        ui.settle();
+        assert.equal(ui.getSelectedWork(), `work-${expected}`,
+          `${fragments} fragments must preserve Math.round's upward half-step tie`);
+      }
+    });
+  }
+}
