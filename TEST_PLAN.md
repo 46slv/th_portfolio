@@ -2,6 +2,26 @@
 
 ## Automated And Static Checks
 
+### Archive Wheel Regression (2026-10-22)
+
+Run `npm test` with Node 24 (the harness uses `node:module.stripTypeScriptTypes`).
+It executes the component's actual inline script and selection store with a
+bounded DOM fixture and deterministic animation frames/timers, without a browser.
+
+- [x] Small forward/reverse wheel events accumulate before a single RAF
+- [x] Scroll remains within the list bounds
+- [x] Collapse cancels pending RAF and the delayed selection snap
+- [x] Collapse before/after RAF keeps selection cleared after the settle delay
+- [x] Active pointer release/cancel settles; a canceled drag cannot reselect after collapse
+- [x] Previous/Next, arrows, item click, and filter selection clearing retain their state behavior
+
+These results cover handler/state behavior. Native keyboard, touch, pointer
+capture, visual rendering, and audio acceptance items below remain separate.
+Historical HTML counts below describe the July dataset; today's build is recorded
+in `WORKLOG.md`.
+
+### Historical Build Snapshot (2026-07-16)
+
 - [x] `npm run build`
 - [x] `git diff --check`
 - [x] 生成HTMLに共有Tooltipが1個だけ存在する

@@ -423,6 +423,14 @@ const { entries } = Astro.props;
     rail?.toggleAttribute('inert', collapsed);
     rail?.setAttribute('aria-hidden', String(collapsed));
     if (collapsed) {
+      clearSettleTimer();
+      cancelAnimationFrame(layoutFrame);
+      layoutFrame = 0;
+      pendingWheelOffset = null;
+      rotating = false;
+      dragging = false;
+      wheel?.classList.remove('is-dragging');
+      wheelOffset = selectedIndex;
       setSelectedWork(null);
     } else {
       layoutWheel(true);
@@ -539,7 +547,7 @@ const { entries } = Astro.props;
     if (!list.length || !delta) return;
     setCollapsed(false);
     rotating = true;
-    setWheelOffset(wheelOffset + delta);
+    setWheelOffset((pendingWheelOffset ?? wheelOffset) + delta);
     scheduleSnap();
   }
 
@@ -641,6 +649,7 @@ const { entries } = Astro.props;
   });
 
   wheel?.addEventListener('pointerup', (event) => {
+    if (!dragging) return;
     dragging = false;
     wheel.classList.remove('is-dragging');
     if (wheel.hasPointerCapture(event.pointerId)) {
@@ -650,6 +659,7 @@ const { entries } = Astro.props;
   });
 
   wheel?.addEventListener('pointercancel', (event) => {
+    if (!dragging) return;
     dragging = false;
     wheel.classList.remove('is-dragging');
     if (wheel.hasPointerCapture(event.pointerId)) {

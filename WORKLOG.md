@@ -1,6 +1,6 @@
 # TH Portfolio Worklog
 
-Last updated: 2026-07-16
+Last updated: 2026-10-22
 
 ## Purpose
 
@@ -154,3 +154,48 @@ This file records implementation notes, current behavior, and debugging context 
 - If map hover still feels heavy, consider rendering only one tooltip node globally instead of one tooltip per work.
 - If wheel scroll still feels too fast, tune `wheelStepThreshold` in `ArchiveWheel.astro`.
 - If redshift feels too intense, tune the values in `VisualShift.ts`.
+
+## Bounded Specification Check (2026-10-22)
+
+Base: `main` at `3ce6153c496f750df1232265f6f3522d0862d2a2`.
+Scope: Archive Wheel scroll accumulation and collapse/selection lifecycle.
+This check does not classify unchecked historical checklist items as defects.
+
+### Reproduced And Fixed
+
+- Scroll accumulation was missing within an animation frame. Ten wheel events of
+  `deltaY = 8.8` should accumulate to 0.8 entries and settle on the next work;
+  the base code repeatedly overwrote the pending offset and selected work 0.
+  The queued offset now includes earlier pending deltas while retaining one RAF.
+  Contract: the scroll accumulation rules above and `PERFORMANCE_FIX_PLAN.md`
+  item 16 (coalesced wheel/pointer updates).
+- Collapse cleared selection immediately but left the queued RAF and 170ms snap
+  timer alive. Starting at work 2, scrolling one entry, then collapsing before
+  settling caused work 3 to become selected while the wheel remained collapsed.
+  Collapse now cancels movement and settling, returns to the last committed
+  center, and ignores a late drag release/cancel. This preserves the rule that
+  collapsed wheels keep map selection cleared.
+
+### Verification And Limits
+
+- The original three source-bound regression cases produced two failures and
+  one passing navigation/filter control against the base component.
+- `npm test`: seven passing cases on Node `24.14.1`, using the actual component
+  script and selection store with deterministic DOM, RAF, and timer fixtures.
+  Forward/reverse scroll, bounds, collapse before/after RAF, active/canceled drag,
+  buttons, arrow selection, and filter-driven selection clearing are verified
+  at the event-handler/state level.
+- `npm run build`: passed with Astro `6.1.3` and Vite `7.3.1`, using a private copy
+  of existing suitable dependencies. No package installation was performed.
+  A sandboxed attempt failed to resolve `astro/entrypoints/prerender`; the local
+  build outside that sandbox succeeded without changing source or dependencies.
+- Current live-sheet build: 90 map nodes, 90 wheel entries, 90 inner floating
+  markers, one shared tooltip/image, one HUD waveform, one map Lissajous canvas,
+  no initial YouTube image source, and no `null / null` wheel labels. The earlier
+  82-entry/138KB measurements describe the previous dataset, not an acceptance
+  threshold for today's data.
+- DOM/CSS rendering, native pointer capture and touch, actual focus movement,
+  motion preferences, and audio output remain unverified in a browser. No HTTP
+  listener or browser was opened for this task. Next acceptance check: rapid
+  small trackpad scroll, immediate collapse, wait over 170ms, then confirm zero
+  selected map points and no revived selection tooltip; repeat with touch drag.
