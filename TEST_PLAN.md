@@ -54,6 +54,15 @@ Explicit cases verify that pixel parts and gesture anchor reset on settle and
 collapse before/after RAF. These bounded tests do not impose a maximum event count
 on the compensated accumulator or establish physical wheel performance.
 
+### Deployment Regression Gate (2026-10-23)
+
+The build job sets up Node 22 and runs the existing dependency-free `npm test`
+command before the unchanged Astro install/build/upload action. Test failure
+blocks the existing deploy job through its `needs: build` dependency. YAML parsing
+and a structural comparison verified that triggers, permissions, environment
+approvals, existing action versions and the rest of the workflow are unchanged.
+The command passed locally on Node 24.14.1; no GitHub workflow was triggered here.
+
 ### Historical Build Snapshot (2026-07-16)
 
 - [x] `npm run build`

@@ -16,6 +16,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Node for regression tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run regression tests
+        run: npm test
       - name: Install, build, and upload with Astro
         uses: withastro/action@v3
         with:
