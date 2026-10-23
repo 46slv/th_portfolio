@@ -1,6 +1,6 @@
 # TH Portfolio Worklog
 
-Last updated: 2026-10-22
+Last updated: 2026-10-23
 
 ## Purpose
 
@@ -244,3 +244,27 @@ Base: `c15fd393f236f8905030b0bada0a83abd8c57c6e`, retained in local history.
 - `npm test`: 47 pass, including all prior 29 and 18 half-step/control cases.
   `npm run build`: passed. No browser operation or remote publication occurred;
   existing physical-input and interrupted-attempt limitations remain unchanged.
+
+## Compensated Pixel Accumulation (2026-10-23)
+
+Base: `3e1a2cee36c049dd4fa35946dcfebd46fdc09391`. Its 100-event tolerance
+was insufficient for longer gestures and is superseded by this accumulation model.
+
+- Before edits, +55px from entry 2 split into 500 events, and -55px from entry 9
+  split into 1,000 events, failed all six reported RAF/tie cases.
+- A wheel gesture now anchors its initial offset once and accumulates normalized
+  signed PIXEL deltas in a non-overlapping floating-point expansion using
+  FastTwoSum. Low parts are retained instead of feeding rounded item fractions
+  back into the next event. Signed overscroll stays available for cancellation.
+- Only readout of that sum, division by 110, and addition to the fixed anchor
+  determine the continuous item offset. Half-step normalization uses
+  `4 * Number.EPSILON * (1 + abs(anchor) + abs(pixelTotal / 110))` for those final
+  rounding operations; it has no event-count assumption or accumulated high-water
+  tolerance. All accumulator fields reset together in the existing reset paths.
+- `npm test`: 68 passing cases, retaining all previous 47. New cases cover the
+  reported lengths, 10,000 fragments, signed reversal around large overscroll,
+  meaningful 0.000001px threshold controls, continuous transforms, and fresh state
+  after settle/collapse. The large overscroll cases are numeric fixtures, not
+  physical input claims.
+- `npm run build`: passed. No browser retry, server startup, remote write or
+  publication occurred; the prior uncertain browser attempt remains unchanged.

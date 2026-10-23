@@ -302,3 +302,75 @@ for (const [start, signedPixels, belowIndex] of [[2, 55, 2], [9, -55, 8]]) {
     });
   }
 }
+
+function checkLongFragmentedHalfStep(start, signedPixels, fragments, frameEvery, reversal = false) {
+  for (const difference of [-0.000001, 0, 0.000001]) {
+    const pixels = signedPixels + difference;
+    const expected = (start === 2 ? 2 : 8) + (difference < 0 ? 0 : 1);
+    const ui = createWheel();
+    ui.open();
+    ui.setSelectedWork(`work-${start}`);
+    const inputs = Array(fragments).fill(pixels / fragments);
+    if (reversal) inputs.push(-Math.sign(signedPixels) * 1e16);
+    if (reversal) inputs.unshift(Math.sign(signedPixels) * 1e16);
+    inputs.forEach((input, index) => {
+      ui.scroll(input);
+      if (frameEvery && (index + 1) % frameEvery === 0) ui.frame();
+    });
+    ui.frame();
+    assert.equal(ui.items.findIndex((item) => item.classList.contains('is-selected')), expected,
+      `preview for ${fragments} fragments, threshold difference ${difference}px`);
+    const shiftY = Number(ui.items[start].style.transform.split(',')[1].trim().replace('px', ''));
+    assert.ok(Math.abs(shiftY - (-pixels / 110 * 48)) < 1e-9,
+      'long gestures retain continuous visual offsets, including sub-threshold differences');
+    ui.settle();
+    assert.equal(ui.getSelectedWork(), `work-${expected}`);
+  }
+}
+
+for (const [start, pixels, fragments] of [[2, 55, 500], [9, -55, 1000]]) {
+  for (const frameEvery of [0, 1, 10]) test(`reported long half-step from ${start}, ${fragments} fragments, RAF every ${frameEvery}`, () => {
+    checkLongFragmentedHalfStep(start, pixels, fragments, frameEvery);
+  });
+}
+
+for (const [start, pixels] of [[2, 55], [9, -55]]) {
+  for (const frameEvery of [0, 1, 10]) {
+    test(`bounded 10000-fragment half-step from ${start}, RAF every ${frameEvery}`, () => {
+      checkLongFragmentedHalfStep(start, pixels, 10000, frameEvery);
+    });
+    test(`signed overscroll reversal retains tiny half-step input from ${start}, RAF every ${frameEvery}`, () => {
+      checkLongFragmentedHalfStep(start, pixels, 1000, frameEvery, true);
+    });
+  }
+}
+
+for (const afterFrame of [false, true]) test(`collapse clears pixel expansion and anchor ${afterFrame ? 'after' : 'before'} RAF`, () => {
+  const ui = createWheel();
+  ui.open();
+  ui.setSelectedWork('work-5');
+  for (let index = 0; index < 1000; index += 1) ui.scroll(0.055);
+  if (afterFrame) ui.frame();
+  ui.toggle.dispatch('click');
+  ui.frame();
+  ui.settle();
+  ui.open();
+  ui.scroll(110);
+  ui.frame();
+  ui.settle();
+  assert.equal(ui.getSelectedWork(), 'work-6');
+});
+
+test('settling discards pixel expansion and anchors the next gesture at its selected work', () => {
+  const ui = createWheel();
+  ui.open();
+  ui.setSelectedWork('work-2');
+  for (let index = 0; index < 1000; index += 1) ui.scroll(0.055);
+  ui.frame();
+  ui.settle();
+  assert.equal(ui.getSelectedWork(), 'work-3');
+  ui.scroll(55);
+  ui.frame();
+  ui.settle();
+  assert.equal(ui.getSelectedWork(), 'work-4');
+});

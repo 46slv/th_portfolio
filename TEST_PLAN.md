@@ -4,7 +4,8 @@
 
 ### Archive Wheel Regression (2026-10-22)
 
-Run `npm test` with Node 24 (the harness uses `node:module.stripTypeScriptTypes`).
+Run `npm test` with Node 22.13+ (verified locally on Node 24.14.1; the harness
+uses `node:module.stripTypeScriptTypes`).
 It executes the component's actual inline script and selection store with a
 bounded DOM fixture and deterministic animation frames/timers, without a browser.
 
@@ -42,6 +43,16 @@ entry 2 and -55px from entry 9 as one event or 100 fragments, under all three
 RAF schedules. Each tests the exact tie and 0.000001px below/above it, verifies
 preview and final selection, and checks that continuous visual offset is retained.
 All prior normalization, endpoint cancellation, settle and collapse cases remain.
+
+### Compensated Pixel Accumulation (2026-10-23)
+
+`npm test` runs 68 cases, retaining the prior 47. It adds the reported 500/1,000
+fragment ties and a bounded 10,000-fragment case under all three RAF schedules,
+with adjacent threshold controls and unchanged continuous visual offsets. Numeric
+overscroll/reversal fixtures verify that small signed input survives cancellation.
+Explicit cases verify that pixel parts and gesture anchor reset on settle and
+collapse before/after RAF. These bounded tests do not impose a maximum event count
+on the compensated accumulator or establish physical wheel performance.
 
 ### Historical Build Snapshot (2026-07-16)
 

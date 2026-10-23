@@ -405,7 +405,11 @@ const { entries } = Astro.props;
   let settleTimer = 0;
   let layoutFrame = 0;
   let pendingWheelOffset: number | null = null;
-  let wheelScrollIntent: number | null = null;
+  let wheelScrollIntent: {
+    startOffset: number;
+    pixelParts: number[];
+    indexRoundoff: number;
+  } | null = null;
   let visibleItemList: HTMLElement[] = [];
   let renderedItems = new Set<HTMLElement>();
 
@@ -457,10 +461,11 @@ const { entries } = Astro.props;
   }
 
   function nearestIndex() {
-    // Absorb roundoff from tiny additions only at index half-steps. Keep the
-    // continuous offset unchanged and preserve Math.round's upward tie direction.
+    // Only normalize the final sum/division/anchor roundoff at an index tie;
+    // keep continuous motion and Math.round's upward tie direction unchanged.
     const halfStep = Math.floor(wheelOffset) + 0.5;
-    const tieTolerance = 64 * Number.EPSILON * Math.max(1, Math.abs(wheelOffset));
+    const tieTolerance = wheelScrollIntent?.indexRoundoff
+      ?? 4 * Number.EPSILON * Math.max(1, Math.abs(wheelOffset));
     const indexOffset = Math.abs(wheelOffset - halfStep) <= tieTolerance ? halfStep : wheelOffset;
     return clampIndex(Math.round(indexOffset));
   }
@@ -550,14 +555,42 @@ const { entries } = Astro.props;
     settleTimer = window.setTimeout(snapToNearest, wheelSettleDelay);
   }
 
-  function rotateBy(delta: number) {
+  function addWheelPixels(parts: number[], pixels: number) {
+    // Error-free FastTwoSum keeps each lost low part in a non-overlapping
+    // expansion. Its accuracy does not depend on how many events preceded it.
+    let length = 0;
+    for (let part of parts) {
+      if (Math.abs(pixels) < Math.abs(part)) {
+        const swap = pixels;
+        pixels = part;
+        part = swap;
+      }
+      const high = pixels + part;
+      const low = part - (high - pixels);
+      if (low) parts[length++] = low;
+      pixels = high;
+    }
+    parts.length = length;
+    if (pixels) parts.push(pixels);
+    return parts.reduce((total, part) => total + part, 0);
+  }
+
+  function rotateByPixels(pixels: number) {
     const list = visibleItems();
-    if (!list.length || !delta) return;
+    if (!list.length || !pixels || !Number.isFinite(pixels)) return;
     setCollapsed(false);
     rotating = true;
-    // Keep signed overscroll until settling; only the visible preview is clamped.
-    wheelScrollIntent = (wheelScrollIntent ?? pendingWheelOffset ?? wheelOffset) + delta;
-    setWheelOffset(wheelScrollIntent);
+    wheelScrollIntent ??= {
+      startOffset: pendingWheelOffset ?? wheelOffset,
+      pixelParts: [],
+      indexRoundoff: 0,
+    };
+    const totalPixels = addWheelPixels(wheelScrollIntent.pixelParts, pixels);
+    const offset = totalPixels / wheelScrollDistance;
+    // Bound the fixed final rounding operations, not a presumed event count.
+    wheelScrollIntent.indexRoundoff = 4 * Number.EPSILON
+      * (1 + Math.abs(wheelScrollIntent.startOffset) + Math.abs(offset));
+    setWheelOffset(wheelScrollIntent.startOffset + offset);
     scheduleSnap();
   }
 
@@ -622,7 +655,7 @@ const { entries } = Astro.props;
     event.preventDefault();
     const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
     const rawDelta = event.deltaY * modeMultiplier;
-    rotateBy(rawDelta / wheelScrollDistance);
+    rotateByPixels(rawDelta);
   }, { passive: false });
 
   wheel?.addEventListener('keydown', (event) => {
