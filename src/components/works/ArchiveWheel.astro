@@ -393,7 +393,6 @@ const { entries } = Astro.props;
   const mapNodeById = new Map<string, HTMLElement>();
   const rowGap = 48;
   const wheelScrollDistance = 110;
-  const minWheelStep = 0.08;
   const wheelSettleDelay = 170;
   const dragStepDistance = 76;
   const renderRadius = 4;
@@ -406,6 +405,11 @@ const { entries } = Astro.props;
   let settleTimer = 0;
   let layoutFrame = 0;
   let pendingWheelOffset: number | null = null;
+  let wheelScrollIntent: {
+    startOffset: number;
+    pixelParts: number[];
+    indexRoundoff: number;
+  } | null = null;
   let visibleItemList: HTMLElement[] = [];
   let renderedItems = new Set<HTMLElement>();
 
@@ -423,6 +427,15 @@ const { entries } = Astro.props;
     rail?.toggleAttribute('inert', collapsed);
     rail?.setAttribute('aria-hidden', String(collapsed));
     if (collapsed) {
+      clearSettleTimer();
+      cancelAnimationFrame(layoutFrame);
+      layoutFrame = 0;
+      pendingWheelOffset = null;
+      wheelScrollIntent = null;
+      rotating = false;
+      dragging = false;
+      wheel?.classList.remove('is-dragging');
+      wheelOffset = selectedIndex;
       setSelectedWork(null);
     } else {
       layoutWheel(true);
@@ -448,7 +461,13 @@ const { entries } = Astro.props;
   }
 
   function nearestIndex() {
-    return clampIndex(Math.round(wheelOffset));
+    // Only normalize the final sum/division/anchor roundoff at an index tie;
+    // keep continuous motion and Math.round's upward tie direction unchanged.
+    const halfStep = Math.floor(wheelOffset) + 0.5;
+    const tieTolerance = wheelScrollIntent?.indexRoundoff
+      ?? 4 * Number.EPSILON * Math.max(1, Math.abs(wheelOffset));
+    const indexOffset = Math.abs(wheelOffset - halfStep) <= tieTolerance ? halfStep : wheelOffset;
+    return clampIndex(Math.round(indexOffset));
   }
 
   function clearSettleTimer() {
@@ -459,6 +478,7 @@ const { entries } = Astro.props;
   }
 
   function syncFilteredItems() {
+    wheelScrollIntent = null;
     items.forEach((item) => {
       const id = item.dataset.workId;
       const mapNode = id ? mapNodeById.get(id) : null;
@@ -493,6 +513,7 @@ const { entries } = Astro.props;
   function selectVisibleIndex(index: number) {
     const list = visibleItems();
     if (!list.length) return;
+    wheelScrollIntent = null;
     selectedIndex = clampIndex(index);
     wheelOffset = selectedIndex;
     const nextId = list[selectedIndex]?.dataset.workId ?? null;
@@ -534,12 +555,42 @@ const { entries } = Astro.props;
     settleTimer = window.setTimeout(snapToNearest, wheelSettleDelay);
   }
 
-  function rotateBy(delta: number) {
+  function addWheelPixels(parts: number[], pixels: number) {
+    // Error-free FastTwoSum keeps each lost low part in a non-overlapping
+    // expansion. Its accuracy does not depend on how many events preceded it.
+    let length = 0;
+    for (let part of parts) {
+      if (Math.abs(pixels) < Math.abs(part)) {
+        const swap = pixels;
+        pixels = part;
+        part = swap;
+      }
+      const high = pixels + part;
+      const low = part - (high - pixels);
+      if (low) parts[length++] = low;
+      pixels = high;
+    }
+    parts.length = length;
+    if (pixels) parts.push(pixels);
+    return parts.reduce((total, part) => total + part, 0);
+  }
+
+  function rotateByPixels(pixels: number) {
     const list = visibleItems();
-    if (!list.length || !delta) return;
+    if (!list.length || !pixels || !Number.isFinite(pixels)) return;
     setCollapsed(false);
     rotating = true;
-    setWheelOffset(wheelOffset + delta);
+    wheelScrollIntent ??= {
+      startOffset: pendingWheelOffset ?? wheelOffset,
+      pixelParts: [],
+      indexRoundoff: 0,
+    };
+    const totalPixels = addWheelPixels(wheelScrollIntent.pixelParts, pixels);
+    const offset = totalPixels / wheelScrollDistance;
+    // Bound the fixed final rounding operations, not a presumed event count.
+    wheelScrollIntent.indexRoundoff = 4 * Number.EPSILON
+      * (1 + Math.abs(wheelScrollIntent.startOffset) + Math.abs(offset));
+    setWheelOffset(wheelScrollIntent.startOffset + offset);
     scheduleSnap();
   }
 
@@ -604,10 +655,7 @@ const { entries } = Astro.props;
     event.preventDefault();
     const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
     const rawDelta = event.deltaY * modeMultiplier;
-    const direction = Math.sign(rawDelta);
-    if (!direction) return;
-    const delta = direction * Math.max(Math.abs(rawDelta) / wheelScrollDistance, minWheelStep);
-    rotateBy(delta);
+    rotateByPixels(rawDelta);
   }, { passive: false });
 
   wheel?.addEventListener('keydown', (event) => {
@@ -626,6 +674,7 @@ const { entries } = Astro.props;
     if ((event.target as HTMLElement).closest('[data-wheel-step]')) return;
     setCollapsed(false);
     clearSettleTimer();
+    wheelScrollIntent = null;
     rotating = true;
     dragging = true;
     wheel.classList.add('is-dragging');
@@ -641,6 +690,7 @@ const { entries } = Astro.props;
   });
 
   wheel?.addEventListener('pointerup', (event) => {
+    if (!dragging) return;
     dragging = false;
     wheel.classList.remove('is-dragging');
     if (wheel.hasPointerCapture(event.pointerId)) {
@@ -650,6 +700,7 @@ const { entries } = Astro.props;
   });
 
   wheel?.addEventListener('pointercancel', (event) => {
+    if (!dragging) return;
     dragging = false;
     wheel.classList.remove('is-dragging');
     if (wheel.hasPointerCapture(event.pointerId)) {

@@ -1,6 +1,6 @@
 # TH Portfolio Worklog
 
-Last updated: 2026-07-16
+Last updated: 2026-10-23
 
 ## Purpose
 
@@ -154,3 +154,117 @@ This file records implementation notes, current behavior, and debugging context 
 - If map hover still feels heavy, consider rendering only one tooltip node globally instead of one tooltip per work.
 - If wheel scroll still feels too fast, tune `wheelStepThreshold` in `ArchiveWheel.astro`.
 - If redshift feels too intense, tune the values in `VisualShift.ts`.
+
+## Bounded Specification Check (2026-10-22)
+
+Base: `main` at `3ce6153c496f750df1232265f6f3522d0862d2a2`.
+Scope: Archive Wheel scroll accumulation and collapse/selection lifecycle.
+This check does not classify unchecked historical checklist items as defects.
+
+### Reproduced And Fixed
+
+- Scroll accumulation was missing within an animation frame. Ten wheel events of
+  `deltaY = 8.8` should accumulate to 0.8 entries and settle on the next work;
+  the base code repeatedly overwrote the pending offset and selected work 0.
+  The queued offset now includes earlier pending deltas while retaining one RAF.
+  Contract: the scroll accumulation rules above and `PERFORMANCE_FIX_PLAN.md`
+  item 16 (coalesced wheel/pointer updates).
+- Collapse cleared selection immediately but left the queued RAF and 170ms snap
+  timer alive. Starting at work 2, scrolling one entry, then collapsing before
+  settling caused work 3 to become selected while the wheel remained collapsed.
+  Collapse now cancels movement and settling, returns to the last committed
+  center, and ignores a late drag release/cancel. This preserves the rule that
+  collapsed wheels keep map selection cleared.
+
+### Verification And Limits
+
+- The original three source-bound regression cases produced two failures and
+  one passing navigation/filter control against the base component.
+- `npm test`: seven passing cases on Node `24.14.1`, using the actual component
+  script and selection store with deterministic DOM, RAF, and timer fixtures.
+  Forward/reverse scroll, bounds, collapse before/after RAF, active/canceled drag,
+  buttons, arrow selection, and filter-driven selection clearing are verified
+  at the event-handler/state level.
+- `npm run build`: passed with Astro `6.1.3` and Vite `7.3.1`, using a private copy
+  of existing suitable dependencies. No package installation was performed.
+  A sandboxed attempt failed to resolve `astro/entrypoints/prerender`; the local
+  build outside that sandbox succeeded without changing source or dependencies.
+- Current live-sheet build: 90 map nodes, 90 wheel entries, 90 inner floating
+  markers, one shared tooltip/image, one HUD waveform, one map Lissajous canvas,
+  no initial YouTube image source, and no `null / null` wheel labels. The earlier
+  82-entry/138KB measurements describe the previous dataset, not an acceptance
+  threshold for today's data.
+- DOM/CSS rendering, native pointer capture and touch, actual focus movement,
+  motion preferences, and audio output remain unverified in a browser. No HTTP
+  listener or browser was opened for this task. Next acceptance check: rapid
+  small trackpad scroll, immediate collapse, wait over 170ms, then confirm zero
+  selected map points and no revived selection tooltip; repeat with touch drag.
+
+## Wheel Delta Follow-up (2026-10-22)
+
+Base: frozen candidate `487b3884c739fb2cf40a52d67efa9788bf4da286`, preserved in
+its original worktree. This follow-up uses a separate local branch/worktree.
+
+- The wheel/drag/swipe specification and accumulated-delta contract support
+  preserving input totals. The per-event `0.08` minimum was not a specified
+  threshold. A negative control at the frozen source reproduced the difference:
+  from entry 2, one 110px event selected entry 3, but 100 events of 1.1px selected
+  entry 10. All three tested RAF schedules failed this equivalence check.
+- Removed the per-event minimum. Wheel input now retains an unclamped signed
+  cumulative offset across RAFs until settling; only the visible preview and
+  final selected index are clamped. Equal/opposite overscroll can therefore
+  cancel at either list end. Collapse discards cumulative intent, and selection,
+  filter changes, or a new drag begin a fresh input basis.
+- The 110px scale, 170ms settle delay, line/page normalization, ordinary 100/120px
+  notches, layout, keyboard controls, and drag/swipe handlers are retained.
+- `npm test`: 29 passing deterministic cases on Node 24.14.1, including the prior
+  seven cases, signed tiny-event equivalence across RAFs, end-boundary
+  cancellation, pixel/line/page notches, and collapse before/after RAF plus reopen.
+- `npm run build`: passed using the existing copied dependencies; no install or
+  lockfile change. These are source/fixture and build results, not physical
+  wheel/trackpad acceptance. No browser/server was started for this follow-up;
+  the prior interrupted browser-input attempt remains uncertain and was not retried.
+
+## Half-step Rounding Follow-up (2026-10-22)
+
+Base: `c15fd393f236f8905030b0bada0a83abd8c57c6e`, retained in local history.
+
+- The reviewer-reported half-step discrepancy reproduced: +55px from entry 2
+  and -55px from entry 9 differed when split into 100 events. The negative
+  control failed all six exact-tie/RAF cases; all twelve adjacent-threshold
+  controls passed.
+- `nearestIndex()` now recognizes a half-step within
+  `64 * Number.EPSILON * max(1, abs(wheelOffset))` before applying `Math.round`.
+  Both preview center and settled selection already use this function. It
+  preserves upward ties and leaves the continuous offset/visual transforms intact.
+- The observed 100-addition errors were about 1.07e-14 and 7.82e-14 entries;
+  the corresponding tolerances are 3.55e-14 and 1.21e-13 entries (at most
+  1.33e-11px for these cases). Controls 0.000001px below/above the threshold
+  remain distinct, over 75,000 times farther apart than that tolerance.
+- `npm test`: 47 pass, including all prior 29 and 18 half-step/control cases.
+  `npm run build`: passed. No browser operation or remote publication occurred;
+  existing physical-input and interrupted-attempt limitations remain unchanged.
+
+## Compensated Pixel Accumulation (2026-10-23)
+
+Base: `3e1a2cee36c049dd4fa35946dcfebd46fdc09391`. Its 100-event tolerance
+was insufficient for longer gestures and is superseded by this accumulation model.
+
+- Before edits, +55px from entry 2 split into 500 events, and -55px from entry 9
+  split into 1,000 events, failed all six reported RAF/tie cases.
+- A wheel gesture now anchors its initial offset once and accumulates normalized
+  signed PIXEL deltas in a non-overlapping floating-point expansion using
+  FastTwoSum. Low parts are retained instead of feeding rounded item fractions
+  back into the next event. Signed overscroll stays available for cancellation.
+- Only readout of that sum, division by 110, and addition to the fixed anchor
+  determine the continuous item offset. Half-step normalization uses
+  `4 * Number.EPSILON * (1 + abs(anchor) + abs(pixelTotal / 110))` for those final
+  rounding operations; it has no event-count assumption or accumulated high-water
+  tolerance. All accumulator fields reset together in the existing reset paths.
+- `npm test`: 68 passing cases, retaining all previous 47. New cases cover the
+  reported lengths, 10,000 fragments, signed reversal around large overscroll,
+  meaningful 0.000001px threshold controls, continuous transforms, and fresh state
+  after settle/collapse. The large overscroll cases are numeric fixtures, not
+  physical input claims.
+- `npm run build`: passed. No browser retry, server startup, remote write or
+  publication occurred; the prior uncertain browser attempt remains unchanged.
