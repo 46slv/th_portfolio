@@ -268,3 +268,27 @@ was insufficient for longer gestures and is superseded by this accumulation mode
   physical input claims.
 - `npm run build`: passed. No browser retry, server startup, remote write or
   publication occurred; the prior uncertain browser attempt remains unchanged.
+
+## 2026-10-24 — Issue 3 audio startup
+
+- Based on main `2faad56334b1ad597aec63bba42388ba71ebb250`, retaining the merged
+  Archive Wheel work without editing its component or regression tests.
+- The existing Pages build step supplies `/th_portfolio/` through
+  `ASTRO_BASE_PATH`; ordinary local builds/dev retain `/`. Audio uses Astro's
+  `BASE_URL`, and the two favicon links also follow the configured base.
+- Non-OK audio responses reject before body reading/decode. Startup resumes the
+  context in the initiating gesture, coalesces concurrent starts and closes a
+  failed context before releasing the attempt.
+- The existing visual reveal stays immediate. Failed audio startup exposes
+  Retry Transmission on the existing playback button. Loading clicks are ignored;
+  a new activation retries. Filters/visibility changes never retry a failed start.
+- Added focused actual-source fixtures for URL, error cleanup/retry, concurrent
+  starts, UI click races, existing graph/controls and deployment configuration.
+  Local verification evidence is retained outside the repository for review.
+- Validation: 81 tests passed. Root CLI build and Pages API build exited 0;
+  both emitted 90 map/wheel entries with correctly prefixed audio, CSS, JS and
+  favicon URLs. Workflow YAML comparison permits only the build-step base env.
+  One Windows Node 24 Pages CLI invocation emitted complete output then failed
+  during libuv shutdown; it is retained as a failed invocation, not a passing
+  CLI run. Native audio/browser and hosted CI acceptance remain separate.
+- No native playback, live HTTP failure claim, push, PR, main merge or deployment.

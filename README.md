@@ -76,4 +76,11 @@ public/
 
 ## Deployment
 
+The Pages build step sets `ASTRO_BASE_PATH=/th_portfolio/`. Audio, generated
+scripts/styles, and favicons use that base. Local development and ordinary
+`npm run build` keep the root base `/`; set `ASTRO_BASE_PATH` explicitly when
+building for a subpath. Failed audio startup leaves the site usable and changes
+the playback button to **Retry Transmission**. A new button activation retries;
+filter changes and returning to the tab do not.
+
 `main` へのpushで `.github/workflows/deploy.yml` がAstroをビルドし、GitHub Pagesへデプロイします。

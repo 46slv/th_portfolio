@@ -24,6 +24,8 @@ jobs:
         run: npm test
       - name: Install, build, and upload with Astro
         uses: withastro/action@v3
+        env:
+          ASTRO_BASE_PATH: /th_portfolio/
         with:
           node-version: 22
 
