@@ -11,13 +11,14 @@ const wheelEntries = works.map((work, index) => ({
   id: getWorkId(work, index),
   work,
 }));
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+    <link rel="icon" href={`${base}/favicon.ico`} />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>Talich Helfen | Portfolio</title>

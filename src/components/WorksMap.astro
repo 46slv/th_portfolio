@@ -94,6 +94,8 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
   import { setPlaybackRate, startVisualShift } from './effects/VisualShift';
 
   let isStarted = false;
+  let isAudioStarting = false;
+  let isAudioReady = false;
   let meterFrame = 0;
   let lastMeterTime = 0;
   let lastMeterScale = -1;
@@ -246,11 +248,32 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
 
     startVisualShift();
 
+    await initializeAudio();
+  }
+
+  async function initializeAudio() {
+    if (isAudioStarting || isAudioReady) return;
+    isAudioStarting = true;
+    const button = document.getElementById('play-pause-btn') as HTMLButtonElement | null;
+    if (button) {
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      button.innerText = 'Initializing Transmission';
+    }
     try {
       await startAudio();
+      isAudioReady = true;
+      if (button) button.innerText = 'Pause Transmission';
       startMeter();
     } catch (error) {
+      if (button) button.innerText = 'Retry Transmission';
       console.error(error);
+    } finally {
+      isAudioStarting = false;
+      if (button) {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
     }
   }
 
@@ -411,22 +434,22 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
 
   function bindAudioControls() {
     const playPauseButton = document.getElementById('play-pause-btn');
-    playPauseButton?.addEventListener('click', async () => {
+    const toggleAudio = async () => {
+      if (isAudioStarting) return;
+      if (!isAudioReady) {
+        await initializeAudio();
+        return;
+      }
       const playing = await togglePlayback();
-      playPauseButton.innerText = playing ? 'Pause Transmission' : 'Resume Transmission';
+      if (playPauseButton) {
+        playPauseButton.innerText = playing ? 'Pause Transmission' : 'Resume Transmission';
+      }
       if (playing) startMeter();
       else stopMeter();
-    });
-
+    };
+    playPauseButton?.addEventListener('click', toggleAudio);
     document.querySelectorAll('.work-trigger').forEach((trigger) => {
-      trigger.addEventListener('click', async () => {
-        const playing = await togglePlayback();
-        if (playPauseButton) {
-          playPauseButton.innerText = playing ? 'Pause Transmission' : 'Resume Transmission';
-        }
-        if (playing) startMeter();
-        else stopMeter();
-      });
+      trigger.addEventListener('click', toggleAudio);
     });
 
     document.getElementById('vol-fader')?.addEventListener('input', (event) => {

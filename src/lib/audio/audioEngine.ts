@@ -26,6 +26,7 @@ type AudioState = {
 };
 
 let state: AudioState | null = null;
+let startup: Promise<void> | null = null;
 
 function getAudioContext(): AudioContext {
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
@@ -129,6 +130,16 @@ function connectEffectGraph() {
 }
 
 export async function startAudio() {
+  if (startup) return startup;
+  startup = initializeAudio();
+  try {
+    await startup;
+  } finally {
+    startup = null;
+  }
+}
+
+async function initializeAudio() {
   if (state) {
     await state.context.resume();
     state.isPlaying = true;
@@ -136,68 +147,85 @@ export async function startAudio() {
   }
 
   const context = getAudioContext();
-  const response = await fetch("/SITE_th.mp3");
-  const audioBuffer = await context.decodeAudioData(await response.arrayBuffer());
-  const source = context.createBufferSource();
-  source.buffer = audioBuffer;
-  source.loop = true;
+  try {
+    // Resume while still handling the user gesture, before any network wait.
+    await context.resume();
+    const audioUrl = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/SITE_th.mp3`;
+    const response = await fetch(audioUrl);
+    if (!response.ok) {
+      throw new Error(`Audio request failed (${response.status})`);
+    }
+    const audioBuffer = await context.decodeAudioData(await response.arrayBuffer());
+    const source = context.createBufferSource();
+    source.buffer = audioBuffer;
+    source.loop = true;
 
-  const gain = context.createGain();
-  gain.gain.value = 0.5;
+    const gain = context.createGain();
+    gain.gain.value = 0.5;
 
-  const delay = context.createDelay(2);
-  delay.delayTime.value = 0.4;
-  const delayGain = context.createGain();
-  delayGain.gain.value = 0;
+    const delay = context.createDelay(2);
+    delay.delayTime.value = 0.4;
+    const delayGain = context.createGain();
+    delayGain.gain.value = 0;
 
-  const reverb = context.createConvolver();
-  const reverbGain = context.createGain();
-  reverbGain.gain.value = 0;
+    const reverb = context.createConvolver();
+    const reverbGain = context.createGain();
+    reverbGain.gain.value = 0;
 
-  const distortion = context.createWaveShaper();
-  const analyser = context.createAnalyser();
-  analyser.fftSize = 512;
-  analyser.smoothingTimeConstant = 0.75;
-  const stereoSplitter = context.createChannelSplitter(2);
-  const leftAnalyser = context.createAnalyser();
-  const rightAnalyser = context.createAnalyser();
-  leftAnalyser.fftSize = 512;
-  rightAnalyser.fftSize = 512;
+    const distortion = context.createWaveShaper();
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.75;
+    const stereoSplitter = context.createChannelSplitter(2);
+    const leftAnalyser = context.createAnalyser();
+    const rightAnalyser = context.createAnalyser();
+    leftAnalyser.fftSize = 512;
+    rightAnalyser.fftSize = 512;
 
-  const waveformData = new Float32Array(analyser.fftSize);
-  const leftWaveformData = new Float32Array(leftAnalyser.fftSize);
-  const rightWaveformData = new Float32Array(rightAnalyser.fftSize);
+    const waveformData = new Float32Array(analyser.fftSize);
+    const leftWaveformData = new Float32Array(leftAnalyser.fftSize);
+    const rightWaveformData = new Float32Array(rightAnalyser.fftSize);
 
-  state = {
-    context,
-    source,
-    gain,
-    delay,
-    delayGain,
-    reverb,
-    reverbGain,
-    distortion,
-    analyser,
-    stereoSplitter,
-    leftAnalyser,
-    rightAnalyser,
-    meterData: new Uint8Array(analyser.frequencyBinCount),
-    waveformData,
-    leftWaveformData,
-    rightWaveformData,
-    visualFrame: {
-      mono: waveformData,
-      left: leftWaveformData,
-      right: rightWaveformData,
-    },
-    distortionAmount: 0,
-    reverbReady: false,
-    isPlaying: true,
-  };
+    state = {
+      context,
+      source,
+      gain,
+      delay,
+      delayGain,
+      reverb,
+      reverbGain,
+      distortion,
+      analyser,
+      stereoSplitter,
+      leftAnalyser,
+      rightAnalyser,
+      meterData: new Uint8Array(analyser.frequencyBinCount),
+      waveformData,
+      leftWaveformData,
+      rightWaveformData,
+      visualFrame: {
+        mono: waveformData,
+        left: leftWaveformData,
+        right: rightWaveformData,
+      },
+      distortionAmount: 0,
+      reverbReady: false,
+      isPlaying: true,
+    };
 
-  connectEffectGraph();
-  source.start(0);
-  await context.resume();
+    connectEffectGraph();
+    source.start(0);
+  } catch (error) {
+    if (state?.context === context) {
+      state = null;
+    }
+    try {
+      await context.close();
+    } catch {
+      // Preserve the startup error even if a browser cannot close the context.
+    }
+    throw error;
+  }
 }
 
 export async function togglePlayback() {

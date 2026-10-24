@@ -2,6 +2,28 @@
 
 ## Automated And Static Checks
 
+### Audio Startup / Issue 3 (2026-10-24)
+
+`npm test` retains all 68 Archive Wheel regressions and adds 13 audio/deployment
+cases. The new fixtures execute the production audio engine and WorksMap script
+with fake Web Audio, fetch, DOM and animation-frame boundaries. No MP3 or native
+audio playback is involved.
+
+- [x] Root and project-subpath requests, with and without a trailing base slash
+- [x] No audio initialization before a user activation
+- [x] Non-OK HTTP responses skip body reading and decoding
+- [x] HTTP/network/decode/resume/source-start failure closes the failed context
+- [x] A new explicit activation can retry after failure; no background retries
+- [x] Concurrent engine starts and repeated UI clicks share one startup
+- [x] Failure keeps the site usable and exposes Retry Transmission
+- [x] Success restores Pause/Resume, one meter loop and the existing audio graph
+- [x] Astro config defaults to root; the existing Pages step supplies the subpath
+
+Build-output verification is separate from `npm test`: build once at root and
+once with the Pages step's `ASTRO_BASE_PATH`, then verify the emitted audio URL,
+script/style/favicon URLs and copied public asset. Native keyboard dispatch,
+audibility, browser autoplay policies and live HTTP status remain unverified.
+
 ### Archive Wheel Regression (2026-10-22)
 
 Run `npm test` with Node 22.13+ (verified locally on Node 24.14.1; the harness
