@@ -1,5 +1,47 @@
 # Design Decisions
 
+## 2026-11-23: Graph-centered UIを現行レイアウト正本とし、矛盾する旧仕様をlegacy化する
+
+### Background
+
+複数回のvisual spikeで、旧「Map + persistent side HUD + right Archive Wheel」構成と、新しい画面中心の意図が混在し、Agentがdashboard的なレイアウトへ回帰した。
+
+### Decision
+
+`docs/spec/TH_PORTFOLIO_GRAPH_CENTERED_UI_SPEC.md` をUI / layout / visual interactionの現行正本とする。
+
+- 中央Graphをサイトの主役とする
+- Graphはviewport中央、1:1の等方スケール
+- stereo Lissajousは強い連続線ではなくparticle fieldとして描く
+- Graph以外の主要UIはdrawer / overlay化し、Graphを押し動かさない
+- Audio controlsは左drawer
+- Archive Wheelは左下、表示は90° quarter arcのみ
+- Tag / Yearは別概念として維持し、配置は当面top overlayを試すが未確定
+- Work detailはoverlay drawerへ移し、near-point表示はmicro previewに限定可能
+
+### Supersession
+
+このDecisionおよびcanonical specと矛盾する古いUI/layout記述はlegacyとして扱う。
+
+特に以下は旧仕様:
+
+- boxed Works Map
+- right persistent Audio HUD
+- right-side Archive Wheel
+- full/half circular Wheel panel
+- multi-row filter button grid
+- strong continuous Lissajous line as the visual center
+- Map hover → persistent selectedWorkId
+
+非矛盾なdata/audio/input technical factsは引き続き有効。
+
+### Impact
+
+今後のAgent handoffは古い仕様を合成せず、canonical graph-centered specを先に読む。実装はdesktop visual structureを先に成立させ、その後に追加HUD density / motionを判断する。
+
+---
+
+
 ## 2026-07-16: HUD波形とWorks Mapリサージュを同じ音声解析経路から描画する
 
 ### Background
