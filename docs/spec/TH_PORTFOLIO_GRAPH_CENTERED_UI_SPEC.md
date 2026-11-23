@@ -345,13 +345,17 @@ These remain spatially stable while drawers open.
 
 Audio / Archive / Filter-Sort / work detail / other control surfaces belong above the main interface.
 
-When a major overlay or drawer is open:
+When a major drawer / modal-like overlay such as Audio, Work detail, or Filter-Sort is open:
 
 - dim the main interface behind it
 - apply a subtle blur to the main interface behind it
 - preserve enough visibility that the spatial context remains recognizable
 - do not make it feel like a page navigation or separate screen
 - drawer content itself remains sharp
+
+**Archive Wheel is an exception.** Archive Wheel belongs to the same spatial browsing surface as the Graph / Work Points. Opening Archive Wheel by itself must **not** dim or blur the main interface, because Work Points need to remain clearly visible while browsing the Wheel.
+
+If Archive Wheel is open at the same time as another blur-producing drawer/overlay, the other overlay may still cause the main-interface dim/blur.
 
 Dismissal contract:
 
