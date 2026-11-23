@@ -41,7 +41,13 @@ The site is centered on a single observation field.
 
 **The central Graph is the primary visual object of the site.**
 
-Everything else exists to control, filter, browse, or inspect that Graph.
+Everything else exists to control, filter, browse, or inspect that Graph. The works database itself is the constellation: visitors discover different works through the existing two axes, not through mandatory relationship edges or decorative stars alone. Keep discovery open rather than pushing every visitor toward one featured work.
+
+### Entry and sound intent
+
+A deliberate visitor action is the entrance **with the music** and initiates the existing audio path. Do not convert it into unrelated browsing first and an optional audio button later. Do not autoplay before the gesture. Keep playback, Pause/Mute and failure/retry behaviour separate from the entrance's visual appearance; the final fallback and Pause-vs-Mute product choices are open.
+
+Relativistic Shift should feel like approaching light speed through sound and visuals, not merely change a number or recolour the HUD. Preserve the existing control and audio path while treating physical/artistic mapping, effected layers, and intensity as open. Do not infer fixed red/blue mapping, shader stack, or a new model parameter from this design pass.
 
 Primary mental model:
 
@@ -567,7 +573,7 @@ Allowed persistent elements outside drawers:
 - minimal Contact action
 - minimal Tag/Year trigger strip during the provisional top-filter pass
 
-These must remain visually secondary to the central Graph.
+These must remain visually secondary to the central Graph. Keep real contact information and existing credits; the exact Contact action is open. Retain available thumbnail and credits without inventing missing values; the missing-thumbnail appearance and touch detail layout remain open.
 
 ---
 
@@ -705,6 +711,14 @@ Unless this specification explicitly changes them, preserve:
 - no new work metadata solely for visual redesign
 
 ---
+
+## 15.1 Product decisions deliberately left open
+
+- Audio failure and final Pause / Mute behaviour (Q01/Q02); no silent policy substitution.
+- Relativistic Shift mapping and tuning (Q03–Q05); Three.js adoption is still a measured comparison, not a requirement for controls, cards, or text.
+- Whether Map hover drives a transient Wheel highlight or no Wheel change, and which work, if any, is formally selected at initial entry (Q06/Q07). Hover never changes persistent selection.
+- Contact action, narrow-screen card layout, and missing-thumbnail presentation (Q08/Q10/Q11). Q09 is settled: do not add work metadata merely to support this redesign; do not fabricate credits or precision dates.
+- Year-as-travel/depth is a visual candidate. Filtering preserves work x/y; an actual layout change requires a separate decision and must not leave Reduced Motion in an intermediate or stale state.
 
 # 16. First implementation pass
 

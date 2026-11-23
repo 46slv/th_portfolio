@@ -8,6 +8,12 @@ The site is composer/arranger Talich Helfen's portfolio. Visitors enter with the
 
 The renewal also calls for a lighter experience and a distinct visual language: measure first paint, interaction, render and audio cost; fix Point overlap, hit testing, touch, hover/focus and filtering on real data. Three.js is a comparative experiment, not an adopted dependency. Preserve functional fallback and reduced motion. The previous trackpad-style mobile idea (horizontal relative cursor, vertical background navigation) is a test candidate only.
 
+## Protected experience separate from component styling
+
+- A deliberate Enter gesture starts the existing sound path: people enter the portfolio with the music. Audio failure and Pause/Mute decisions are still open.
+- Relativistic Shift is an audiovisual experience of approaching light speed. Do not substitute a colour-only HUD effect; technical mapping remains an open decision.
+- Keep the existing Contact and credits and do not enrich the works data with inferred dates or credits. Narrow-screen cards, missing thumbnails, initial selected work and optional Map-hover-to-Wheel preview are not settled. The clickable pointer handoff itself is mandatory.
+
 ## How the design converged
 
 | Stage | Retained outcome | What not to carry forward |
