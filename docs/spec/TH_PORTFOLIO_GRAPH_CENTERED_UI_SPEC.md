@@ -353,6 +353,15 @@ When a major overlay or drawer is open:
 - do not make it feel like a page navigation or separate screen
 - drawer content itself remains sharp
 
+Dismissal contract:
+
+- clicking an empty/background area outside the active overlay closes it
+- the dimmed/blurred main interface acts as the primary dismiss surface while an overlay is open
+- drawers also expose a subtle explicit close control such as a small `×`
+- repeating the same trigger may also toggle the overlay closed where that interaction is already natural
+- `Escape` closes the active overlay(s)
+- clicks inside the overlay must not accidentally dismiss it
+
 The effect should communicate depth ordering, not merely decoration.
 
 First visual-pass target may use a subtle combination such as:
