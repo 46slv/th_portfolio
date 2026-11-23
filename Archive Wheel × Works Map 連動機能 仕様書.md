@@ -1,3 +1,7 @@
+> [!WARNING]
+> **LEGACY WHEEL / LAYOUT NOTICE — 2026-11-23**  
+> この文書の選択ストア、入力方式など非矛盾部分は参照可能だが、UI / layout / selection semanticsは `docs/spec/TH_PORTFOLIO_GRAPH_CENTERED_UI_SPEC.md` と `DECISIONS.md` の新しいDecisionが優先。特に「Wheel右配置」「半円/大円盤」「Map hoverでpersistent selection」は旧仕様。
+
 # Archive Wheel × Works Map 連動機能 仕様書
 
 ## 目的
