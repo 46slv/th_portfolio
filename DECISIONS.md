@@ -1,5 +1,23 @@
 # Design Decisions
 
+## 2026-11-23: 閉状態を先に確定し、Graph四隅マークを廃止する
+
+### Decision
+
+次のvisual passはopen drawer / expanded Wheelを設計せず、完全なclosed stateだけを先に確定する。
+
+- Graph四隅のL字マークは使用しない
+- Audio / Workは閉状態ではedge micro-terminalのみ
+- Archiveは右下に置き、閉状態でも将来の90° Wheelを連想できるsmall quarter-ring + tick terminalにする
+- genericな「点 + 横線」だけのWheel iconは採用しない
+- closed stateがvisual acceptanceされるまでopen stateを正本化しない
+
+### Reason
+
+open/closed両方を同時に設計すると主役である中央Graphの余白・視覚重量が安定せず、以前のdashboard的構成へ戻りやすいため。
+
+---
+
 ## 2026-11-23: Archive Wheelを右下90°arc + radial labelsへ訂正する
 
 ### Decision
