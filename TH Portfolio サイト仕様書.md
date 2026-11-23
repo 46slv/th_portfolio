@@ -1,3 +1,7 @@
+> [!WARNING]
+> **LEGACY UI/LAYOUT NOTICE — 2026-11-23**  
+> この文書は技術・データ・過去実装の参照資料として残すが、UI / layout / visual interactionについては `docs/spec/TH_PORTFOLIO_GRAPH_CENTERED_UI_SPEC.md` が現行正本。矛盾する記述は旧仕様として扱う。特に boxed Map、右常設Audio HUD、旧Filter配置、旧Card配置は現行仕様ではない。
+
 # TH Portfolio サイト仕様書
 
 ## 概要
