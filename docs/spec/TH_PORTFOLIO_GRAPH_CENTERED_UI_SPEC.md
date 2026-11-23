@@ -446,13 +446,19 @@ Exact radius may be optically tuned, but visible arc must remain quarter-circle-
 ## 10.3 Open / closed state
 
 Closed:
-- only a compact lower-right Wheel/HUD trigger remains
+- lower-rightにquarter-arcの**tick列だけ**を残す
+- closed時は円周線/ringを見せない
+- tickはarc中央付近を最も明瞭にし、両端へ行くほど `opacity` を下げ、`blur` を増やし、必要なら長さもわずかに短くする
+- closed state自体がopen後Wheelの縮小予告として読めること
+- genericな丸ボタンや単独アイコンへ置き換えない
 
 Open:
-- the 90° arc expands/reveals from the same origin
+- closed stateと同じorigin / arc grammarから90° Wheelへ拡張する
 - no background panel
 - Graph does not move
 - Wheel overlays the Graph
+- open/closeは別UIの出現ではなく、同じradial instrumentの連続変形として見せる
+- closed側のtick intensity envelope（中央明瞭 / 両端fade+blur）はopen時も周辺項目の減衰表現へ継承してよい
 
 ## 10.4 Work labels
 
