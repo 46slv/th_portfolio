@@ -1,5 +1,24 @@
 # Design Decisions
 
+## 2026-11-23: Archive Wheelを右下90°arc + radial labelsへ訂正する
+
+### Decision
+
+- Archive Wheelは右下に配置する
+- 表示する円は90°のquarter arcのみ
+- 円中心は画面外または右下端近傍
+- 画面内にはその円のupper-left quadrantだけが侵入する
+- 作品ラベルのベースラインは半径方向
+- したがって文字列は円周/接線に対して垂直
+- 円周方向へ文字を沿わせない
+- selected/focus位置を固定し、作品ラベル側がarc上を移動する
+
+### Supersession
+
+同日途中案の「左下Wheel」は撤回し、旧扱いとする。過去の右側大円盤/半円panelも引き続きlegacyであり、現在有効なのは右下quarter-arcだけ。
+
+---
+
 ## 2026-11-23: Graph-centered UIを現行レイアウト正本とし、矛盾する旧仕様をlegacy化する
 
 ### Background
