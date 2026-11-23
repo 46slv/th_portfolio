@@ -355,6 +355,20 @@ Filterは作品集合を絞るための機能、Works Mapは空間上の位置�
 
 この役割分担を変更する場合は、単なるUIリファクタではなく仕様変更として扱う。
 
+### Year切替の時間遷移
+
+Year操作は単なる条件変更として即時に切り替えるだけでなく、過去／未来へ移動するナビゲーションとして軽い時間遷移を伴わせる。
+
+* 古いYearへ移る場合は、Works Mapの空間層がわずかに遠ざかる／奥へ抜ける方向のmotionを使う
+* 新しいYearへ戻る場合は、その逆方向のmotionを使う
+* 作品の `x / y` 座標はYear切替によって再計算・再配置しない
+* 遷移の主対象はWorks Mapの空間層とし、Card・Wheel・文字情報の可読性は保つ
+* exact date等の新しい入力項目は追加せず、既存の `year` データだけを使う
+* duration / easing / parallax / scale / streak等の具体値は実装候補を比較して調整する
+* `prefers-reduced-motion: reduce` では中間motionを省略または大幅に弱め、最終状態へ確実に到達する
+
+Tag Filterには時間遷移の意味を持たせない。時間方向のmotionはYear変更に限定する。
+
 ---
 
 # Works Map
