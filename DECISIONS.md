@@ -37,6 +37,24 @@ open/closed両方を同時に設計すると主役である中央Graphの余白�
 
 ---
 
+## 2026-11-23: Archive Wheel閉状態をtick-only quarter arcにする
+
+### Decision
+
+Archive Wheelの閉状態は、右下のquarter-circleに沿う**tick列だけ**で表現する。
+
+- closed時はring / circle outlineを常設しない
+- arc中央付近のtickを最も明瞭にする
+- 両端へ行くほどopacityを下げ、blurを増やす
+- genericな丸ボタンや単独アイコンにはしない
+- open時は同じorigin / radial grammarから90° Wheelへ拡張し、別パネルの出現に見せない
+
+### Reason
+
+閉状態でもWheelのradial navigationを予告しつつ、画面端の情報量を抑え、referenceの「弧状のtickが浮いている」印象を保つため。
+
+---
+
 ## 2026-11-23: Graph-centered UIを現行レイアウト正本とし、矛盾する旧仕様をlegacy化する
 
 ### Background
