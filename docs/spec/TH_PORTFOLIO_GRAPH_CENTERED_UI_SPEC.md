@@ -160,6 +160,8 @@ Filtering does not re-layout work coordinates.
 
 Axis lines must be low contrast and must not form a visible box.
 
+Do not add corner brackets / corner marks around the Graph. The coordinate field is defined only by the axes, labels, Work Points, and audio field.
+
 ## 3.5 Work Points
 
 Preserve the existing `+` work marker family.
@@ -609,13 +611,30 @@ Unless this specification explicitly changes them, preserve:
 
 # 16. First implementation pass
 
+## Closed-state-first gate — CURRENT
+
+Before designing any open drawer / expanded Wheel state, finish and review the **fully closed default state**.
+
+Closed-state pass requirements:
+
+- Audio drawer closed
+- Work/detail drawer closed
+- Archive Wheel closed
+- central Graph fully visible and unchanged
+- no Graph corner marks
+- closed Audio / Work terminals are micro edge indicators only
+- closed Archive terminal visually hints at the future quarter-wheel using a small quarter-ring / tick motif, not a generic dot+line or large button
+- no open-state composition should be treated as accepted until the closed state is approved
+
+
+
 The next pass is primarily a **visual-structure implementation**.
 
 Do not add unrelated product features.
 
 Order:
 
-1. build the centered 1:1 Graph shell
+1. build the centered 1:1 Graph shell with no corner brackets
 2. render existing Work Points inside it
 3. convert stereo Lissajous into particle rendering
 4. add compact provisional Tag / Year top overlay
