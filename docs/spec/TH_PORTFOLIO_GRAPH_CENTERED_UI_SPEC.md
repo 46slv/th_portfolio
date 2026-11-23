@@ -530,6 +530,29 @@ Avoid:
 - central spaghetti line visualizer
 - UI elements that visually outweigh the Graph
 
+
+## 12.1 Spacing / keyline discipline — CONFIRMED
+
+All visual mocks and future implementation candidates must use a shared spacing/keyline system.
+
+- Align outer margins and repeated UI groups to common keylines.
+- When no stronger reference or component rule exists, use an **8px base grid**.
+- Preferred default spacing steps: `8 / 16 / 24 / 32` px.
+- Do not introduce arbitrary offsets merely to make one local element look correct.
+- Optical correction is allowed when text metrics or radial geometry require it, but the parent alignment/keyline should still be traceable to the 8px system.
+- For the current 1600×1000 desktop mock, use `32px` as the default outer UI margin unless the central Graph centering requirement overrides it.
+
+## 12.2 Background spatial texture — CONFIRMED
+
+A flat, screen-space dot grid is not part of the current visual language.
+
+- Do not cover the entire viewport with a uniform XY dot matrix.
+- Default background should remain near-black and visually quiet.
+- If point texture is reintroduced, it must communicate **depth / Z-space**, not merely a flat XY grid.
+- A depth field may use perspective size/opacity/parallax so points appear distributed in front of and behind the Graph.
+- Depth particles must remain visually weaker than Work Points and the central Lissajous field.
+- Do not use a depth field if it reduces Graph readability; a plain background is acceptable and preferred over decorative flat dots.
+
 ---
 
 # 13. Desktop-first reference composition — CURRENT FIRST PASS
