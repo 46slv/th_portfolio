@@ -21,10 +21,16 @@ The renewal also calls for a lighter experience and a distinct visual language: 
 | v9 HTML experiment | Responsive centred stage; smaller actual Wheel hit areas; link archive item preview to Point, and explicit selection to detail; close detail independently so archive browsing can continue. TAG/YEAR drive the same sample set on both surfaces. | Sample work identities, static sample audio, six-slot pagination, visible rectangular Archive button, specific breakpoints: these are mock choices, not production contracts. The v9 Wheel geometry is still the earlier lower-right quarter arc. |
 | Current right-centre preview | Align the circle centre to the right viewport edge and Graph horizontal axis, showing only its left half. Keep tick-only closed treatment, radial orientation and the v8 no-dim rule. | Do not use the v8/v9 corner geometry as the placement spec or render a solid half-disc. Exact radius, item density, and touch layout remain review choices. |
 
+## Latest correction: clickable Work Point card
+
+The latest user observation overrides the previous preview-only suppression: the card must remain open while the pointer travels a short distance from a Point into it, then accept a click on the work link. This does not bring back the old blocking card on a Wheel scroll/step, or make the compact card the only full-detail surface. Preserve mandatory slow Point floating and the stopped Reduced Motion state; the refactor may replace the old components independently of these behaviours.
+
+Two older failure paths remain separate acceptance cases: keyboard focus reaching excluded points, and pending Wheel scroll/snap restoring a selection after filtering. Neither is softened by the visual redesign.
+
 ## Acceptance to carry forward
 
 1. Compare closed, Wheel open, Audio open, and selected Work states. Measure that Graph centre and square geometry are unchanged; confirm visually that only the main field dims behind the three designated overlays.
-2. Browse by pointer, keyboard and touch. Verify blank Wheel regions do not swallow Point interaction; read/operate controls at narrow widths. Test focus, explicit selection, repeat trigger, outside dismiss, Escape and Reduced Motion.
+2. Browse by pointer, keyboard and touch. Verify blank Wheel regions do not swallow Point interaction; read/operate controls at narrow widths. Verify slow and diagonal Point → card → actual link transitions without closing or shifting. Test focus, explicit selection, repeat trigger, outside dismiss, Escape and Reduced Motion.
 3. Check Tag, Year and a combined empty result, then clear filters. Ensure the existing work coordinates stay fixed, Archive and Map agree, and a filtered-out item cannot remain an actionable selection.
 4. Verify real dataset, audio analyser and existing audio controls in the app. Browser geometry/interaction in a synthetic HTML mock is not app integration, physical touch-device coverage or performance validation.
 5. Record design choices in this history and accepted behaviour in the canonical spec. Do not deploy from this design record.

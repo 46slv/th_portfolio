@@ -36,7 +36,7 @@ First match the reference structure:
 - opening only Archive Wheel does not dim/blur the Graph; no persistent WORK launcher
 - drawers overlay and never move the Graph
 
-Use real Works data and the current analyser path when integrating into the app.
+Use real Works data and the current analyser path when integrating into the app. Treat the Point-to-clickable-card contract in canonical §8.1 as mandatory; it is distinct from the full detail drawer and must not appear on passive Wheel browsing.
 
 Older HTML references use synthetic L/R motion and obsolete Wheel placement. Use them for visual tone only; real integration preserves the live analyser and work coordinates.
 

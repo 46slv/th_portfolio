@@ -165,9 +165,9 @@ Preserve the existing `+` work marker family.
 - Work Point must be visually distinguishable from audio particles.
 - Work Point is an interaction target.
 - Audio particles are never interaction targets.
-- Existing slow point floating may remain.
+- Keep the slow ambient point float; pause the hovered/focused marker and disable continuous floating for Reduced Motion. Animate the visible marker, not the stable coordinate/interaction anchor.
 - Hover/focus may temporarily stop or stabilize the local marker.
-- Filtered-out points may fade/depth-recede but do not move to a new x/y.
+- Filtered-out points may fade/depth-recede but do not move to a new x/y. They cannot be focused or activated; if a filter excludes the active work, clear its card/selection and do not let a pending Wheel snap resurrect it.
 
 ---
 
@@ -485,9 +485,17 @@ Current mock placement is reference-only.
 
 # 8. Work detail / selected information — CONFIRMED drawer model
 
-The old near-point Card is no longer the required persistent detail surface.
+### 8.1 Interactive Work Point preview — CONFIRMED, latest correction
 
-When work detail is needed, use an overlay/drawer model.
+- Hovering a Work Point shows a compact preview card; it is a real interactive surface, not a pointer-transparent tooltip. The latest direction explicitly restores the card and supersedes any earlier instruction that only a micro-label can appear near the Point.
+- Treat the Point, a small connecting gap, and its card as one hover/focus region. Moving off the plus toward the card must leave it open, including a slow or slightly diagonal move. Do not require a precision pointer route or racing a short timeout. Cancel pending close on entry to the card; leaving both surfaces eventually dismisses it.
+- The card remains open and stationary while hovered or while a descendant has keyboard focus. Its work link must be tabbable and clickable; the user must be able to reach the same work with touch (no reliance on hover) and dismiss with Escape. Restore focus to the originating control when relevant.
+- Use actual available title, artist, year, tags and work URL. A lazy thumbnail is permitted where real metadata supports it. No fabricated dates, previews, or external link if absent. A compact preview does not move or dim the Graph and does not alter persistent selection or move the Wheel.
+- Reuse one lightweight card surface rather than one hidden card per Point. If anchored preview is unsafe or cramped on a touch viewport, use explicit tap to access equivalent content.
+
+### 8.2 Full details — confirmed overlay model
+
+The full detail drawer is separate from the interactive near-Point preview. Explicit work selection can open it; passive Wheel navigation does not.
 
 CONFIRMED:
 
@@ -503,7 +511,7 @@ PROVISIONAL current placement:
 - opens over the Graph without moving it
 - contains thumbnail / artist / year / title / tags / access action using existing data
 
-A small micro-label near the Point is allowed for preview, but the full detail surface belongs in the drawer.
+The near-Point card is the lightweight interaction surface from §8.1. The complete detail surface belongs in the drawer.
 
 This section supersedes older requirements that make a near-point Card the only required detail surface.
 
@@ -545,7 +553,7 @@ The prior lower-right quarter arc remains the v8/v9 reference and is superseded 
 
 - Tag and Year filter the existing work set; the Map keeps existing coordinates; the Wheel lists/selects only the filtered set.
 - Preserve mouse wheel, drag, touch/swipe and keyboard browsing as supported by the current product. Restrict input capture to intended controls; browsing should not steal clicks from the empty Graph field.
-- Focus/hover is transient; persistent selection is separate. The v9 candidate highlights the linked Point and opens Work detail on explicit selection, then returns to browsing when detail is dismissed. Details can dim/blur the Graph; the standalone Wheel never does.
+- Wheel browsing may highlight the linked Point without showing the work card or detail drawer. Explicit activation may open the corresponding detail; dismiss it without losing the Wheel position or its filtered set. The standalone Wheel never dims the Graph.
 - Don't make scroll/drag or animation essential; provide visible or keyboard equivalents and verify the Reduced Motion final state.
 
 ---
@@ -672,7 +680,7 @@ The following older rules are explicitly superseded.
 | Solid disc / opaque half-circle / side panel | thin right-centre half-arc for the current preview, without a filled panel |
 | Wheel as circular panel/disc | Wheel is line/tick/label overlay only |
 | Filter as multi-row button grid | Tag and Year are separate compact controls; placement provisional |
-| Full detail Card near selected point as required surface | full details move to overlay drawer; local preview may stay minimal |
+| Full detail card as the only surface, or preview suppressed entirely | clickable compact card on Point hover/focus; full detail uses an overlay drawer |
 | Strong continuous Lissajous line | Lissajous is particle-based / point-cloud-like |
 | Old volume meter described as random | live analyser-backed meter in current code is authoritative |
 | Map hover changes persistent selection | current Decision: hover/focus is preview; persistent selection remains separate |
@@ -757,6 +765,8 @@ At 1600×1000:
 - Tag and Year are separate
 - no multi-row filter grid
 - no contradictory old layout rule is reintroduced
+- mouse can move slowly Point → gap → card → work link; keyboard and touch can reach the same work without changing coordinate placement
+- Wheel open/browse does not display a card by itself; filtered-out items cannot open one by pointer or keyboard
 
 Return screenshots of:
 1. default / drawers closed
