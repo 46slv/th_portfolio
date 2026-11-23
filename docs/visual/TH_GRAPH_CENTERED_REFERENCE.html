@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TH Portfolio — Graph-Centered Reference</title>
+<style>
+:root{--bg:#050708;--fg:#e7ecef;--muted:#788187;--accent:#6fe9ff;}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--fg)}
+body{font-family:Arial,sans-serif}
+.scene{position:fixed;inset:0;background:
+radial-gradient(circle at 50% 50%,rgba(24,48,57,.11),transparent 38%),
+radial-gradient(circle at 1px 1px,rgba(190,208,216,.06) .7px,transparent .8px);
+background-size:auto,18px 18px}
+.mono{font-family:"IBM Plex Mono","SFMono-Regular",Consolas,monospace}
+.identity{position:fixed;left:30px;top:28px;z-index:30}
+.identity b{font-size:15px;font-weight:600;letter-spacing:.01em}
+.identity span{margin-left:16px;font:7px/1.2 "IBM Plex Mono",monospace;letter-spacing:.20em;color:#6f797f}
+.contact{position:fixed;right:30px;top:31px;z-index:30;font:7px "IBM Plex Mono",monospace;letter-spacing:.18em;color:#5d676d}
+.filters{position:fixed;left:50%;top:50px;transform:translateX(-50%);width:360px;height:34px;z-index:35;border-bottom:1px solid rgba(136,148,154,.13);display:flex;gap:92px;align-items:center;padding:0 26px}
+.filter-btn{border:0;background:transparent;color:#7a858b;font:7px "IBM Plex Mono",monospace;letter-spacing:.18em;cursor:pointer;padding:8px 0}
+.filter-btn strong{font-size:8px;font-weight:500;color:#e7ecef;margin-left:16px}
+.graph{position:fixed;width:min(70vh,46vw);height:min(70vh,46vw);aspect-ratio:1;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10}
+.graph canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.graph .axis{position:absolute;background:rgba(190,202,208,.09)}
+.graph .axis.x{left:0;right:0;top:50%;height:1px}.graph .axis.y{top:0;bottom:0;left:50%;width:1px}
+.axis-label{position:absolute;font:8px "IBM Plex Mono",monospace;letter-spacing:.18em;color:#59646a}
+.axis-label.top{left:50%;top:-30px;transform:translateX(-50%)}
+.axis-label.bottom{left:50%;bottom:-32px;transform:translateX(-50%)}
+.axis-label.left{left:-52px;top:50%;transform:translateY(-50%) rotate(-90deg)}
+.axis-label.right{right:-58px;top:50%;transform:translateY(-50%) rotate(90deg)}
+.work-point{position:absolute;width:16px;height:16px;transform:translate(-50%,-50%);pointer-events:auto;cursor:crosshair}
+.work-point:before,.work-point:after{content:"";position:absolute;background:#aeb8bd;opacity:.75}
+.work-point:before{left:1px;right:1px;top:7px;height:1px}.work-point:after{top:1px;bottom:1px;left:7px;width:1px}
+.work-point i{position:absolute;left:6px;top:6px;width:4px;height:4px;background:#bfc7cb;border-radius:50%}
+.work-point.active:before,.work-point.active:after,.work-point.active i{background:var(--accent);box-shadow:0 0 9px rgba(111,233,255,.5)}
+.work-point.active{outline:1px solid rgba(111,233,255,.10);outline-offset:15px;border-radius:50%}
+.edge-trigger{position:fixed;z-index:40;border:0;background:transparent;color:#657178;font:7px "IBM Plex Mono",monospace;letter-spacing:.18em;cursor:pointer}
+#audioTrigger{left:0;top:42%;width:74px;height:52px;text-align:left;padding-left:18px;border-bottom:1px solid rgba(133,145,152,.22)}
+#workTrigger{right:0;top:42%;width:74px;height:52px;text-align:right;padding-right:18px;border-bottom:1px solid rgba(133,145,152,.22)}
+.edge-trigger:after{content:"";position:absolute;width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:.75;bottom:-3px}
+#audioTrigger:after{right:10px}#workTrigger:after{left:10px}
+.drawer{position:fixed;top:22%;height:54%;width:280px;z-index:45;background:rgba(8,11,12,.94);transition:transform .42s cubic-bezier(.22,1,.36,1);border-color:rgba(155,168,174,.14)}
+.drawer.left{left:0;transform:translateX(-100%);border-right:1px solid}
+.drawer.right{right:0;transform:translateX(100%);border-left:1px solid}
+body.audio-open .drawer.left{transform:translateX(0)}body.work-open .drawer.right{transform:translateX(0)}
+.drawer-inner{padding:28px 28px}
+.drawer h3{margin:0 0 34px;font:8px "IBM Plex Mono",monospace;letter-spacing:.20em;color:#8f9ba1;font-weight:400}
+.control{margin:24px 0}.control .row{display:flex;justify-content:space-between;font:7px "IBM Plex Mono",monospace;color:#69747a;letter-spacing:.10em}
+.control .track{height:1px;background:rgba(129,144,150,.16);margin-top:14px;position:relative}
+.control .track i{position:absolute;left:var(--p);top:-5px;width:1px;height:10px;background:var(--accent)}
+.work-thumb{height:124px;background:#0c1113;border:1px solid rgba(125,140,147,.08);margin-bottom:26px;position:relative}
+.work-thumb:before{content:"";position:absolute;left:14px;right:14px;bottom:26px;height:1px;background:rgba(111,233,255,.16);transform:rotate(-18deg)}
+.work-title{font-size:17px;margin-bottom:10px}.work-meta{font:8px "IBM Plex Mono",monospace;color:#758087}
+.archive-trigger{position:fixed;left:18px;bottom:18px;z-index:60;border:0;background:transparent;color:#657178;font:7px "IBM Plex Mono",monospace;letter-spacing:.18em;cursor:pointer;padding:14px 10px}
+.archive-trigger:before{content:"";position:absolute;left:-26px;bottom:-24px;width:96px;height:96px;border:1px solid rgba(174,187,192,.14);border-radius:50%}
+.archive-wrap{position:fixed;left:0;bottom:0;width:380px;height:380px;z-index:55;pointer-events:none;opacity:0;transform:translate(-22px,22px) scale(.95);transition:opacity .28s ease,transform .42s cubic-bezier(.22,1,.36,1)}
+body.archive-open .archive-wrap{opacity:1;transform:translate(0,0) scale(1);pointer-events:auto}
+.archive-arc{position:absolute;left:-18px;bottom:-18px;width:660px;height:660px;border:1px solid rgba(196,208,213,.12);border-radius:50%}
+.archive-mask{position:absolute;inset:0;overflow:hidden}
+.archive-mask:after{content:"";position:absolute;left:0;bottom:0;width:100%;height:100%;background:linear-gradient(135deg,transparent 49%,var(--bg) 50%);pointer-events:none}
+.archive-label{position:absolute;font:8px "IBM Plex Mono",monospace;color:#909a9f;white-space:nowrap;transform-origin:left center}
+.archive-label.sel{color:var(--fg);text-shadow:0 0 9px rgba(111,233,255,.25)}
+.note{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);font:6px "IBM Plex Mono",monospace;letter-spacing:.16em;color:#424b50;z-index:30}
+@media(prefers-reduced-motion:reduce){.drawer,.archive-wrap{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="scene"></div>
+<div class="identity"><b>TALICH HELFEN</b><span>COMPOSER / ARRANGER</span></div>
+<button class="contact">CONTACT</button>
+<div class="filters">
+  <button class="filter-btn">TAG <strong>ALL</strong></button>
+  <button class="filter-btn">YEAR <strong>ALL</strong></button>
+</div>
+<div class="graph" id="graph">
+  <canvas id="scope"></canvas>
+  <div class="axis x"></div><div class="axis y"></div>
+  <div class="axis-label top">MANIAC +</div><div class="axis-label bottom">POPULAR −</div>
+  <div class="axis-label left">ELECTRO</div><div class="axis-label right">ACOUSTIC</div>
+</div>
+<button id="audioTrigger" class="edge-trigger">AUDIO</button>
+<button id="workTrigger" class="edge-trigger">WORK</button>
+<aside class="drawer left"><div class="drawer-inner">
+  <h3>AUDIO / SPACE</h3>
+  <div class="control"><div class="row"><span>PLAYBACK</span><span>RUNNING</span></div></div>
+  <div class="control"><div class="row"><span>MASTER</span><span>-6.0</span></div><div class="track"><i style="--p:68%"></i></div></div>
+  <div class="control"><div class="row"><span>RELATIVISTIC</span><span>1.00×</span></div><div class="track"><i style="--p:51%"></i></div></div>
+  <div class="control"><div class="row"><span>DISTORTION</span><span>0</span></div><div class="track"><i style="--p:8%"></i></div></div>
+  <div class="control"><div class="row"><span>DELAY</span><span>18%</span></div><div class="track"><i style="--p:18%"></i></div></div>
+  <div class="control"><div class="row"><span>REVERB</span><span>31%</span></div><div class="track"><i style="--p:31%"></i></div></div>
+</div></aside>
+<aside class="drawer right"><div class="drawer-inner">
+  <h3>WORK / SELECTED</h3>
+  <div class="work-thumb"></div>
+  <div class="work-title">Selected Work</div>
+  <div class="work-meta">Talich Helfen / 2024</div>
+  <div class="control"><div class="row"><span>TAGS</span><span>GAME / ARRANGED</span></div></div>
+  <div class="control"><div class="row"><span>OPEN WORK</span><span>↗</span></div></div>
+</div></aside>
+<button id="archiveTrigger" class="archive-trigger">ARCHIVE</button>
+<div class="archive-wrap" id="archiveWrap"><div class="archive-mask"><div class="archive-arc"></div></div></div>
+<div class="note">GRAPH / LIVE · L/R LISSAJOUS · WORKS FIELD</div>
+<script>
+const points=[[-82,62],[-65,20],[-48,73],[-33,-18],[-18,38],[8,72],[26,18],[40,54],[58,-12],[72,34],[80,-56],[46,-48],[14,-60],[-20,-72],[-52,-50],[-72,-22],[0,0],[32,-2]];
+const graph=document.getElementById('graph');
+points.forEach((p,i)=>{const d=document.createElement('div');d.className='work-point'+(i===16?' active':'');d.style.left=(50+p[0]*.44)+'%';d.style.top=(50-p[1]*.44)+'%';d.innerHTML='<i></i>';graph.appendChild(d);});
+const body=document.body;
+document.getElementById('audioTrigger').onclick=()=>body.classList.toggle('audio-open');
+document.getElementById('workTrigger').onclick=()=>body.classList.toggle('work-open');
+document.getElementById('archiveTrigger').onclick=()=>body.classList.toggle('archive-open');
+const wrap=document.getElementById('archiveWrap');
+const labels=[{a:-82,t:'WORK 018 · 2024'},{a:-65,t:'WORK 023 · 2024'},{a:-47,t:'SELECTED WORK · 2024',sel:true},{a:-28,t:'WORK 031 · 2024'},{a:-10,t:'WORK 044 · 2023'}];
+labels.forEach(x=>{const R=310,cx=-8,cy=388,r=x.a*Math.PI/180;const e=document.createElement('div');e.className='archive-label'+(x.sel?' sel':'');e.textContent=x.t;e.style.left=(cx+Math.cos(r)*R)+'px';e.style.top=(cy+Math.sin(r)*R)+'px';e.style.transform='rotate('+(x.a+90)+'deg)';wrap.appendChild(e);});
+const c=document.getElementById('scope'),ctx=c.getContext('2d');
+function resize(){const r=graph.getBoundingClientRect(),d=Math.min(2,devicePixelRatio||1);c.width=r.width*d;c.height=r.height*d;ctx.setTransform(d,0,0,d,0,0)}
+function draw(t){const r=graph.getBoundingClientRect(),w=r.width,h=r.height;ctx.fillStyle='rgba(5,7,8,.11)';ctx.fillRect(0,0,w,h);for(let i=0;i<430;i++){const a=i/429*Math.PI*2*5+t*.00018;const x=Math.sin(a+.4)*.54+Math.sin(a*2.7)*.10;const y=Math.sin(a*1.63)*.46+Math.cos(a*3.1)*.08;const px=w/2+x*w*.40,py=h/2-y*h*.40;const amp=(Math.sin(a*3.4+t*.001)+1)*.5;ctx.fillStyle=`rgba(138,199,211,${.035+amp*.11})`;ctx.beginPath();ctx.arc(px,py,.7+amp*.7,0,Math.PI*2);ctx.fill();}requestAnimationFrame(draw)}
+addEventListener('resize',resize);resize();requestAnimationFrame(draw);
+</script>
+</body></html>
