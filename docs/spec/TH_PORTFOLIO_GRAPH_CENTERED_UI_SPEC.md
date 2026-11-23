@@ -175,6 +175,71 @@ Preserve the existing `+` work marker family.
 
 ---
 
+# 3A. Pseudo-particle environment layer — CONFIRMED
+
+## 3A.1 Purpose
+
+画面全体の情報量と空間密度を高めるため、Work PointやLissajousとは別系統の**疑似パーティクル群**を常時表示する。
+
+これは平面的な装飾ドットではなく、main interfaceの最奥に存在する環境レイヤーとして扱う。
+
+## 3A.2 Motion model
+
+各pseudo particleの最終移動量は、概念的に次を合算する。
+
+```text
+particle displacement
+  = base random drift
+  + audio-reactive displacement
+```
+
+### Base random drift
+
+- particleごとに異なる微小な方向・速度・位相を持つ
+- 完全停止せず、常に小さく漂う
+- deterministic seed / low-frequency noise等、再現可能で破綻しにくい方式を優先してよい
+- 画面全体を激しく流す用途ではない
+
+### Audio-reactive displacement
+
+- overall levelだけでなく、可能ならfrequency bandごとのenergyを使う
+- low / mid / high等の帯域ごとに倍率を持たせてよい
+- particleごとにband weightやdirection couplingを変え、細かい反応差を作る
+- audio由来の値は主に移動量 / 揺れ量へ加算する
+- 音量が大きいほど全粒子が同じ方向へ大きく飛ぶような単純反応は避ける
+
+概念例:
+
+```text
+motion =
+  randomDrift
+  + lowBand  * lowWeight
+  + midBand  * midWeight
+  + highBand * highWeight
+```
+
+exact FFT bins / weighting / integration methodはimplementation detailであり、現時点のproduct contractではない。
+
+## 3A.3 Visual depth
+
+- screen-space XYの均一ドットグリッドは禁止
+- particle size / opacity / blur / density差でZ-depthを感じさせる
+- back layerほど小さく・暗く・ぼけてもよい
+- Lissajous particleと視覚的に混同しない
+- Work Pointより弱いcontrastにする
+- pointer-eventsを持たせない
+
+## 3A.4 Mock behavior
+
+Visual mockではpseudo particlesは静止していてよい。
+
+Mockの目的は以下の確認:
+
+- 粒子密度
+- 奥行き
+- Lissajousとのレイヤー分離
+- Graph / Pointの可読性
+
 # 4. Lissajous particle field — CONFIRMED
 
 ## 4.1 Source
@@ -237,27 +302,66 @@ When audio is paused or unavailable:
 
 ---
 
-# 5. Overlay / Drawer system — CONFIRMED
+# 5. Layer stack / Overlay / Drawer system — CONFIRMED
 
-All major controls outside the central Graph are overlays.
+The interface is explicitly layered.
 
-They must **not participate in layout sizing of the Graph**.
+**Main interface** = pseudo-particle field + Lissajous + Graph axes/labels + Work Points.  
+Everything else is an overlay/drawer above that main interface.
 
 Opening a drawer must not move, resize, or re-center the Graph.
 
 Use fixed/absolute overlay layers with explicit z-order.
 
-Suggested layer order:
+Canonical visual layer order, back to front:
 
 ```text
-0  base background
-10 Graph axes / Lissajous field
-20 Work Points
-30 preview / selection indicators
-50 drawer surfaces
-60 Archive Wheel
-70 transient tooltip / feedback
+0   base surface
+5   pseudo-particle environment field
+10  Lissajous particle field
+20  Graph axes / labels / center markers
+30  Work Points
+40  preview / selection indicators
+60  drawer / overlay surfaces
+70  Archive Wheel overlay
+80  transient tooltip / feedback
 ```
+
+The screen should be understood as a layered information interface, not a set of equally weighted permanent panels.
+
+## 5.1 Main interface
+
+The following belong to the persistent main interface:
+
+- pseudo-particle environment
+- Lissajous particles
+- Graph cross / axis / labels
+- Work Points
+- minimal selected / preview marks
+
+These remain spatially stable while drawers open.
+
+## 5.2 Overlay behavior
+
+Audio / Archive / Filter-Sort / work detail / other control surfaces belong above the main interface.
+
+When a major overlay or drawer is open:
+
+- dim the main interface behind it
+- apply a subtle blur to the main interface behind it
+- preserve enough visibility that the spatial context remains recognizable
+- do not make it feel like a page navigation or separate screen
+- drawer content itself remains sharp
+
+The effect should communicate depth ordering, not merely decoration.
+
+First visual-pass target may use a subtle combination such as:
+
+```css
+filter: brightness(0.55–0.8) blur(2–6px);
+```
+
+Exact values are visual-tuning parameters, not fixed API.
 
 Drawers should feel like instrument interfaces, not application sidebars.
 
@@ -325,7 +429,7 @@ Controls should use thin scales, ticks, numeric/state readouts, and compact inte
 
 ---
 
-# 7. Sort / Filter — CONFIRMED behavior, PROVISIONAL placement
+# 7. Sort / Filter — CONFIRMED behavior, PLACEMENT UNRESOLVED
 
 ## 7.1 Behavior — CONFIRMED
 
@@ -347,25 +451,26 @@ Year filtering:
 
 Archive Wheel must only browse works remaining after filtering.
 
-## 7.2 Placement — PROVISIONAL
+## 7.2 Placement — UNRESOLVED
 
-The final location is not yet decided.
+The final location is intentionally undecided.
 
-The user is explicitly considering:
+Current candidates include:
 
-1. a thin top overlay
-2. distribution into left/right drawers around the central Graph
-3. using side regions for other audio scopes / HUD information
+1. upper-left / top strip
+2. dedicated overlay/drawer
+3. distribution around the left/right information regions
 
-For the next HTML visual pass only:
+Do not promote any current mock placement to a fixed requirement.
 
-**Use a compact top overlay as the provisional placement.**
+Requirements that are fixed regardless of placement:
 
-Implement Tag and Year as two visually separate modules/triggers.
+- Tag and Year remain separate concepts
+- filtering logic is decoupled from visual placement
+- moving Sort / Filter later must not require changing Graph or Wheel semantics
+- avoid a large permanent multi-row button grid
 
-Do not render a multi-row button grid.
-
-Keep the implementation movable so later review can relocate Tag/Year without changing filtering logic.
+Current mock placement is reference-only.
 
 ---
 
