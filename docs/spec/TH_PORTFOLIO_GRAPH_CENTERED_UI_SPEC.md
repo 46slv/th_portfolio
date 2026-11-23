@@ -51,7 +51,7 @@ Primary mental model:
                            │
                            │
                   [ Archive Wheel ]
-                    lower-left overlay
+                    lower-right overlay
 ```
 
 The UI must not read as a dashboard with several equal panels.
@@ -414,7 +414,7 @@ The central Graph remains the primary audio visualization.
 
 ## 10.1 Placement
 
-Archive Wheel moves to the **lower-left**.
+Archive Wheel moves to the **lower-right**.
 
 Any old right-side Wheel placement is LEGACY.
 
@@ -428,11 +428,11 @@ Do not show a half-circle occupying the screen.
 
 Do not render a circular panel/disc.
 
-The open Wheel is a thin quarter-circle overlay entering from the lower-left corner.
+The open Wheel is a thin quarter-circle overlay entering from the lower-right corner.
 
 First-pass geometry at 1600×1000:
 
-- circle center is outside or very near the lower-left viewport corner
+- circle center is outside or very near the lower-right viewport corner
 - only one quadrant of the circle is visible
 - radius approximately 280–360 CSS px
 - visible arc approximately 90°
@@ -443,7 +443,7 @@ Exact radius may be optically tuned, but visible arc must remain quarter-circle-
 ## 10.3 Open / closed state
 
 Closed:
-- only a compact lower-left Wheel/HUD trigger remains
+- only a compact lower-right Wheel/HUD trigger remains
 
 Open:
 - the 90° arc expands/reveals from the same origin
@@ -541,7 +541,7 @@ For the next HTML pass at 1600×1000:
 │          │                             │              │
 │          └─────────────────────────────┘              │
 │                                                       │
-│ ◔ ARCHIVE 90° Wheel                                  │
+│                                  Archive 90° Wheel ◕ │
 └───────────────────────────────────────────────────────┘
 ```
 
@@ -571,7 +571,7 @@ The following older rules are explicitly superseded.
 |---|---|
 | Works Map inside a bordered square/panel | Graph has no visible container border |
 | Audio HUD permanently on the right | Audio controls live in left overlay drawer |
-| Archive Wheel on the right | Archive Wheel is lower-left |
+| Archive Wheel on the right | Archive Wheel is lower-right |
 | Large/half circular Wheel | visible Wheel is a 90° quarter arc |
 | Wheel as circular panel/disc | Wheel is line/tick/label overlay only |
 | Filter as multi-row button grid | Tag and Year are separate compact controls; placement provisional |
@@ -615,7 +615,7 @@ Order:
 4. add compact provisional Tag / Year top overlay
 5. add closed left Audio drawer trigger
 6. add closed right Work/Scope drawer trigger
-7. add lower-left Archive trigger
+7. add lower-right Archive trigger
 8. implement open 90° Archive Wheel state
 9. implement left Audio drawer open state
 10. implement selected Work right drawer state
@@ -637,7 +637,7 @@ At 1600×1000:
 - opening drawers does not move the Graph
 - Audio opens from left
 - Work detail opens as overlay, provisionally right
-- Wheel appears at lower-left
+- Wheel appears at lower-right
 - open Wheel shows approximately one 90° quadrant only
 - no circular Wheel panel
 - Tag and Year are separate
