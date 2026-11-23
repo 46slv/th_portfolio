@@ -15,7 +15,7 @@
 - stereo Lissajousは強い連続線ではなくparticle fieldとして描く
 - Graph以外の主要UIはdrawer / overlay化し、Graphを押し動かさない
 - Audio controlsは左drawer
-- Archive Wheelは左下、表示は90° quarter arcのみ
+- Archive Wheelは右下、表示は90° quarter arcのみ
 - Tag / Yearは別概念として維持し、配置は当面top overlayを試すが未確定
 - Work detailはoverlay drawerへ移し、near-point表示はmicro previewに限定可能
 
