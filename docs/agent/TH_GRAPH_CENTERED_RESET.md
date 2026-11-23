@@ -5,7 +5,7 @@ This handoff supersedes the previous HUD + Spectral Field spike handoff.
 ## Read first
 
 1. `docs/spec/TH_PORTFOLIO_GRAPH_CENTERED_UI_SPEC.md`
-2. `docs/visual/TH_GRAPH_CENTERED_REFERENCE.html`
+2. `docs/spec/TH_PORTFOLIO_UI_REQUIREMENTS_HISTORY.md` (decision history and current preview scope)
 3. `DECISIONS.md`
 4. live implementation and affected tests
 
@@ -32,13 +32,13 @@ First match the reference structure:
 - compact provisional Tag / Year at top
 - Audio drawer on left
 - Work detail drawer on right
-- Archive Wheel lower-left
-- Archive open state shows only a 90° quarter arc
+- current preview: Archive Wheel right-centre, aligned with the Graph horizontal axis, opening into a thin inward half-arc
+- opening only Archive Wheel does not dim/blur the Graph; no persistent WORK launcher
 - drawers overlay and never move the Graph
 
 Use real Works data and the current analyser path when integrating into the app.
 
-The HTML reference uses synthetic L/R motion only as a visual stand-in. Replace that driver with the real analyser; do not reinterpret the layout.
+Older HTML references use synthetic L/R motion and obsolete Wheel placement. Use them for visual tone only; real integration preserves the live analyser and work coordinates.
 
 ## Legacy warnings
 
@@ -46,9 +46,8 @@ Do not reintroduce:
 
 - boxed Map
 - permanent right Audio HUD
-- right-side Wheel
-- half/full Wheel circle
-- big circular Wheel panel
+- lower-left Wheel; the lower-right quarter is a prior design reference
+- full circle or filled/opaque half-circle panel
 - multi-row filter button grid
 - strong continuous Lissajous spaghetti line
 - Map hover → persistent selection
@@ -62,6 +61,6 @@ Return screenshots at the same desktop viewport for:
 3. Archive Wheel open
 4. Work detail drawer open
 
-Before adding more HUD elements, compare those screenshots against `docs/visual/TH_GRAPH_CENTERED_REFERENCE.html`.
+Before adding more HUD elements, compare those screenshots against the current specification; older reference HTML does not override geometry or dismissal rules.
 
 Do not merge or deploy production in this pass.

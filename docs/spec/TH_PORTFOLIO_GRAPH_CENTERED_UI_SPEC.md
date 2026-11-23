@@ -2,7 +2,9 @@
 
 Status: **CURRENT CANONICAL UI / LAYOUT SPEC**
 Date: 2026-11-23
-Scope: desktop visual hierarchy, graph geometry, drawers/overlays, Audio UI, filters, Archive Wheel, work-detail presentation, audio visualization.
+Scope: visual hierarchy, graph geometry, overlays, Audio UI, filters, Archive Wheel, work detail, and audio visualization.
+
+Start with the [requirements and decision history](TH_PORTFOLIO_UI_REQUIREMENTS_HISTORY.md). The current review candidate is the right-centre half-arc Wheel in §10; v8/v9 remain earlier references, not the current geometry.
 
 ## 0. Authority and legacy policy
 
@@ -24,7 +26,7 @@ In particular, conflicting layout/visual instructions in these documents are leg
 - `Archive Wheel × Works Map 連動機能 仕様書.md`
 - historical screenshots / previous visual spikes
 - previous left-side Archive Wheel placement
-- previous full/half-circle Archive Wheel panel treatments
+- previous opaque Wheel panels, full circles, and the earlier lower-right quarter arc for this review pass
 - previous persistent right-side Audio HUD layout
 - previous boxed Works Map layout
 - previous near-point Card layout when it conflicts with the drawer model below
@@ -43,17 +45,11 @@ Everything else exists to control, filter, browse, or inspect that Graph.
 
 Primary mental model:
 
-```text
-                 [ Tag / Year overlay ]
-                         ↓
-
-        [ Audio ]   [ CENTRAL GRAPH ]   [ Work / Scope ]
-         drawer          PRIMARY             drawer
-                           │
-                           │
-                  [ Archive Wheel ]
-                    lower-right overlay
-```
+~~~text
+[Tag / Year overlay: provisional]
+[Audio]       [CENTRED GRAPH]       [ARCHIVE: right-edge half-arc]
+                                     [Work detail when selected]
+~~~
 
 The UI must not read as a dashboard with several equal panels.
 
@@ -503,7 +499,7 @@ CONFIRMED:
 PROVISIONAL current placement:
 
 - work-detail drawer on the **right side**
-- compact closed trigger
+- no persistent WORK launcher in the current visual pass; detail is reached through work selection
 - opens over the Graph without moving it
 - contains thumbnail / artist / year / title / tags / access action using existing data
 
@@ -531,80 +527,26 @@ The central Graph remains the primary audio visualization.
 
 ---
 
-# 10. Archive Wheel — CONFIRMED
+# 10. Archive Wheel — confirmed interaction, current geometry candidate
 
-## 10.1 Placement
+## 10.1 Placement / shape — PROVISIONAL, next preview
 
-Archive Wheel is fixed to the **lower-right**.
+The newest direction is to try a half-arc at the middle of the right edge. Align the centre of its circle with the Graph's horizontal axis and the viewport's right edge. Render the **left half of the circle inside the viewport**, about 180°, from upper to lower arc. Do not draw a filled panel, full ring, or opaque sidebar. The radius scales with viewport height and available width; exact radius, label density and mobile fallback are review choices, not approved constants.
 
-The previous lower-left placement is LEGACY. Older right-side implementations that used a large panel/disc/half-circle are also LEGACY; only the lower-right quarter-arc geometry below is current.
+The prior lower-right quarter arc remains the v8/v9 reference and is superseded **for this preview**, not retroactively deleted. The original lower-left placement remains legacy.
 
-## 10.2 Geometry
+## 10.2 Closed / open — retained visual contract
 
-The visible Wheel must be only a **90-degree arc / quarter circle**.
+- Closed: show ticks only on a small arc, without a ring or standalone decorative icon. Ticks are clearest near the arc midpoint and fade/blur toward both ends; their visible span does not imply a large rectangular hit area.
+- Open: expand from the same origin and reveal the radial work labels. The Graph stays centred, sharp and undimmed when only the Wheel is open.
+- Labels follow the radius, perpendicular to the circumference, not tangent; flip orientation on the opposite side only as needed for readable text. Focus and nearby entries read first. Keep decorative ticks out of the hit area.
 
-Do not show a complete circle.
+## 10.3 Input and shared work state — CONFIRMED
 
-Do not show a half-circle occupying the screen.
-
-Do not render a circular panel/disc.
-
-The open Wheel is a thin quarter-circle overlay entering from the lower-right corner. The visible quadrant is the upper-left quadrant of an off-screen/edge circle center.
-
-First-pass geometry at 1600×1000:
-
-- circle center is outside or very near the lower-right viewport corner
-- only one quadrant of the circle is visible
-- radius approximately 280–360 CSS px
-- visible arc approximately 90°
-- arc and ticks are thin and low contrast
-
-Exact radius may be optically tuned, but visible arc must remain quarter-circle-like.
-
-## 10.3 Open / closed state
-
-Closed:
-- lower-rightにquarter-arcの**tick列だけ**を残す
-- closed時は円周線/ringを見せない
-- tickはarc中央付近を最も明瞭にし、両端へ行くほど `opacity` を下げ、`blur` を増やし、必要なら長さもわずかに短くする
-- closed state自体がopen後Wheelの縮小予告として読めること
-- genericな丸ボタンや単独アイコンへ置き換えない
-
-Open:
-- closed stateと同じorigin / arc grammarから90° Wheelへ拡張する
-- no background panel
-- Graph does not move
-- Wheel overlays the Graph
-- open/closeは別UIの出現ではなく、同じradial instrumentの連続変形として見せる
-- closed側のtick intensity envelope（中央明瞭 / 両端fade+blur）はopen時も周辺項目の減衰表現へ継承してよい
-
-## 10.4 Work labels
-
-Wheel label orientation is **radial**.
-
-For a label positioned on the circle at polar angle `θ`:
-
-- label baseline follows the radius vector
-- implementation rotation is `θ` (or `θ + 180°` only when needed to keep text upright)
-- do **not** use tangent rotation `θ + 90°`
-- visually, each title stands perpendicular to the circle circumference, matching the approved reference
-- selected/focus position is visually stable
-- work labels move along the arc as the user browses
-- selected and nearest neighbors have the highest contrast
-- distant labels fade strongly
-
-## 10.5 Input contract
-
-Preserve the quality of current input behavior:
-
-- mouse wheel
-- drag
-- touch/swipe where applicable
-- keyboard navigation
-
-Only the active Wheel overlay region should capture browsing input.
-
-Filtering changes the browsable work set but does not relocate Graph points.
+- Tag and Year filter the existing work set; the Map keeps existing coordinates; the Wheel lists/selects only the filtered set.
+- Preserve mouse wheel, drag, touch/swipe and keyboard browsing as supported by the current product. Restrict input capture to intended controls; browsing should not steal clicks from the empty Graph field.
+- Focus/hover is transient; persistent selection is separate. The v9 candidate highlights the linked Point and opens Work detail on explicit selection, then returns to browsing when detail is dismissed. Details can dim/blur the Graph; the standalone Wheel never does.
+- Don't make scroll/drag or animation essential; provide visible or keyboard equivalents and verify the Reduced Motion final state.
 
 ---
 
@@ -673,9 +615,9 @@ A flat, screen-space dot grid is not part of the current visual language.
 - Do not cover the entire viewport with a uniform XY dot matrix.
 - Default background should remain near-black and visually quiet.
 - If point texture is reintroduced, it must communicate **depth / Z-space**, not merely a flat XY grid.
-- A depth field may use perspective size/opacity/parallax so points appear distributed in front of and behind the Graph.
+- The pseudo-particle environment sits behind the Graph; perspective size/opacity may suggest depth without moving this layer in front of Points.
 - Depth particles must remain visually weaker than Work Points and the central Lissajous field.
-- Do not use a depth field if it reduces Graph readability; a plain background is acceptable and preferred over decorative flat dots.
+- Tune the depth field down if it harms Graph readability. A static quiet fallback is preferable to a decorative flat grid or essential motion.
 
 ---
 
@@ -696,7 +638,7 @@ For the next HTML pass at 1600×1000:
 │          │                             │              │
 │          └─────────────────────────────┘              │
 │                                                       │
-│                                  Archive 90° Wheel ◕ │
+│               Archive: right-centre half-arc trial   │
 └───────────────────────────────────────────────────────┘
 ```
 
@@ -713,7 +655,7 @@ Default screenshot for review should show:
 Additional review screenshot:
 
 - Audio drawer open
-- Wheel open quarter arc
+- Wheel open right-centre half-arc candidate
 - work selected / right detail drawer open
 
 ---
@@ -726,8 +668,8 @@ The following older rules are explicitly superseded.
 |---|---|
 | Works Map inside a bordered square/panel | Graph has no visible container border |
 | Audio HUD permanently on the right | Audio controls live in left overlay drawer |
-| Archive Wheel on lower-left | Archive Wheel is lower-right |
-| Large disc / half-circle / side-panel Wheel | visible Wheel is a lower-right 90° quarter arc |
+| Archive Wheel on lower-left | Right-centre geometry is the current preview candidate; lower-right is the v8/v9 reference |
+| Solid disc / opaque half-circle / side panel | thin right-centre half-arc for the current preview, without a filled panel |
 | Wheel as circular panel/disc | Wheel is line/tick/label overlay only |
 | Filter as multi-row button grid | Tag and Year are separate compact controls; placement provisional |
 | Full detail Card near selected point as required surface | full details move to overlay drawer; local preview may stay minimal |
@@ -769,8 +711,8 @@ Closed-state pass requirements:
 - Archive Wheel closed
 - central Graph fully visible and unchanged
 - no Graph corner marks
-- closed Audio / Work terminals are micro edge indicators only
-- closed Archive terminal visually hints at the future quarter-wheel using a small quarter-ring / tick motif, not a generic dot+line or large button
+- closed Audio trigger is a micro edge indicator; no persistent WORK launcher
+- closed Archive terminal hints at the expanded arc using fading ticks only, not a visible rim or large rectangular button
 - no open-state composition should be treated as accepted until the closed state is approved
 
 
@@ -786,9 +728,9 @@ Order:
 3. convert stereo Lissajous into particle rendering
 4. add compact provisional Tag / Year top overlay
 5. add closed left Audio drawer trigger
-6. add closed right Work/Scope drawer trigger
-7. add lower-right Archive trigger
-8. implement open 90° Archive Wheel state
+6. link work selection to the detail drawer; do not add a persistent WORK trigger
+7. prototype the right-centre Archive trigger, aligned to the Graph axis
+8. prototype the open right-centre half-arc
 9. implement left Audio drawer open state
 10. implement selected Work right drawer state
 11. capture review screenshots
@@ -809,8 +751,8 @@ At 1600×1000:
 - opening drawers does not move the Graph
 - Audio opens from left
 - Work detail opens as overlay, provisionally right
-- Wheel appears at lower-right
-- open Wheel shows approximately one 90° quadrant only
+- on the current geometry trial, the Wheel centre aligns with the Graph horizontal axis at the right edge
+- only the inward half-arc is shown, without a background panel or blur from the Wheel itself
 - no circular Wheel panel
 - Tag and Year are separate
 - no multi-row filter grid
