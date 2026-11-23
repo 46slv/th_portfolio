@@ -8,12 +8,29 @@ interface WheelEntry {
 
 interface Props {
   entries: WheelEntry[];
+  centredTrial?: boolean;
+  cleanTrial?: boolean;
 }
 
-const { entries } = Astro.props;
+const { entries, centredTrial = false, cleanTrial = false } = Astro.props;
+const trialTicks = Array.from({ length: 31 }, (_, i) => {
+  const angle = (i - 15) * Math.PI / 30;
+  const edge = Math.abs(i - 15) / 15;
+  const length = i % 5 === 0 ? 6 : 3;
+  return {
+    x1: 100 - 98 * Math.cos(angle), y1: 100 + 98 * Math.sin(angle),
+    x2: 100 - (98 - length) * Math.cos(angle), y2: 100 + (98 - length) * Math.sin(angle),
+    opacity: .12 + (1 - edge) * .72, blur: edge * 1.2,
+  };
+});
 ---
 
-<section id="archive-wheel" class="archive-wheel is-collapsed" aria-label="Works archive wheel" tabindex="0">
+<section id="archive-wheel" class="archive-wheel is-collapsed" aria-label="Works archive wheel" tabindex="0" data-centred-trial={String(centredTrial)} data-clean-trial={String(cleanTrial)}>
+  {centredTrial && <svg class="archive-wheel__trial-arc" viewBox="0 0 100 200" aria-hidden="true">
+    <path data-trial-track d="M 100 2 A 98 98 0 0 0 100 198" fill="none" stroke="transparent" stroke-width="10" />
+    {trialTicks.map((tick) => <line x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} opacity={tick.opacity}
+      style={tick.blur > .1 ? ('filter:blur(' + tick.blur + 'px)') : undefined} />)}
+  </svg>}
   <button
     type="button"
     class="archive-wheel__toggle"
@@ -21,7 +38,7 @@ const { entries } = Astro.props;
     aria-label="Toggle archive wheel"
     aria-expanded="false"
   >
-    <span class="archive-wheel__toggle-mark"></span>
+    {cleanTrial ? <span class="archive-wheel__quiet-close" aria-hidden="true">×</span> : <span class="archive-wheel__toggle-mark"></span>}
   </button>
   <div class="archive-wheel__step-controls" data-wheel-step-controls aria-label="Archive wheel rotation controls">
     <button type="button" class="archive-wheel__step" data-wheel-step="-1" aria-label="Previous work">
@@ -380,6 +397,95 @@ const { entries } = Astro.props;
       width: min(270px, calc(100vw - 54px));
     }
   }
+
+  /* Local candidate only. The regular route retains its existing interactions. */
+  .archive-wheel[data-centred-trial="true"] {
+    --trial-r: min(34vw, 36dvh, 310px);
+    right: 0;
+    top: var(--trial-graph-y, 50dvh);
+    bottom: auto;
+    width: var(--trial-r);
+    height: calc(var(--trial-r) * 2);
+    padding: 0;
+    overflow: visible;
+    contain: none;
+    transform: translateY(-50%);
+    transition: opacity .24s ease;
+  }
+  :global(body:not(.is-blurred)) .archive-wheel[data-centred-trial="true"] { transform: translateY(-50%); }
+  .archive-wheel[data-centred-trial="true"]::before,
+  .archive-wheel[data-centred-trial="true"]::after { display: none; }
+  .archive-wheel__trial-arc { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+  .archive-wheel__trial-arc line { stroke:#c2cbcf; stroke-width:1; vector-effect:non-scaling-stroke; }
+  .archive-wheel__trial-arc [data-trial-track] { pointer-events:stroke; touch-action:none; cursor:grab; }
+  .archive-wheel.is-collapsed .archive-wheel__trial-arc {
+    transform:scale(.19); transform-origin:right center;
+  }
+  .archive-wheel.is-collapsed [data-trial-track] { pointer-events:none; }
+  .archive-wheel__trial-arc { transition:transform .32s cubic-bezier(.22,1,.36,1); transform-origin:right center; }
+  .archive-wheel[data-centred-trial="true"] .archive-wheel__rail {
+    position:absolute; inset:0; overflow:visible; pointer-events:none; clip-path:none; transform:none;
+  }
+  .archive-wheel[data-centred-trial="true"] .archive-wheel__item {
+    right:auto; left:100%; top:50%; width:min(164px,43vw); min-height:32px;
+    grid-template-columns:30px minmax(0,1fr); padding:4px 8px 4px 4px;
+    text-align:left; transform-origin:left center; border:0; border-left:1px solid rgba(113,113,122,.38);
+    background: linear-gradient(90deg,rgba(8,13,15,.62),transparent);
+  }
+  .archive-wheel[data-centred-trial="true"] .archive-wheel__item.is-selected { border-color:#67e8ff; }
+  .archive-wheel[data-centred-trial="true"] .archive-wheel__toggle {
+    right:8px; width:44px; height:48px; background:transparent; border:0; border-radius:0;
+  }
+  .archive-wheel[data-centred-trial="true"].is-collapsed .archive-wheel__toggle { right:calc(var(--trial-r) * .19 - 22px); height:54px; width:48px; }
+  .archive-wheel[data-centred-trial="true"].is-collapsed .archive-wheel__toggle-mark { opacity:0; }
+  .archive-wheel[data-centred-trial="true"] .archive-wheel__step { min-width:34px; min-height:34px; }
+  .archive-wheel[data-centred-trial="true"].is-collapsed .archive-wheel__step { visibility:hidden; }
+  .archive-wheel[data-centred-trial="true"] .archive-wheel__step-controls { right:8px; }
+  @media(max-width:760px) {
+    .archive-wheel[data-centred-trial="true"] { --trial-r:min(46vw,31dvh,215px); }
+    .archive-wheel[data-centred-trial="true"] .archive-wheel__item { width:min(126px,43vw); grid-template-columns:26px minmax(0,1fr); }
+    .archive-wheel[data-centred-trial="true"] .archive-wheel__title { font-size:9px; }
+  }
+  @media(prefers-reduced-motion:reduce) {
+    .archive-wheel[data-centred-trial="true"], .archive-wheel[data-centred-trial="true"] * { transition:none!important; }
+  }
+
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__item {
+    background:none; border-color:transparent;
+  }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__item.is-selected {
+    border-color:rgba(103,232,255,.6); text-shadow:none;
+  }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__item:focus-visible {
+    outline:1px solid rgba(103,232,255,.55); outline-offset:1px;
+  }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__step {
+    opacity:0; pointer-events:none; background:#080c0e; border:none; border-radius:0;
+  }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__step:focus-visible {
+    opacity:1; pointer-events:auto;
+  }
+  .archive-wheel[data-centred-trial="true"][data-clean-trial="true"] .archive-wheel__toggle {
+    right:8px; width:44px; height:44px; border:none; border-radius:0; background:none;
+  }
+  .archive-wheel[data-centred-trial="true"][data-clean-trial="true"].is-collapsed .archive-wheel__toggle {
+    right:calc(var(--trial-r) * .19 - 24px); width:48px; height:56px;
+  }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__toggle:focus-visible { outline:none; }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__toggle:focus-visible .archive-wheel__quiet-close {
+    color:#dcf6fb; text-shadow:0 0 8px #67e8ff; text-decoration:underline; text-underline-offset:4px;
+  }
+  .archive-wheel[data-clean-trial="true"].is-collapsed .archive-wheel__toggle:focus-visible {
+    outline:1px solid rgba(103,232,255,.45); outline-offset:-6px; border-radius:50%;
+  }
+  @media(max-width:760px){
+    .archive-wheel[data-centred-trial="true"][data-clean-trial="true"] { --trial-r:min(36vw,29dvh,195px); }
+    .archive-wheel[data-clean-trial="true"] .archive-wheel__item { width:min(104px,31vw); padding-right:2px; }
+  }
+  .archive-wheel__quiet-close { font:17px/1 system-ui; color:#abb8bd; display:inline-block; }
+  .archive-wheel.is-collapsed .archive-wheel__quiet-close { visibility:hidden; }
+  .archive-wheel[data-clean-trial="true"] [data-trial-track] { stroke-width:22; }
+  .archive-wheel[data-clean-trial="true"].is-collapsed [data-trial-track] { pointer-events:none; }
 </style>
 
 <script>
@@ -392,6 +498,20 @@ const { entries } = Astro.props;
   const items = Array.from(document.querySelectorAll<HTMLElement>('[data-wheel-work]'));
   const mapNodeById = new Map<string, HTMLElement>();
   const rowGap = 48;
+  const cleanTrial = wheel?.dataset.cleanTrial === 'true';
+  const centredTrial = wheel?.dataset.centredTrial === 'true';
+  const graphAnchor = centredTrial ? document.getElementById('map-target') : null;
+  function alignTrial() {
+    if (!wheel || !graphAnchor) return;
+    const rect = graphAnchor.getBoundingClientRect();
+    wheel.style.setProperty('--trial-graph-y', (rect.top + rect.height / 2) + 'px');
+  }
+  if (graphAnchor) {
+    alignTrial();
+    new ResizeObserver(() => { alignTrial(); layoutWheel(); }).observe(graphAnchor);
+    window.addEventListener('resize', () => { alignTrial(); layoutWheel(); });
+    window.addEventListener('scroll', alignTrial, { passive: true });
+  }
   const wheelScrollDistance = 110;
   const wheelSettleDelay = 170;
   const dragStepDistance = 76;
@@ -639,6 +759,17 @@ const { entries } = Astro.props;
       item.style.opacity = String(opacity);
       item.style.transform = `translate3d(${-curveX}px, ${distance * rowGap}px, 0) rotate(${rotate}deg) scale(${scale})`;
       item.style.pointerEvents = abs > 3 ? 'none' : 'auto';
+      if (cleanTrial) item.tabIndex = abs <= 3 ? 0 : -1;
+      if (centredTrial && wheel) {
+        const radius = wheel.clientWidth;
+        const angle = distance * .30;
+        const x = -(radius - 6) * Math.cos(angle);
+        const y = (radius - 6) * Math.sin(angle);
+        const withinArc = Math.abs(angle) < 1.43;
+        item.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0) translateY(-50%) rotate(' + (-angle) + 'rad) scale(' + scale + ')';
+        item.style.visibility = withinArc ? 'visible' : 'hidden';
+        item.style.pointerEvents = withinArc && abs < 3.6 ? 'auto' : 'none';
+      }
     }
 
     renderedItems.forEach((item) => {
@@ -672,6 +803,7 @@ const { entries } = Astro.props;
   wheel?.addEventListener('pointerdown', (event) => {
     if ((event.target as HTMLElement).closest('[data-wheel-toggle]')) return;
     if ((event.target as HTMLElement).closest('[data-wheel-step]')) return;
+    if (centredTrial && !(event.target as Element).closest('[data-trial-track]')) return;
     setCollapsed(false);
     clearSettleTimer();
     wheelScrollIntent = null;
@@ -732,6 +864,20 @@ const { entries } = Astro.props;
     });
   });
 
+  if (centredTrial) {
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !wheel?.classList.contains('is-collapsed')) {
+        if (cleanTrial && document.body.classList.contains('trial-has-drawer')) return;
+        setCollapsed(true);
+        toggle?.focus({ preventScroll: true });
+      }
+    });
+    document.addEventListener('click', (event) => {
+      if ((event.target as Element).closest('#archive-wheel,[data-work]')) return;
+      if (cleanTrial && (event.target as Element).closest('.trial-drawer,#archive-trial-controls')) return;
+      if (!wheel?.classList.contains('is-collapsed')) setCollapsed(true);
+    });
+  }
   subscribe(() => layoutWheel());
   window.addEventListener('work-filters-applied', syncFilteredItems);
   window.addEventListener('beforeunload', () => {

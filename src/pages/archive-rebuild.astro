@@ -1,0 +1,212 @@
+---
+import '../styles/global.css';
+import WorksMap from '../components/WorksMap.astro';
+import ArchiveWheel from '../components/works/ArchiveWheel.astro';
+import Footer from '../components/layout/Footer.astro';
+import StartOverlay from '../components/startup/StartOverlay.astro';
+import { works } from '../data/works';
+import { getWorkId } from '../lib/workIds';
+
+const wheelEntries = works.map((work, index) => ({
+  id: getWorkId(work, index),
+  work,
+}));
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+let ambientSeed = 687;
+function ambientRandom() {
+  ambientSeed = (Math.imul(ambientSeed, 1664525) + 1013904223) >>> 0;
+  return ambientSeed / 4294967296;
+}
+const ambientDots = Array.from({ length: 125 }, () => {
+  const depth = ambientRandom();
+  return { x: 1000 * ambientRandom(), y: 600 * ambientRandom(),
+    radius: .28 + 1.02 * depth, opacity: .09 + .23 * depth, blur: .9 * (1 - depth) };
+});
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+    <link rel="icon" href={`${base}/favicon.ico`} />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Talich Helfen | Graph and Archive Rebuild</title>
+  <style is:global>
+      body.archive-trial #map-target { border-color:transparent; background:transparent; }
+      body.archive-trial #map-target > div[style*="radial-gradient"] { display:none; }
+      body.archive-trial { overflow:hidden; }
+      body.archive-trial #site-shell > header {
+        position:fixed; top:24px; left:32px; margin:0; z-index:40; text-align:left;
+      }
+      body.archive-trial #site-shell > header h1 { font-size:16px; margin:0 0 4px; }
+      body.archive-trial #site-shell > header p { font-size:9px; }
+      body.archive-trial .main-layout > div:first-child {
+        position:fixed; top:50%; left:50%; width:min(70dvh,46vw);
+        aspect-ratio:1; padding:0; transform:translate(-50%,-50%); margin:0;
+      }
+      body.archive-trial .main-layout > div:first-child::before {
+        content:""; position:absolute; inset:0; pointer-events:none;
+      }
+      body.archive-trial #archive-trial-controls {
+        position:fixed; top:80px; left:32px; z-index:65; display:flex; gap:8px;
+      }
+      body.archive-trial .trial-disclosure {
+        background:#070b0d; border:1px solid #303b41; font:11px monospace; color:#c5ced1;
+        min-height:40px; padding:0 12px; cursor:pointer;
+      }
+      body.archive-trial .trial-drawer {
+        position:fixed; left:32px; top:128px; z-index:67; width:min(328px,calc(100vw - 64px));
+        max-height:calc(100dvh - 152px); overflow:auto; padding:16px; background:#080c0e; border:1px solid #303b41;
+      }
+      body.archive-trial #site-shell > main > .trial-original-filters { display:none; }
+      body.archive-trial .main-layout > .audio-hud { display:none; }
+      body.archive-trial #map-target { transition:filter .2s ease; }
+      body.archive-trial.trial-has-drawer #map-target { filter:brightness(.62) blur(4px); }
+      @media(max-width:760px) {
+        body.archive-trial .main-layout > div:first-child { width:min(68dvh,84vw); }
+        body.archive-trial #site-shell > header, body.archive-trial #archive-trial-controls, body.archive-trial .trial-drawer { left:16px; }
+        body.archive-trial .trial-drawer { width:min(328px,calc(100vw - 32px)); }
+      }
+      @media(prefers-reduced-motion:reduce) { body.archive-trial #map-target { transition:none; } }
+      body.archive-rebuild astro-dev-toolbar { display:none!important; }
+      body.archive-rebuild #work-tooltip { display:none!important; }
+      #trial-ambient { position:fixed; inset:0; width:100%; height:100dvh; fill:#71a2aa; pointer-events:none; }
+      body.archive-rebuild.trial-has-drawer #trial-ambient { filter:brightness(.6) blur(3px); }
+      body.archive-rebuild .contact-bar {
+        position:fixed; top:24px; right:32px; padding:0; border:0; z-index:39; font-size:9px;
+      }
+      body.archive-rebuild #site-shell > footer {
+        position:fixed; bottom:16px; left:32px; margin:0; font-size:8px; pointer-events:none;
+      }
+      body.archive-rebuild .trial-disclosure { background:transparent; border:0; padding:0 3px; color:#9facb2; }
+      body.archive-rebuild .trial-disclosure:hover, body.archive-rebuild .trial-disclosure[aria-expanded=true] { color:#67e8ff; }
+      body.archive-rebuild #trial-detail {
+        top:50%; left:auto; right:32px; transform:translateY(-50%); z-index:70;
+        width:min(312px,calc(100vw - 64px)); padding:24px; background:#0a0e10;
+      }
+      .trial-detail-head { display:flex; justify-content:space-between; align-items:center; gap:16px; color:#a0afb7; font:11px monospace; }
+      #trial-detail-close { width:44px; height:44px; flex-shrink:0; border:none; color:#c8d2d6; cursor:pointer; background:none; font-size:18px; }
+      #trial-detail-title { margin:8px 0 12px; font-size:20px; line-height:1.25; }
+      #trial-detail-tags,#trial-detail-link { font:11px/1.5 monospace; color:#a0afb7; }
+      #trial-detail-link { display:inline-block; margin-top:24px; color:#67e8ff; }
+      #trial-detail-link[hidden] { display:none; }
+      @media(max-width:760px) {
+        body.archive-rebuild .contact-bar { top:auto; bottom:12px; right:16px; font-size:8px; }
+        body.archive-rebuild #site-shell > footer { display:none; }
+        body.archive-rebuild #trial-detail { top:auto; bottom:0; right:0; width:100%; transform:none; padding:16px 24px 32px; }
+      }
+    </style>
+  </head>
+  <body class="archive-trial archive-rebuild is-blurred bg-zinc-950 text-zinc-200 min-h-screen">
+    <StartOverlay />
+    <div id="site-shell" class="min-h-screen flex flex-col items-center justify-center p-4">
+      <header class="mb-12 text-center">
+        <h1 class="text-4xl font-bold tracking-tighter uppercase mb-2">Talich Helfen</h1>
+        <p class="text-zinc-500 font-mono text-sm">Composer / Arranger - Works Distribution Map</p>
+      </header>
+
+      <main class="w-full max-w-5xl">
+        <svg id="trial-ambient" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          {ambientDots.map(p => <circle cx={p.x} cy={p.y} r={p.radius} opacity={p.opacity} style={'filter:blur(' + p.blur + 'px)'} />)}
+        </svg>
+        <WorksMap />
+      </main>
+
+      <Footer />
+    </div>
+    <div id="archive-trial-controls">
+      <button type="button" class="trial-disclosure" data-trial-panel="filter" aria-controls="trial-filter" aria-expanded="false">TAG / YEAR</button>
+      <button type="button" class="trial-disclosure" data-trial-panel="audio" aria-controls="trial-audio" aria-expanded="false">AUDIO / SPACE</button>
+    </div>
+    <section id="trial-filter" class="trial-drawer" aria-label="Tag and Year filters" hidden></section>
+    <section id="trial-audio" class="trial-drawer" aria-label="Audio and Space controls" hidden></section>
+    <section id="trial-detail" class="trial-drawer" aria-label="Work details" hidden>
+      <div class="trial-detail-head"><span id="trial-detail-meta"></span><button type="button" id="trial-detail-close" aria-label="Close work details">×</button></div>
+      <h2 id="trial-detail-title"></h2>
+      <p id="trial-detail-tags"></p>
+      <a id="trial-detail-link" target="_blank" rel="noopener noreferrer">OPEN WORK ↗</a>
+    </section>
+    <ArchiveWheel entries={wheelEntries} centredTrial cleanTrial />
+    <script>
+      const tag = document.querySelector('[data-filter-tag]')?.parentElement;
+      const year = document.querySelector('[data-filter-year]')?.parentElement;
+      const audio = document.querySelector('.audio-hud');
+      const filterDrawer = document.getElementById('trial-filter');
+      const audioDrawer = document.getElementById('trial-audio');
+      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-trial-panel]'));
+      if (tag && year && tag !== year && filterDrawer) filterDrawer.append(tag, year);
+      if (audio && audioDrawer) audioDrawer.append(audio);
+      const details = document.getElementById('trial-detail');
+      const detailClose = document.getElementById('trial-detail-close');
+      const detailLink = document.getElementById('trial-detail-link') as HTMLAnchorElement | null;
+      const detailTitle = document.getElementById('trial-detail-title');
+      const detailMeta = document.getElementById('trial-detail-meta');
+      const detailTags = document.getElementById('trial-detail-tags');
+      const nodes = new Map(Array.from(document.querySelectorAll<HTMLElement>('[data-work][data-work-id]')).map(n => [n.dataset.workId,n]));
+      let detailOrigin: HTMLElement | null = null;
+      let active: HTMLButtonElement | null = null;
+      function dismissDetail(restore = false) {
+        if (!details || details.hidden) return;
+        details.hidden = true;
+        document.body.classList.toggle('trial-has-drawer', Boolean(active));
+        if (restore) detailOrigin?.focus({ preventScroll:true });
+      }
+      function openDetails(node: HTMLElement, origin: HTMLElement) {
+        if (!details || !detailTitle || !detailMeta || !detailTags || !detailLink) return;
+        if (node.classList.contains('is-hidden') || node.classList.contains('is-inactive')) return;
+        show(null);
+        detailOrigin = origin;
+        detailTitle.textContent = node.dataset.tooltipTitle || 'Untitled';
+        detailMeta.textContent = [node.dataset.tooltipArtist,node.dataset.year].filter(Boolean).join(' / ');
+        detailTags.textContent = node.dataset.tooltipTags || '';
+        const href = node.querySelector<HTMLAnchorElement>('a[href]')?.href;
+        detailLink.hidden = !href || !/^https?:\/\//i.test(href);
+        if (href && !detailLink.hidden) detailLink.href = href;
+        else detailLink.removeAttribute('href');
+        details.hidden = false;
+        document.body.classList.add('trial-has-drawer');
+        detailClose?.focus({ preventScroll:true });
+      }
+      detailClose?.addEventListener('click', () => dismissDetail(true));
+      document.addEventListener('click', e => {
+        const element = e.target as Element;
+        const item = element.closest<HTMLElement>('[data-wheel-work]');
+        if (item) {
+          const linked = nodes.get(item.dataset.workId);
+          if (linked) openDetails(linked,item);
+          return;
+        }
+        const point = element.closest<HTMLElement>('[data-point-float]');
+        const owner = point?.closest<HTMLElement>('[data-work]');
+        if (point && owner) {
+          if ((e as MouseEvent).metaKey || (e as MouseEvent).ctrlKey) return;
+          e.preventDefault();
+          openDetails(owner,point);
+        }
+      });
+      window.addEventListener('work-filters-applied', () => dismissDetail());
+      function show(next: HTMLButtonElement | null, restore = false) {
+        if (next) dismissDetail();
+        const previous = active;
+        active = next;
+        for (const b of buttons) b.setAttribute('aria-expanded', String(b === active));
+        if (filterDrawer) filterDrawer.hidden = active?.dataset.trialPanel !== 'filter';
+        if (audioDrawer) audioDrawer.hidden = active?.dataset.trialPanel !== 'audio';
+        document.body.classList.toggle('trial-has-drawer', Boolean(active));
+        if (restore) previous?.focus();
+      }
+      buttons.forEach(b => b.addEventListener('click', () => show(active === b ? null : b)));
+      document.addEventListener('click', e => {
+        if ((e.target as Element).closest('.trial-drawer,#archive-trial-controls,[data-wheel-work],[data-work]')) return;
+        if (active) show(null);
+        else dismissDetail();
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        if (active) show(null,true);
+        else dismissDetail(true);
+      });
+    </script>
+  </body>
+</html>

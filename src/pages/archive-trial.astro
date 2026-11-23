@@ -1,0 +1,111 @@
+---
+import '../styles/global.css';
+import WorksMap from '../components/WorksMap.astro';
+import ArchiveWheel from '../components/works/ArchiveWheel.astro';
+import Footer from '../components/layout/Footer.astro';
+import StartOverlay from '../components/startup/StartOverlay.astro';
+import { works } from '../data/works';
+import { getWorkId } from '../lib/workIds';
+
+const wheelEntries = works.map((work, index) => ({
+  id: getWorkId(work, index),
+  work,
+}));
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+    <link rel="icon" href={`${base}/favicon.ico`} />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Talich Helfen | Right-centre Archive Trial</title>
+  <style is:global>
+      body.archive-trial #map-target { border-color:transparent; background:transparent; }
+      body.archive-trial #map-target > div[style*="radial-gradient"] { display:none; }
+      body.archive-trial { overflow:hidden; }
+      body.archive-trial #site-shell > header {
+        position:fixed; top:24px; left:32px; margin:0; z-index:40; text-align:left;
+      }
+      body.archive-trial #site-shell > header h1 { font-size:16px; margin:0 0 4px; }
+      body.archive-trial #site-shell > header p { font-size:9px; }
+      body.archive-trial .main-layout > div:first-child {
+        position:fixed; top:50%; left:50%; width:min(70dvh,46vw);
+        aspect-ratio:1; padding:0; transform:translate(-50%,-50%); margin:0;
+      }
+      body.archive-trial .main-layout > div:first-child::before {
+        content:""; position:absolute; inset:0; pointer-events:none;
+      }
+      body.archive-trial #archive-trial-controls {
+        position:fixed; top:80px; left:32px; z-index:65; display:flex; gap:8px;
+      }
+      body.archive-trial .trial-disclosure {
+        background:#070b0d; border:1px solid #303b41; font:11px monospace; color:#c5ced1;
+        min-height:40px; padding:0 12px; cursor:pointer;
+      }
+      body.archive-trial .trial-drawer {
+        position:fixed; left:32px; top:128px; z-index:67; width:min(328px,calc(100vw - 64px));
+        max-height:calc(100dvh - 152px); overflow:auto; padding:16px; background:#080c0e; border:1px solid #303b41;
+      }
+      body.archive-trial #site-shell > main > .trial-original-filters { display:none; }
+      body.archive-trial .main-layout > .audio-hud { display:none; }
+      body.archive-trial #map-target { transition:filter .2s ease; }
+      body.archive-trial.trial-has-drawer #map-target { filter:brightness(.62) blur(4px); }
+      @media(max-width:760px) {
+        body.archive-trial .main-layout > div:first-child { width:min(68dvh,84vw); }
+        body.archive-trial #site-shell > header, body.archive-trial #archive-trial-controls, body.archive-trial .trial-drawer { left:16px; }
+        body.archive-trial .trial-drawer { width:min(328px,calc(100vw - 32px)); }
+      }
+      @media(prefers-reduced-motion:reduce) { body.archive-trial #map-target { transition:none; } }
+    </style>
+  </head>
+  <body class="archive-trial is-blurred bg-zinc-950 text-zinc-200 min-h-screen">
+    <StartOverlay />
+    <div id="site-shell" class="min-h-screen flex flex-col items-center justify-center p-4">
+      <header class="mb-12 text-center">
+        <h1 class="text-4xl font-bold tracking-tighter uppercase mb-2">Talich Helfen</h1>
+        <p class="text-zinc-500 font-mono text-sm">Composer / Arranger - Works Distribution Map</p>
+      </header>
+
+      <main class="w-full max-w-5xl">
+        <WorksMap />
+      </main>
+
+      <Footer />
+    </div>
+    <div id="archive-trial-controls">
+      <button type="button" class="trial-disclosure" data-trial-panel="filter" aria-controls="trial-filter" aria-expanded="false">TAG / YEAR</button>
+      <button type="button" class="trial-disclosure" data-trial-panel="audio" aria-controls="trial-audio" aria-expanded="false">AUDIO / SPACE</button>
+    </div>
+    <section id="trial-filter" class="trial-drawer" aria-label="Tag and Year filters" hidden></section>
+    <section id="trial-audio" class="trial-drawer" aria-label="Audio and Space controls" hidden></section>
+    <ArchiveWheel entries={wheelEntries} centredTrial />
+    <script>
+      const tag = document.querySelector('[data-filter-tag]')?.parentElement;
+      const year = document.querySelector('[data-filter-year]')?.parentElement;
+      const audio = document.querySelector('.audio-hud');
+      const filterDrawer = document.getElementById('trial-filter');
+      const audioDrawer = document.getElementById('trial-audio');
+      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-trial-panel]'));
+      if (tag && year && tag !== year && filterDrawer) filterDrawer.append(tag, year);
+      if (audio && audioDrawer) audioDrawer.append(audio);
+      let active: HTMLButtonElement | null = null;
+      function show(next: HTMLButtonElement | null, restore = false) {
+        const previous = active;
+        active = next;
+        for (const b of buttons) b.setAttribute('aria-expanded', String(b === active));
+        if (filterDrawer) filterDrawer.hidden = active?.dataset.trialPanel !== 'filter';
+        if (audioDrawer) audioDrawer.hidden = active?.dataset.trialPanel !== 'audio';
+        document.body.classList.toggle('trial-has-drawer', Boolean(active));
+        if (restore) previous?.focus();
+      }
+      buttons.forEach(b => b.addEventListener('click', () => show(active === b ? null : b)));
+      document.addEventListener('click', e => {
+        if (active && !(e.target as Element).closest('.trial-drawer,#archive-trial-controls')) show(null);
+      });
+      document.addEventListener('keydown', e => { if (active && e.key === 'Escape') show(null, true); });
+    </script>
+  </body>
+</html>
