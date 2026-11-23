@@ -1,0 +1,189 @@
+---
+---
+<section id="point-preview" aria-labelledby="point-preview-title" hidden>
+  <p data-preview-meta></p>
+  <h2 id="point-preview-title"></h2>
+  <p data-preview-tags></p>
+  <a data-preview-link target="_blank" rel="noopener noreferrer">OPEN WORK <span aria-hidden="true">↗</span></a>
+</section>
+
+<style>
+  #point-preview {
+    position:fixed; z-index:69; width:min(224px,calc(100vw - 24px));
+    padding:13px 15px 8px; background:#0a1013; border:1px solid #35494f;
+    box-shadow:0 12px 28px #0008; color:#e1edf0;
+  }
+  #point-preview[hidden], [data-preview-link][hidden] { display:none; }
+  #point-preview-title { margin:5px 0; font-size:15px; line-height:1.3; overflow-wrap:anywhere; }
+  p { margin:0; color:#aebac0; font:10px/1.5 monospace; overflow-wrap:anywhere; }
+  [data-preview-link] {
+    display:inline-flex; min-height:44px; align-items:center; gap:6px; color:#81eaff;
+    text-decoration:underline; text-underline-offset:3px; font:11px monospace;
+  }
+  [data-preview-link]:focus-visible { outline:2px solid #81eaff; outline-offset:3px; }
+  :global(body.archive-rebuild [data-point-float].has-point-preview) { animation-play-state:paused; }
+</style>
+
+<script>
+  const card = document.querySelector<HTMLElement>('#point-preview')!;
+  const title = card.querySelector<HTMLElement>('h2')!;
+  const meta = card.querySelector<HTMLElement>('[data-preview-meta]')!;
+  const tags = card.querySelector<HTMLElement>('[data-preview-tags]')!;
+  const link = card.querySelector<HTMLAnchorElement>('[data-preview-link]')!;
+  const points = Array.from(document.querySelectorAll<HTMLAnchorElement>('#map-target [data-point-float]'));
+  const hoverMedia = matchMedia('(any-hover: hover)');
+  const pointSelector = '#map-target [data-point-float]';
+  let origin: HTMLAnchorElement | null = null;
+  let suppressed: HTMLAnchorElement | null = null;
+  let anchor: DOMRect | null = null;
+  let side: 'left' | 'right' | 'above' | 'below' = 'right';
+  let mouse = { x: -100, y: -100 };
+  let closeTimer = 0;
+  let touchUntil = 0;
+
+  for (const point of points) point.removeAttribute('aria-describedby');
+  const isLive = (point: HTMLAnchorElement) =>
+    !point.closest('[data-work]')?.matches('.is-hidden,.is-inactive,[aria-hidden="true"]') &&
+    Boolean(point.getClientRects().length) && point.tabIndex !== -1;
+  const inside = (r: DOMRect, x: number, y: number, pad = 0) =>
+    x >= r.left-pad && x <= r.right+pad && y >= r.top-pad && y <= r.bottom+pad;
+  const clearClose = () => { window.clearTimeout(closeTimer); closeTimer = 0; };
+
+  function place() {
+    if (!origin) return;
+    anchor = origin.getBoundingClientRect();
+    const w = card.offsetWidth, h = card.offsetHeight, gap = 19, edge = 12;
+    const vx = document.documentElement.clientWidth, vy = document.documentElement.clientHeight;
+    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+    let x: number, y: number;
+    if (anchor.right + gap + w <= vx-edge || anchor.left - gap - w >= edge) {
+      side = anchor.right + gap + w <= vx-edge && anchor.x < vx * .65 ? 'right' : 'left';
+      if (anchor.left - gap - w < edge) side = 'right';
+      x = side === 'right' ? anchor.right+gap : anchor.left-gap-w;
+      y = clamp(anchor.top + anchor.height/2 - h/2, edge, vy-edge-h);
+    } else {
+      side = anchor.top - gap - h >= edge ? 'above' : 'below';
+      y = side === 'above' ? anchor.top-gap-h : anchor.bottom+gap;
+      x = clamp(anchor.left + anchor.width/2 - w/2, edge, vx-edge-w);
+    }
+    card.style.left = clamp(x,edge,vx-edge-w)+'px';
+    card.style.top = clamp(y,edge,vy-edge-h)+'px';
+  }
+
+  // Keep the actual gap open, not a race against a timer. The tolerant corridor
+  // widens from the Point towards the near edge of the card and has no hitbox.
+  function corridor(x: number, y: number) {
+    if (!anchor) return false;
+    const b = card.getBoundingClientRect();
+    const horizontal = side === 'left' || side === 'right';
+    const from = horizontal ? (side === 'right' ? anchor.right : anchor.left)
+      : (side === 'below' ? anchor.bottom : anchor.top);
+    const to = horizontal ? (side === 'right' ? b.left : b.right)
+      : (side === 'below' ? b.top : b.bottom);
+    if (Math.abs(to-from) < 1) return false;
+    const t = ((horizontal ? x : y)-from)/(to-from);
+    if (t < -0.35 || t > 1.15) return false;
+    const k = Math.max(0, Math.min(1,t));
+    const pos = horizontal ? y : x;
+    const aMin = (horizontal ? anchor.top : anchor.left)-10;
+    const aMax = (horizontal ? anchor.bottom : anchor.right)+10;
+    const bMin = horizontal ? b.top : b.left;
+    const bMax = horizontal ? b.bottom : b.right;
+    return pos >= aMin+(bMin-aMin)*k && pos <= aMax+(bMax-aMax)*k;
+  }
+
+  function hide(restore = false) {
+    clearClose();
+    const point = origin;
+    origin = null;
+    anchor = null;
+    card.hidden = true;
+    point?.classList.remove('has-point-preview');
+    point?.removeAttribute('aria-controls');
+    if (restore && point && isLive(point)) {
+      suppressed = point;
+      point.focus({preventScroll:true});
+    }
+  }
+
+  function show(point: HTMLAnchorElement) {
+    if (point === suppressed || !isLive(point) || document.body.classList.contains('trial-has-drawer') ||
+        document.body.classList.contains('is-blurred')) return;
+    if (origin === point) { clearClose(); return; }
+    const data = point.closest<HTMLElement>('[data-work]')?.dataset;
+    if (!data) return;
+    hide();
+    origin = point;
+    point.classList.add('has-point-preview');
+    point.setAttribute('aria-controls',card.id);
+    title.textContent = data.tooltipTitle || '';
+    meta.textContent = [data.tooltipArtist === 'Unknown' ? '' : data.tooltipArtist,data.year].filter(Boolean).join(' / ');
+    tags.textContent = data.tooltipTags || '';
+    link.hidden = !point.hasAttribute('href') || !/^https?:\/\//i.test(point.href);
+    if (link.hidden) link.removeAttribute('href'); else link.href = point.href;
+    card.hidden = false;
+    place();
+  }
+
+  function retain() {
+    if (!origin) return false;
+    const focus = document.activeElement;
+    return focus === origin || card.contains(focus) ||
+      Boolean(anchor && inside(anchor,mouse.x,mouse.y,3)) ||
+      inside(card.getBoundingClientRect(),mouse.x,mouse.y,2) || corridor(mouse.x,mouse.y);
+  }
+
+  function reconcile() {
+    if (!origin) return;
+    if (retain()) { clearClose(); return; }
+    if (!closeTimer) closeTimer = window.setTimeout(() => {
+      closeTimer = 0;
+      if (!retain()) hide();
+    }, 160);
+  }
+
+  document.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' || !hoverMedia.matches) return;
+    mouse = {x:e.clientX,y:e.clientY};
+    const target = (e.target as Element).closest<HTMLAnchorElement>(pointSelector);
+    if (target !== suppressed && document.activeElement !== suppressed) suppressed = null;
+    if (target && target !== origin && !card.contains(document.activeElement) && !corridor(mouse.x,mouse.y)) show(target);
+    reconcile();
+  });
+  document.addEventListener('pointerout', e => {
+    if (e.pointerType === 'mouse' && !e.relatedTarget) { mouse = {x:-100,y:-100}; reconcile(); }
+  });
+  document.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') touchUntil = performance.now()+500;
+    const target = e.target as Node;
+    if (origin && !origin.contains(target) && !card.contains(target)) hide();
+  }, true);
+  document.addEventListener('focusin', e => {
+    const target = (e.target as Element).closest<HTMLAnchorElement>(pointSelector);
+    if (target !== suppressed) suppressed = null;
+    if (target && performance.now() >= touchUntil) show(target);
+    else reconcile();
+  });
+  document.addEventListener('focusout', () => queueMicrotask(reconcile));
+  document.addEventListener('keydown', e => {
+    if (!origin) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const point = origin;
+      suppressed = point;
+      hide(card.contains(document.activeElement));
+    } else if (e.key === 'Tab' && !e.shiftKey && document.activeElement === origin && !link.hidden) {
+      e.preventDefault();
+      link.focus({preventScroll:true});
+    } else if (e.key === 'Tab' && document.activeElement === link) {
+      if (e.shiftKey) { e.preventDefault(); origin.focus({preventScroll:true}); return; }
+      const idx = points.indexOf(origin);
+      const next = points.slice(idx+1).find(isLive);
+      if (next) { e.preventDefault(); next.focus({preventScroll:true}); }
+    }
+  }, true);
+  window.addEventListener('resize', () => { if (origin) place(); });
+  window.addEventListener('work-filters-applied', () => hide());
+  window.addEventListener('archive-preview-dismiss', () => hide());
+</script>

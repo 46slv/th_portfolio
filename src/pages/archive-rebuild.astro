@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import WorksMap from '../components/WorksMap.astro';
 import ArchiveWheel from '../components/works/ArchiveWheel.astro';
+import PointPreview from '../components/works/PointPreview.astro';
 import Footer from '../components/layout/Footer.astro';
 import StartOverlay from '../components/startup/StartOverlay.astro';
 import { works } from '../data/works';
@@ -127,6 +128,7 @@ const ambientDots = Array.from({ length: 125 }, () => {
       <p id="trial-detail-tags"></p>
       <a id="trial-detail-link" target="_blank" rel="noopener noreferrer">OPEN WORK ↗</a>
     </section>
+    <PointPreview />
     <ArchiveWheel entries={wheelEntries} centredTrial cleanTrial />
     <script>
       const tag = document.querySelector('[data-filter-tag]')?.parentElement;
@@ -155,6 +157,7 @@ const ambientDots = Array.from({ length: 125 }, () => {
       function openDetails(node: HTMLElement, origin: HTMLElement) {
         if (!details || !detailTitle || !detailMeta || !detailTags || !detailLink) return;
         if (node.classList.contains('is-hidden') || node.classList.contains('is-inactive')) return;
+        window.dispatchEvent(new Event('archive-preview-dismiss'));
         show(null);
         detailOrigin = origin;
         detailTitle.textContent = node.dataset.tooltipTitle || 'Untitled';
@@ -187,6 +190,7 @@ const ambientDots = Array.from({ length: 125 }, () => {
       });
       window.addEventListener('work-filters-applied', () => dismissDetail());
       function show(next: HTMLButtonElement | null, restore = false) {
+        if (next) window.dispatchEvent(new Event('archive-preview-dismiss'));
         if (next) dismissDetail();
         const previous = active;
         active = next;
@@ -198,7 +202,7 @@ const ambientDots = Array.from({ length: 125 }, () => {
       }
       buttons.forEach(b => b.addEventListener('click', () => show(active === b ? null : b)));
       document.addEventListener('click', e => {
-        if ((e.target as Element).closest('.trial-drawer,#archive-trial-controls,[data-wheel-work],[data-work]')) return;
+        if ((e.target as Element).closest('.trial-drawer,#point-preview,#archive-trial-controls,[data-wheel-work],[data-work]')) return;
         if (active) show(null);
         else dismissDetail();
       });
