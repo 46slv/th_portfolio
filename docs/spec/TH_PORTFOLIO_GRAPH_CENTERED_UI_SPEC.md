@@ -453,9 +453,14 @@ Open:
 
 ## 10.4 Work labels
 
-Retain the current newer Wheel label direction:
+Wheel label orientation is **radial**.
 
-- labels align along the radius, not along the tangent
+For a label positioned on the circle at polar angle `θ`:
+
+- label baseline follows the radius vector
+- implementation rotation is `θ` (or `θ + 180°` only when needed to keep text upright)
+- do **not** use tangent rotation `θ + 90°`
+- visually, each title stands perpendicular to the circle circumference, matching the approved reference
 - selected/focus position is visually stable
 - work labels move along the arc as the user browses
 - selected and nearest neighbors have the highest contrast
