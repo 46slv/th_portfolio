@@ -23,7 +23,8 @@ In particular, conflicting layout/visual instructions in these documents are leg
 - `TH Portfolio サイト仕様書.md`
 - `Archive Wheel × Works Map 連動機能 仕様書.md`
 - historical screenshots / previous visual spikes
-- previous right-side Archive Wheel placement
+- previous left-side Archive Wheel placement
+- previous full/half-circle Archive Wheel panel treatments
 - previous persistent right-side Audio HUD layout
 - previous boxed Works Map layout
 - previous near-point Card layout when it conflicts with the drawer model below
@@ -414,9 +415,9 @@ The central Graph remains the primary audio visualization.
 
 ## 10.1 Placement
 
-Archive Wheel moves to the **lower-right**.
+Archive Wheel is fixed to the **lower-right**.
 
-Any old right-side Wheel placement is LEGACY.
+The previous lower-left placement is LEGACY. Older right-side implementations that used a large panel/disc/half-circle are also LEGACY; only the lower-right quarter-arc geometry below is current.
 
 ## 10.2 Geometry
 
@@ -428,7 +429,7 @@ Do not show a half-circle occupying the screen.
 
 Do not render a circular panel/disc.
 
-The open Wheel is a thin quarter-circle overlay entering from the lower-right corner.
+The open Wheel is a thin quarter-circle overlay entering from the lower-right corner. The visible quadrant is the upper-left quadrant of an off-screen/edge circle center.
 
 First-pass geometry at 1600×1000:
 
@@ -576,8 +577,8 @@ The following older rules are explicitly superseded.
 |---|---|
 | Works Map inside a bordered square/panel | Graph has no visible container border |
 | Audio HUD permanently on the right | Audio controls live in left overlay drawer |
-| Archive Wheel on the right | Archive Wheel is lower-right |
-| Large/half circular Wheel | visible Wheel is a 90° quarter arc |
+| Archive Wheel on lower-left | Archive Wheel is lower-right |
+| Large disc / half-circle / side-panel Wheel | visible Wheel is a lower-right 90° quarter arc |
 | Wheel as circular panel/disc | Wheel is line/tick/label overlay only |
 | Filter as multi-row button grid | Tag and Year are separate compact controls; placement provisional |
 | Full detail Card near selected point as required surface | full details move to overlay drawer; local preview may stay minimal |
