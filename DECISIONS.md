@@ -1,5 +1,34 @@
 # Design Decisions
 
+## 2026-11-23: pseudo-particle最奥層とlayered overlay modelを採用する
+
+### Decision
+
+TH Portfolioのvisual stackを以下の順で扱う。
+
+```text
+pseudo particles
+→ Lissajous particles
+→ Graph axes / labels
+→ Work Points
+→ preview / selected marks
+→ overlay / drawer UI
+```
+
+pseudo particlesは常時存在する環境粒子で、将来実装では `random drift + audio-reactive displacement` を合算して動かす。audio-reactive成分はoverall levelだけでなく、可能ならfrequency band別energyへ倍率を掛けて細かい反応差を作る。
+
+Visual mockでは静止particleでよい。
+
+Point / Graphまでをmain interfaceとし、Audio / Archive / Filter-Sort / detail等はその上へ重なるoverlay UIとして扱う。overlay表示中はmain interfaceを少し暗く・ぼかし、前後関係を明確にする。Graph自体の位置・大きさは変えない。
+
+Sort / Filterの最終配置は未決定のまま保持し、現在のmock位置を確定仕様へ昇格させない。
+
+### Reason
+
+画面全体の情報量を増やしつつ、Lissajous・Graph・Work Pointの主従を保ち、操作面を同じ空間上のレイヤーとして扱うため。
+
+---
+
 ## 2026-11-23: 閉状態を先に確定し、Graph四隅マークを廃止する
 
 ### Decision
