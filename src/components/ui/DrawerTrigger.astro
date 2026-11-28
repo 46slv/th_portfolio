@@ -1,0 +1,13 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+
+// Native disclosure envelope only: callers can swap the visible contents or
+// skin without changing control identity, keyboard activation, or ownership.
+interface Props extends Omit<HTMLAttributes<'button'>, 'type' | 'aria-expanded' | 'aria-controls'> {
+  controls: string;
+}
+const { controls, ...attributes } = Astro.props;
+---
+<button type="button" aria-controls={controls} aria-expanded="false" {...attributes}>
+  <slot />
+</button>

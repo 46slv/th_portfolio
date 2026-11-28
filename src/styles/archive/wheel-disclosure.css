@@ -1,0 +1,15 @@
+/* Wheel-owned disclosure states; loaded after the shared word-action styling. */
+body.archive-rebuild .line-action-wheel:hover .line-action__word,
+body.archive-rebuild .line-action-wheel:focus-visible .line-action__word {
+  color:#67e8ff; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:4px;
+}
+body.archive-rebuild .line-action-wheel:focus-visible { outline:2px solid #67e8ff; outline-offset:2px; }
+body.archive-rebuild #archive-wheel[data-clean-trial="true"] [data-wheel-toggle] { outline:none; }
+body.archive-rebuild #archive-wheel[data-clean-trial="true"] [data-wheel-toggle]:focus-visible > .line-action__word {
+  text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:4px;
+}
+body.archive-rebuild #archive-wheel[data-clean-trial="true"] .archive-wheel__item.is-selected { border:0; }
+body.archive-rebuild .archive-wheel__quiet-open,
+body.archive-rebuild .archive-wheel.is-collapsed .archive-wheel__quiet-close { display:none; }
+body.archive-rebuild .archive-wheel.is-collapsed .archive-wheel__quiet-open,
+body.archive-rebuild .archive-wheel__quiet-close { display:inline-block; }

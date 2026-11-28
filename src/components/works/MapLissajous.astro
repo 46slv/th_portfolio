@@ -1,5 +1,10 @@
+---
+const { rebuildScope = false } = Astro.props;
+---
+
 <canvas
   id="map-lissajous"
+  class={rebuildScope ? 'rebuild-scope' : undefined}
   width="900"
   height="900"
   role="img"
@@ -25,5 +30,16 @@
       height: 76%;
       opacity: 0.58;
     }
+  }
+
+  /* Overscan only the rebuild scope; the Graph itself stays clipped and square. */
+  #map-lissajous.rebuild-scope {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(128%, calc(100vw - 4px));
+    height: min(128%, calc(100dvh - 4px));
+    z-index: 0;
   }
 </style>

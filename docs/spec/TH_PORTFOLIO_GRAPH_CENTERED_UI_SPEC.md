@@ -1,7 +1,7 @@
 # TH Portfolio — Graph-Centered UI Specification vNext
 
 Status: **CURRENT CANONICAL UI / LAYOUT SPEC**
-Date: 2026-11-23
+Updated: 2026-11-25 — `/archive-rebuild/` Wheel input, Point spread and line buttons.
 Scope: visual hierarchy, graph geometry, overlays, Audio UI, filters, Archive Wheel, work detail, and audio visualization.
 
 Start with the [requirements and decision history](TH_PORTFOLIO_UI_REQUIREMENTS_HISTORY.md). The current review candidate is the right-centre half-arc Wheel in §10; v8/v9 remain earlier references, not the current geometry.
@@ -127,7 +127,7 @@ The Graph coordinate field must use equal X/Y visual scale.
 
 **Width and height are always equal.**
 
-First-pass desktop rule:
+Historical first-pass desktop rule (not a cap on the work distribution):
 
 ```css
 --graph-size: min(70vh, 46vw);
@@ -167,6 +167,8 @@ Do not add corner brackets / corner marks around the Graph. The coordinate field
 ## 3.5 Work Points
 
 Preserve the existing `+` work marker family.
+
+**Spread of works.** Enlarge the distribution of the 96 work centres, not the glyphs, hitboxes or background particles. Relative to the pre-spread line-button build (`a054fd9`), target at least **1.7× in each axis**, measured from min/max centres at the same viewport. Scale both axes equally about the fixed origin; preserve work IDs, source coordinates, relative positions, order and clicks. Keep the outer crosses on screen. If width makes the target impossible, use the largest safe scale and report the exception rather than cropping, distorting or claiming a pass. In the reviewed 1098×1249 viewport the distribution was 292×292 → 533×533 CSS px; at 600×900 it was only 1.51×.
 
 - Work Point must be visually distinguishable from audio particles.
 - Work Point is an interaction target.
@@ -276,8 +278,8 @@ First-pass rendering target:
 
 - max source points per frame: existing limit up to 512
 - update cadence: reuse the existing visual update path, max approximately 24fps
-- particle diameter: approximately 0.8–1.6 CSS px
-- base opacity: approximately 0.05–0.22
+- On `/archive-rebuild/`, give each stereo sample a distinct cyan core roughly 2–3 CSS px across, including on high-DPI mobile screens. It must be visible between the white work markers during normal playback.
+- A dim, tightly bounded rim may surround the brighter core; do not brighten the ambient dust, the crosses or the entire canvas to achieve this. Check visible size and brightness against the previous build with the same stereo input, and check that silence clears the audio field.
 - brightest particle/trail accents must remain below selected Work Point contrast
 - no pointer events
 
@@ -350,30 +352,41 @@ Audio / Archive / Filter-Sort / work detail / other control surfaces belong abov
 When a major drawer / modal-like overlay such as Audio, Work detail, or Filter-Sort is open:
 
 - dim the main interface behind it
-- apply a subtle blur to the main interface behind it
+- keep the main field sharp in the current preview (user correction, 2026-11-24); earlier designs also applied a subtle overlay blur, now temporarily off
 - preserve enough visibility that the spatial context remains recognizable
 - do not make it feel like a page navigation or separate screen
 - drawer content itself remains sharp
 
 **Archive Wheel is an exception.** Archive Wheel belongs to the same spatial browsing surface as the Graph / Work Points. Opening Archive Wheel by itself must **not** dim or blur the main interface, because Work Points need to remain clearly visible while browsing the Wheel.
 
-If Archive Wheel is open at the same time as another blur-producing drawer/overlay, the other overlay may still cause the main-interface dim/blur.
+If Archive Wheel is open at the same time as another blur-producing drawer/overlay, the other overlay may still dim the main interface; it does not blur it in the current preview.
 
 Dismissal contract:
 
 - clicking an empty/background area outside the active overlay closes it
-- the dimmed/blurred main interface acts as the primary dismiss surface while an overlay is open
+- the dimmed main interface acts as the primary dismiss surface while an overlay is open
 - drawers also expose a subtle explicit close control such as a small `×`
 - repeating the same trigger may also toggle the overlay closed where that interaction is already natural
 - `Escape` closes the active overlay(s)
 - clicks inside the overlay must not accidentally dismiss it
+
+### Placement and reveal on `/archive-rebuild/`
+
+| Surface | Placement | What the motion means |
+|---|---|---|
+| Tag / Year | Below the trigger, on its left alignment line. Leave a small gap; keep the list scrollable if available height is short. | Reveal downward from the trigger, not from the middle of the graph. |
+| Setting | Immediately to the right of the left-hand trigger. Align the panel's vertical centre to the trigger when room permits; clamp its height and position to the viewport. Keep the trigger stationary and clickable and leave the Wheel lane clear. | Reveal inward from the left. The trigger is the reference point, not the viewport centre. |
+| Point preview | Beside its corresponding Point, on the side with room. Keep it and its link reachable; do not follow the pointer or replay an entrance at every Wheel station. | A quiet local preview, never a trip across the screen. |
+| Full work detail | One consistent reading position: inside the right edge on wide screens; a height-bounded bottom surface on compact screens. Do not cover the Wheel trigger; retain the actual originating work for focus return. | From the right or from below, respectively. Selecting a different work while open updates its content in place. |
+
+Use a short decelerating reveal with a small displacement; keep both the graph and the initiating control stationary. On close, give up interaction immediately. Rapid switching or reopening must leave only the latest panel interactive; an earlier animation must not close it later. `Escape` returns focus to the opener. Reduced Motion uses the same geometry immediately without directional travel. Validate with real open/close, resize, rapid-switch and compact-screen inputs, not just screenshots of settled states.
 
 The effect should communicate depth ordering, not merely decoration.
 
 First visual-pass target may use a subtle combination such as:
 
 ```css
-filter: brightness(0.55–0.8) blur(2–6px);
+filter: brightness(0.55–0.8); /* Current preview: no overlay blur. */
 ```
 
 Exact values are visual-tuning parameters, not fixed API.
@@ -390,7 +403,7 @@ No full-height opaque column unless a future user decision explicitly approves i
 
 ## 6.1 Placement
 
-Audio controls belong on the **left side**.
+Audio controls belong on the **left edge at the Graph's horizontal centerline** (user correction, 2026-11-24). The compact trigger uses the same horizontal axis as the right-edge Archive Wheel.
 
 They are stored in a left overlay drawer.
 
@@ -402,7 +415,7 @@ Closed state:
 
 Open state:
 
-- overlay drawer extends from the left
+- overlay drawer extends from the left, vertically centered on desktop and height-bounded/scrollable on smaller viewports
 - Graph remains centered and unchanged underneath
 - drawer may partially overlap the Graph
 
@@ -496,7 +509,7 @@ Current mock placement is reference-only.
 - Hovering a Work Point shows a compact preview card; it is a real interactive surface, not a pointer-transparent tooltip. The latest direction explicitly restores the card and supersedes any earlier instruction that only a micro-label can appear near the Point.
 - Treat the Point, a small connecting gap, and its card as one hover/focus region. Moving off the plus toward the card must leave it open, including a slow or slightly diagonal move. Do not require a precision pointer route or racing a short timeout. Cancel pending close on entry to the card; leaving both surfaces eventually dismisses it.
 - The card remains open and stationary while hovered or while a descendant has keyboard focus. Its work link must be tabbable and clickable; the user must be able to reach the same work with touch (no reliance on hover) and dismiss with Escape. Restore focus to the originating control when relevant.
-- Use actual available title, artist, year, tags and work URL. A lazy thumbnail is permitted where real metadata supports it. No fabricated dates, previews, or external link if absent. A compact preview does not move or dim the Graph and does not alter persistent selection or move the Wheel.
+- Use actual available title, artist, year, tags and work URL. Show the existing work thumbnail when real metadata and the image are available (user correction, 2026-11-24); otherwise the card stays text-only. No fabricated dates, previews, or external link if absent. A compact preview does not move or dim the Graph. Manual hover/focus does not alter persistent selection or move the Wheel; deliberate Wheel browsing shows this same Card for the work it selects.
 - Reuse one lightweight card surface rather than one hidden card per Point. If anchored preview is unsafe or cramped on a touch viewport, use explicit tap to access equivalent content.
 
 ### 8.2 Full details — confirmed overlay model
@@ -551,16 +564,25 @@ The prior lower-right quarter arc remains the v8/v9 reference and is superseded 
 
 ## 10.2 Closed / open — retained visual contract
 
-- Closed: show ticks only on a small arc, without a ring or standalone decorative icon. Ticks are clearest near the arc midpoint and fade/blur toward both ends; their visible span does not imply a large rectangular hit area.
-- Open: expand from the same origin and reveal the radial work labels. The Graph stays centred, sharp and undimmed when only the Wheel is open.
+- Closed: show the plain `Wheel` label and fading arc ticks, without a label rule, filled button or ring. The expanded semicircular scroll area is inactive.
+- Open: show radial work labels without decorative strokes: no arc ticks, title prefixes, station rules or lines beside Close / step controls. Keep the transparent scroll and drag targets, the Graph axes and the visible keyboard focus indicator. Closing restores only the quiet arc ticks, not a line beside the label. The desktop idle Graph is centred. Opening the right-side Wheel frames it like a camera push-in: the Graph (including its Points) and the galaxy backdrop pan and enlarge together, then return on close. Setting, Tag, Year, Stop, site identity, Contact and the reading overlays do not ride the camera. The Wheel's input surface and inertia are unchanged; the Graph stays sharp and undimmed. Do not animate the camera under Reduced Motion. The portrait Browse dock retains its own composition.
+- Only the work at the current central selection station receives pointer hover emphasis. Hovering a neighbouring title or its button must not enlarge it, change selection or open details. When another work moves to the centre, hover eligibility follows it. This is a visual rule: it does not disable existing click, tap or keyboard activation of neighbouring works.
 - Labels follow the radius, perpendicular to the circumference, not tangent; flip orientation on the opposite side only as needed for readable text. Focus and nearby entries read first. Keep decorative ticks out of the hit area.
 
 ## 10.3 Input and shared work state — CONFIRMED
 
 - Tag and Year filter the existing work set; the Map keeps existing coordinates; the Wheel lists/selects only the filtered set.
 - Preserve mouse wheel, drag, touch/swipe and keyboard browsing as supported by the current product. Restrict input capture to intended controls; browsing should not steal clicks from the empty Graph field.
-- Wheel browsing may highlight the linked Point without showing the work card or detail drawer. Explicit activation may open the corresponding detail; dismiss it without losing the Wheel position or its filtered set. The standalone Wheel never dims the Graph.
+- Opening the Wheel alone does not select a work or open a card. Deliberate Wheel browsing selects the work at the station, highlights the same Point and shows its contextual Card without dimming the Graph. Explicit Wheel item or Point activation selects the same Work ID and opens its detail; ordinary Point hover/focus is transient. Closing the Wheel preserves the selected Work ID, position, filter and visible Card/Detail; Escape dismisses the active content before collapsing the Wheel. The standalone Wheel never dims the Graph.
 - Don't make scroll/drag or animation essential; provide visible or keyboard equivalents and verify the Reduced Motion final state.
+
+## 10.4 Scroll area, pickup and stopping — CONFIRMED for `/archive-rebuild/`
+
+- When open, the scroll area is the **interior of the visible semicircle**, centred on the right viewport edge and extending left into the page. The first vertical wheel/trackpad input on empty space above, between or below titles must work without a prior title or track hit. Use the rendered radius at the current viewport; the corners of the enclosing rectangle are outside. This is an input region, not a filled visual panel.
+- An unmoving pointer must keep working as labels pass beneath it. Process each packet once. Do not turn the region into a click/tap shield: Points, cards, drawers, links, controls, text entry and browser zoom keep their own interactions. Do not intercept ordinary page scrolling outside the Wheel or when it is closed. Clicking the visible title opens that exact work, including at compact widths.
+- Show fractional travel from the first light input and continue on subsequent paints; no pause waiting to decide if a gesture has ended. Accumulate intentional same-direction weak or spaced packets, but do not turn isolated noise or alternating jitter into an extra selection. Do not solve this by amplifying every delta.
+- Estimate velocity from distance over elapsed time. A fast burst coasts after release, slows, then settles by only the fractional distance to the work nearest the natural stopping point; a slow gesture with the same total travel need not coast as far. Interpolating to the last input target alone is not inertia. Do not double-amplify a single large input or a device-generated deceleration tail. Reverse from the rendered position immediately. At the list ends, on closing, filtering, confirmation or cancellation, do not resurrect motion/selection. Reduced Motion has no autonomous coast.
+- Acceptance uses native browser inputs from rest: sample upper/middle/lower passive space, a rectangle corner beyond the arc and the same point when closed. Record input-to-first-motion, the next visible motion, packet count, selected ID and final station. Include fixed-pointer `+8px ×12`, slow forward/back inputs, jitter, fast/slow equal travel, reversals and cancellation. An integer endpoint alone is not proof of smooth pickup. Browser automation is not a physical-device comfort test.
 
 ---
 
@@ -612,6 +634,8 @@ Avoid:
 
 
 ## 12.1 Spacing / keyline discipline — CONFIRMED
+
+**Text controls and overlays on `/archive-rebuild/`.** A label stands on its own: do not prefix or suffix Setting, Wheel, Enter, Contact, playback, navigation or work links with decorative lines. Apply the same rule to Tag / Year and each choice. Setting, Filter, Point preview and Detail have no enclosing border or hard-edged panel fill; group related content with type and spacing. A subtle backing for readability should fade to transparent before its edges. Represent state clearly (e.g. selected filter vs. keyboard focus vs. playing/paused). Keep accessible names, hit targets, touch activation without hover, visible keyboard focus and reduced-motion support. Only the central work label gets pointer hover emphasis (§10.2). Keep lines that convey data or make a control usable: slider tracks and thumbs, meter, waveform, Graph axes and Point crosses. Thumbnails remain images, not buttons restyled as words.
 
 All visual mocks and future implementation candidates must use a shared spacing/keyline system.
 
@@ -734,7 +758,7 @@ Closed-state pass requirements:
 - central Graph fully visible and unchanged
 - no Graph corner marks
 - closed Audio trigger is a micro edge indicator; no persistent WORK launcher
-- closed Archive terminal hints at the expanded arc using fading ticks only, not a visible rim or large rectangular button
+- closed Archive terminal uses its line-and-word trigger and fading ticks, not a visible rim or large rectangular button
 - no open-state composition should be treated as accepted until the closed state is approved
 
 
@@ -780,7 +804,7 @@ At 1600×1000:
 - no multi-row filter grid
 - no contradictory old layout rule is reintroduced
 - mouse can move slowly Point → gap → card → work link; keyboard and touch can reach the same work without changing coordinate placement
-- Wheel open/browse does not display a card by itself; filtered-out items cannot open one by pointer or keyboard
+- Opening the Wheel alone does not show a Card. Deliberate browsing moves neighboring labels together through the fixed station, and each station crossing keeps the current Work, active Point and Card in sync. Rapid input must not collapse the visible labels or leave a dead zone on reversal. With Reduced Motion, go directly to the new station. Filtered-out items cannot open a Card by pointer or keyboard.
 
 Return screenshots of:
 1. default / drawers closed

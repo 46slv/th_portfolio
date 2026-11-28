@@ -28,6 +28,7 @@ async function waitHidden(page, selector) {
   const browser = await chromium.launch({executablePath:process.env.CHROME_PATH||undefined,headless:true});
   try {
     const desktop = await browser.newContext({viewport:{width:1440,height:900},reducedMotion:'reduce'});
+    await desktop.route('https://img.youtube.com/**', route=>route.abort());
     const page = await desktop.newPage(); const errors=[];
     page.on('pageerror',e=>errors.push(e.message));
     await ready(page);
@@ -49,8 +50,8 @@ async function waitHidden(page, selector) {
     assert.deepEqual(await page.locator(near).boundingBox(),b,'card must not drift');
     assert.equal(await page.locator('#map-target').evaluate(x=>getComputedStyle(x).filter),'none');
     assert.deepEqual(await wheelState(),initialWheel);
-    assert.equal(await page.locator(near+' a').getAttribute('href'),href);
-    const link = await page.locator(near+' a').boundingBox();
+    assert.equal(await page.locator(near+' [data-preview-link]').getAttribute('href'),href);
+    const link = await page.locator(near+' [data-preview-link]').boundingBox();
     await desktop.route(href, route => route.fulfill({status:200,body:'Verified destination without contacting external site.'}));
     const popupPromise=page.waitForEvent('popup');
     await page.mouse.move(link.x+link.width/2,link.y+link.height/2,{steps:14});
@@ -66,7 +67,7 @@ async function waitHidden(page, selector) {
     await waitHidden(page,near);
     await p.focus();
     if (!(await page.locator(near).isVisible())) {
-      await page.locator('[data-trial-panel="filter"]').focus();
+      await page.locator('[data-trial-panel="tag"]').focus();
       await p.focus();
     }
     await page.locator(near).waitFor({state:'visible'});
@@ -83,7 +84,7 @@ async function waitHidden(page, selector) {
     await page.locator(near).waitFor({state:'visible'});
     await page.evaluate(()=>window.dispatchEvent(new Event('work-filters-applied')));
     await waitHidden(page,near);
-    await page.locator('[data-trial-panel="filter"]').focus();
+    await page.locator('[data-trial-panel="tag"]').focus();
     await page.mouse.move(cx,cy);
     await page.locator(near).waitFor({state:'visible'});
     await page.mouse.move(5,5,{steps:24});
@@ -93,6 +94,7 @@ async function waitHidden(page, selector) {
     console.log('desktop: gap, real link, focus, Escape, pointer exit, filter dismissal');
 
     const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+    await mobile.route('https://img.youtube.com/**', route=>route.abort());
     mobile.on('pageerror',e=>errors.push(e.message));
     await ready(mobile);
     const mp=await usablePoint(mobile);

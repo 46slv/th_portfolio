@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -8,8 +10,21 @@ import vm from 'node:vm';
 // network and DOM boundaries. No MP3 is read, fetched, decoded or played.
 const engineSource = readFileSync(new URL('../src/lib/audio/audioEngine.ts', import.meta.url), 'utf8');
 const mapSource = readFileSync(new URL('../src/components/WorksMap.astro', import.meta.url), 'utf8');
-const mapScript = stripTypeScriptTypes(mapSource.match(/<script>([\s\S]*?)<\/script>/)[1]
-  .replace(/\bimport[\s\S]*?from ['"][^'"]+['"];\s*/g, ''));
+// Bundle the real browser wiring, including the feature modules it mounts.
+// Only fixture ports are replaced; the engine exported to the VM below is real.
+const ports = {
+  audioEngine: 'getMeterLevel getAudioVisualFrame isAudioPlaying setDelay setAudioSceneStopped setDistortion setReverb setSpeed setVolume startAudio togglePlayback',
+  filterStore: 'applyWorkFilters setTag setYear',
+  VisualShift: 'startVisualShift setPlaybackRate freezeVisualShift',
+};
+const bundle = await build({
+  stdin: { contents:mapSource.match(/<script>([\s\S]*?)<\/script>/)[1], loader:'ts', resolveDir:fileURLToPath(new URL('../src/components/',import.meta.url)) },
+  bundle:true, write:false, format:'iife', platform:'browser', plugins:[{name:'fixture-ports',setup(b) {
+    b.onResolve({filter:/\/(audioEngine|filterStore|VisualShift)(?:\.ts)?$/}, a=>({path:a.path.split('/').at(-1).replace(/\.ts$/,''),namespace:'fixture'}));
+    b.onLoad({filter:/.*/,namespace:'fixture'}, a=>({contents:ports[a.path].split(' ').map(k=>`export const ${k}=globalThis.${k};`).join('\n')}));
+  }}]
+});
+const mapScript = bundle.outputFiles[0].text;
 
 function deferred() {
   let resolve, reject;
@@ -64,6 +79,7 @@ function createAudioUI({ base = '/', responses = [], failDecode = false, failRes
       contexts.push(this);
       this.state = 'suspended';
       this.currentTime = 0;
+      this.sampleRate = 48000;
       this.destination = {};
       this.nodes = [];
     }
@@ -74,6 +90,10 @@ function createAudioUI({ base = '/', responses = [], failDecode = false, failRes
     }
     async suspend() { this.state = 'suspended'; }
     async close() { this.state = 'closed'; this.closed = true; }
+    createBuffer(channels, length) {
+      const data = Array.from({ length: channels }, () => new Float32Array(length));
+      return { getChannelData: (channel) => data[channel] };
+    }
     async decodeAudioData() { decodes += 1; if (failDecode && contexts.length === 1) throw new Error('decode failed'); return {}; }
   }
   for (const name of ['BufferSource', 'Gain', 'Delay', 'Convolver', 'WaveShaper', 'Analyser', 'ChannelSplitter']) {
@@ -103,7 +123,7 @@ function createAudioUI({ base = '/', responses = [], failDecode = false, failRes
   });
   const script = stripTypeScriptTypes(engineSource.replace(/\bexport /g, '')
     .replaceAll('import.meta.env.BASE_URL', JSON.stringify(base)));
-  const engine = vm.runInContext(`(() => { ${script}\nreturn { startAudio, togglePlayback, isAudioPlaying, getAudioVisualFrame, getMeterLevel, setVolume, setSpeed, setDelay, setReverb, setDistortion }; })()`, context);
+  const engine = vm.runInContext(`(() => { ${script}\nreturn { startAudio, togglePlayback, isAudioPlaying, getAudioVisualFrame, getMeterLevel, setVolume, setSpeed, setDelay, setReverb, setDistortion, setAudioSceneStopped }; })()`, context);
   Object.assign(context, engine);
   vm.runInContext(mapScript, context, { filename: 'WorksMap.astro' });
   return { engine, overlay, button, body, tag, year, trigger, document, contexts, requests, errors, frames,
@@ -112,6 +132,49 @@ function createAudioUI({ base = '/', responses = [], failDecode = false, failRes
 
 const ok = () => ({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(1) });
 const flush = async () => { for (let count = 0; count < 20; count += 1) await Promise.resolve(); };
+
+test('the latest Master Gain applies before the first source starts after a delayed fetch', async () => {
+  const network = deferred();
+  const ui = createAudioUI({ responses: [network.promise] });
+  const starting = ui.overlay.dispatch('click');
+  await flush();
+  assert.equal(ui.requests.length, 1);
+  assert.equal(ui.contexts[0].nodes.length, 0, 'no GainNode exists during the fetch');
+  ui.engine.setVolume(0.31);
+  ui.engine.setVolume(0);
+  network.resolve(ok());
+  await starting;
+  const [source, gain] = ui.contexts[0].nodes;
+  assert.equal(source.started, true);
+  assert.equal(gain.gain.value, 0, 'retain explicit zero, not default gain');
+  ui.engine.setVolume(0.22);
+  assert.equal(gain.gain.value, 0.22);
+});
+
+for (const retry of [false, true]) {
+  test(`all audio settings apply on first source start ${retry ? 'after explicit retry' : 'after a delayed fetch'}`, async () => {
+    const pending = deferred();
+    const ui = createAudioUI({ responses: retry ? [{ ok: false, status: 503 }, pending.promise] : [pending.promise] });
+    const first = ui.overlay.dispatch('click');
+    if (retry) await first;
+    await flush();
+    ui.engine.setSpeed(0);
+    ui.engine.setDistortion(24);
+    ui.engine.setDelay(0.23);
+    ui.engine.setReverb(0.41);
+    const ready = retry ? ui.button.dispatch('click') : first;
+    pending.resolve(ok());
+    await ready;
+    const [source, , , delayGain, reverb, reverbGain, distortion] = ui.contexts.at(-1).nodes;
+    assert.equal(source.started, true);
+    assert.equal(source.playbackRate.value, 0);
+    assert.equal(delayGain.gain.value, 0.23);
+    assert.equal(reverbGain.gain.value, 0.41);
+    assert.equal(reverb.buffer.getChannelData(0).length, 120_000);
+    assert.equal(distortion.curve.length, 44_100);
+    assert.ok(source.connections.some(([node]) => node === distortion));
+  });
+}
 
 for (const base of ['/', '/th_portfolio/', '/th_portfolio']) {
   test(`audio uses configured base ${base} without autoplay`, async () => {
@@ -231,6 +294,27 @@ for (const failure of ['network', 'decode', 'resume', 'start']) {
     assert.equal(ui.engine.isAudioPlaying(), true);
   });
 }
+
+test('scene Stop holds an unfinished boot and does not override audio-only Pause on Resume', async () => {
+  const response = deferred();
+  const ui = createAudioUI({ responses: [response.promise] });
+  const initial = ui.engine.startAudio();
+  await flush();
+  await ui.engine.setAudioSceneStopped(true);
+  response.resolve(ok());
+  await initial;
+  const [context] = ui.contexts;
+  assert.equal(context.state, 'suspended');
+  assert.equal(ui.engine.getAudioVisualFrame(), null);
+  await ui.engine.setAudioSceneStopped(false);
+  assert.equal(ui.engine.isAudioPlaying(), true);
+  await ui.engine.togglePlayback();
+  await ui.engine.setAudioSceneStopped(true);
+  await ui.engine.setAudioSceneStopped(false);
+  assert.equal(context.state, 'suspended');
+  assert.equal(ui.contexts.length, 1);
+  assert.equal(ui.requests.length, 1);
+});
 
 test('overlay, filter and playback clicks during initial load stay single-flight', async () => {
   const response = deferred();

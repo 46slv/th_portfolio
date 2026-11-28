@@ -1,9 +1,12 @@
+import { archiveClock } from '../../lib/archiveClock';
+
 const FRAME_INTERVAL = 1000 / 15;
 
 let animationFrame = 0;
 let baseHue = 0;
 let playbackRate = 1;
 let active = false;
+let frozen = false;
 let lastFrameTime = 0;
 let lastFilter = "";
 let targets: HTMLElement[] = [];
@@ -75,6 +78,7 @@ function applyFilter(advanceHue: boolean) {
 
 function frame(timestamp: number) {
   animationFrame = 0;
+  if (frozen) return;
   if (!active || document.hidden || isNeutralRate()) {
     if (isNeutralRate()) clearFilter();
     return;
@@ -85,8 +89,9 @@ function frame(timestamp: number) {
     return;
   }
 
-  if (timestamp - lastFrameTime >= FRAME_INTERVAL) {
-    lastFrameTime = timestamp;
+  const now = archiveClock.now(timestamp);
+  if (now - lastFrameTime >= FRAME_INTERVAL) {
+    lastFrameTime = now;
     applyFilter(true);
   }
 
@@ -97,7 +102,7 @@ function syncVisualShift() {
   cancelAnimationFrame(animationFrame);
   animationFrame = 0;
 
-  if (!active) return;
+  if (!active || frozen) return;
   if (isNeutralRate()) {
     clearFilter();
     return;
@@ -115,6 +120,13 @@ export function startVisualShift() {
   active = true;
   updateStatus();
   syncVisualShift();
+}
+
+export function freezeVisualShift(stopped: boolean) {
+  frozen = stopped;
+  const previousFrame = lastFrameTime;
+  syncVisualShift();
+  lastFrameTime = previousFrame; // Hold the hue and the remaining fraction of its frame interval.
 }
 
 export function stopVisualShift() {

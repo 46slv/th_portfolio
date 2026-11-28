@@ -1,5 +1,6 @@
 ---
 import type { Work } from '../../types/work';
+import DrawerTrigger from '../ui/DrawerTrigger.astro';
 
 interface WheelEntry {
   id: string;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const { entries, centredTrial = false, cleanTrial = false } = Astro.props;
+const trialTrack = 'M 100 2 A 98 98 0 0 0 100 198';
 const trialTicks = Array.from({ length: 31 }, (_, i) => {
   const angle = (i - 15) * Math.PI / 30;
   const edge = Math.abs(i - 15) / 15;
@@ -25,42 +27,42 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
 });
 ---
 
-<section id="archive-wheel" class="archive-wheel is-collapsed" aria-label="Works archive wheel" tabindex="0" data-centred-trial={String(centredTrial)} data-clean-trial={String(cleanTrial)}>
-  {centredTrial && <svg class="archive-wheel__trial-arc" viewBox="0 0 100 200" aria-hidden="true">
-    <path data-trial-track d="M 100 2 A 98 98 0 0 0 100 198" fill="none" stroke="transparent" stroke-width="10" />
+<section id="archive-wheel" class="archive-wheel is-collapsed" aria-label="Works archive wheel" tabindex={cleanTrial ? -1 : 0} data-centred-trial={String(centredTrial)} data-clean-trial={String(cleanTrial)}>
+  {centredTrial && <svg class="archive-wheel__trial-arc" viewBox="0 0 100 200" preserveAspectRatio={cleanTrial ? 'none' : undefined} aria-hidden="true">
+    {cleanTrial && <path class="archive-wheel__arc-rim" d={trialTrack} fill="none" />}
+    <path data-trial-track d={trialTrack} fill="none" stroke="transparent" stroke-width="10" />
     {trialTicks.map((tick) => <line x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} opacity={tick.opacity}
       style={tick.blur > .1 ? ('filter:blur(' + tick.blur + 'px)') : undefined} />)}
   </svg>}
-  <button
-    type="button"
-    class="archive-wheel__toggle"
-    data-wheel-toggle
-    aria-label="Toggle archive wheel"
-    aria-expanded="false"
-  >
-    {cleanTrial ? <span class="archive-wheel__quiet-close" aria-hidden="true">×</span> : <span class="archive-wheel__toggle-mark"></span>}
-  </button>
+  <DrawerTrigger controls="archive-wheel-rail" class={cleanTrial ? 'archive-wheel__toggle line-action' : 'archive-wheel__toggle'} data-wheel-toggle aria-label="Toggle archive wheel">
+    {cleanTrial ? <>
+      <span class="archive-wheel__quiet-open line-action__word" aria-hidden="true"><span class="archive-wheel__arc-label">Wheel</span><span class="archive-wheel__portrait-label">Browse works</span></span>
+      <span class="archive-wheel__quiet-close line-action__word" aria-hidden="true">Close</span>
+    </> : <span class="archive-wheel__toggle-mark"></span>}
+  </DrawerTrigger>
   <div class="archive-wheel__step-controls" data-wheel-step-controls aria-label="Archive wheel rotation controls">
-    <button type="button" class="archive-wheel__step" data-wheel-step="-1" aria-label="Previous work">
-      <span class="archive-wheel__step-mark archive-wheel__step-mark--up"></span>
+    <button type="button" class={cleanTrial ? 'archive-wheel__step line-action' : 'archive-wheel__step'} data-wheel-step="-1" aria-label="Previous work">
+      {cleanTrial ? <span class="line-action__word"><span class="archive-wheel__arc-label">Prev</span><span class="archive-wheel__portrait-label">Previous</span></span> : <span class="archive-wheel__step-mark archive-wheel__step-mark--up"></span>}
     </button>
-    <button type="button" class="archive-wheel__step" data-wheel-step="1" aria-label="Next work">
-      <span class="archive-wheel__step-mark archive-wheel__step-mark--down"></span>
+    <button type="button" class={cleanTrial ? 'archive-wheel__step line-action' : 'archive-wheel__step'} data-wheel-step="1" aria-label="Next work">
+      {cleanTrial ? <span class="line-action__word">Next</span> : <span class="archive-wheel__step-mark archive-wheel__step-mark--down"></span>}
     </button>
   </div>
-  <div class="archive-wheel__rail" data-wheel-rail inert aria-hidden="true">
+  <div class="archive-wheel__rail" id="archive-wheel-rail" data-wheel-rail inert aria-hidden="true">
+    {cleanTrial && <p data-wheel-empty hidden>No works match these filters.</p>}
     {entries.map(({ id, work }, index) => (
       <button
         type="button"
-        class="archive-wheel__item"
+        class={cleanTrial ? 'archive-wheel__item line-action-wheel' : 'archive-wheel__item'}
         data-wheel-work
         data-work-id={id}
         data-wheel-index={index}
         aria-label={`${work.title} / ${work.artist}`}
       >
         <span class="archive-wheel__year">{work.year}</span>
-        <span class="archive-wheel__title">{work.title || 'Untitled'}</span>
+        <span class={cleanTrial ? 'archive-wheel__title line-action' : 'archive-wheel__title'}>{cleanTrial ? <span class="line-action__word">{work.title || 'Untitled'}</span> : (work.title || 'Untitled')}</span>
         <span class="archive-wheel__artist">{work.artist || 'Unknown'}</span>
+        {cleanTrial && <span class="archive-wheel__portrait-label archive-wheel__details" aria-hidden="true">Details</span>}
       </button>
     ))}
   </div>
@@ -415,8 +417,29 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
   :global(body:not(.is-blurred)) .archive-wheel[data-centred-trial="true"] { transform: translateY(-50%); }
   .archive-wheel[data-centred-trial="true"]::before,
   .archive-wheel[data-centred-trial="true"]::after { display: none; }
+  /* Only the open rebuild: a non-interactive, ellipse-sized material behind
+     the rail. The mask reaches zero at the same right-centred ellipse used
+     by insideOpenDisc; no edge stroke, hover response or new hit surface. */
+  .archive-wheel[data-centred-trial="true"][data-clean-trial="true"]:not(.is-collapsed)::before {
+    display:block; inset:0; width:100%; height:100%; border:0; border-radius:0;
+    transform:none; box-shadow:none; z-index:-1; pointer-events:none;
+    background:radial-gradient(ellipse 100% 50% at 100% 50%,
+      rgba(226,235,237,.01375) 0%, rgba(226,235,237,.01) 70%, transparent 100%);
+    transition:none;
+  }
+  @supports ((backdrop-filter:blur(4px)) and (mask-image:radial-gradient(ellipse, black, transparent))) {
+    .archive-wheel[data-centred-trial="true"][data-clean-trial="true"]:not(.is-collapsed)::before {
+      background:rgba(226,235,237,.01125);
+      backdrop-filter:blur(4px);
+      -webkit-backdrop-filter:blur(4px);
+      -webkit-mask-image:radial-gradient(ellipse 100% 50% at 100% 50%, black 0%, black 70%, transparent 100%);
+      mask-image:radial-gradient(ellipse 100% 50% at 100% 50%, black 0%, black 70%, transparent 100%);
+    }
+  }
   .archive-wheel__trial-arc { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
   .archive-wheel__trial-arc line { stroke:#c2cbcf; stroke-width:1; vector-effect:non-scaling-stroke; }
+  .archive-wheel__arc-rim { display:none; }
+  .archive-wheel[data-clean-trial="true"]:not(.is-collapsed) .archive-wheel__trial-arc line { display:none; }
   .archive-wheel__trial-arc [data-trial-track] { pointer-events:stroke; touch-action:none; cursor:grab; }
   .archive-wheel.is-collapsed .archive-wheel__trial-arc {
     transform:scale(.19); transform-origin:right center;
@@ -450,57 +473,116 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
     .archive-wheel[data-centred-trial="true"], .archive-wheel[data-centred-trial="true"] * { transition:none!important; }
   }
 
+  /* SVG paths have no CSS layout box: apply touch-action to the SVG viewport
+     so the browser does not cancel a track swipe to begin page panning. */
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__trial-arc { touch-action:none; }
   .archive-wheel[data-clean-trial="true"] .archive-wheel__item {
+    /* The render offset owns position and opacity; don't re-interpolate each label. */
+    transition: color .35s ease, border-color .35s ease;
     background:none; border-color:transparent;
+  }
+  .archive-wheel[data-clean-trial="true"]:not(.is-collapsed) .archive-wheel__item { border:0; }
+  /* Rebuild reading hierarchy: the centre is readable, adjacent stations stay
+     quieter through the existing distance opacity rather than tiny type. */
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__title { overflow:visible; font-size:12px; }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__item.is-selected .archive-wheel__title { font-size:14px; }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__year {
+    font-size:11px; letter-spacing:.02em; opacity:1; color:#9be5ef;
+  }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__artist {
+    font-size:11px; letter-spacing:0; color:#aebdc2;
+  }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__title .line-action__word {
+    max-width:100%; overflow:hidden; text-overflow:ellipsis;
   }
   .archive-wheel[data-clean-trial="true"] .archive-wheel__item.is-selected {
     border-color:rgba(103,232,255,.6); text-shadow:none;
   }
+  .archive-wheel[data-clean-trial="true"]:focus-visible { outline:none; }
+  .archive-wheel[data-clean-trial="true"]:focus-visible .archive-wheel__item.is-selected,
   .archive-wheel[data-clean-trial="true"] .archive-wheel__item:focus-visible {
     outline:1px solid rgba(103,232,255,.55); outline-offset:1px;
   }
+  .archive-wheel[data-clean-trial="true"] .archive-wheel__step-controls { right:26px; }
   .archive-wheel[data-clean-trial="true"] .archive-wheel__step {
-    opacity:0; pointer-events:none; background:#080c0e; border:none; border-radius:0;
+    opacity:0; pointer-events:none; background:transparent; border:none; border-radius:0;
+    width:74px; min-height:44px; justify-content:center;
   }
   .archive-wheel[data-clean-trial="true"] .archive-wheel__step:focus-visible {
     opacity:1; pointer-events:auto;
   }
   .archive-wheel[data-centred-trial="true"][data-clean-trial="true"] .archive-wheel__toggle {
-    right:8px; width:44px; height:44px; border:none; border-radius:0; background:none;
+    right:8px; width:80px; height:44px; border:none; border-radius:0; background:none;
   }
   .archive-wheel[data-centred-trial="true"][data-clean-trial="true"].is-collapsed .archive-wheel__toggle {
-    right:calc(var(--trial-r) * .19 - 24px); width:48px; height:56px;
+    right:4px; width:84px; height:44px;
+    border:0; border-radius:0; background:transparent;
   }
   .archive-wheel[data-clean-trial="true"] .archive-wheel__toggle:focus-visible { outline:none; }
   .archive-wheel[data-clean-trial="true"] .archive-wheel__toggle:focus-visible .archive-wheel__quiet-close {
-    color:#dcf6fb; text-shadow:0 0 8px #67e8ff; text-decoration:underline; text-underline-offset:4px;
-  }
-  .archive-wheel[data-clean-trial="true"].is-collapsed .archive-wheel__toggle:focus-visible {
-    outline:1px solid rgba(103,232,255,.45); outline-offset:-6px; border-radius:50%;
+    color:#dcf6fb; text-decoration:underline; text-underline-offset:4px;
   }
   @media(max-width:760px){
-    .archive-wheel[data-centred-trial="true"][data-clean-trial="true"] { --trial-r:min(36vw,29dvh,195px); }
-    .archive-wheel[data-clean-trial="true"] .archive-wheel__item { width:min(104px,31vw); padding-right:2px; }
+    /* Keep the browsing arc outside the narrow Graph's Point cluster. Labels
+       use the radius, not a fixed-width box projecting back into the Graph. */
+    .archive-wheel[data-centred-trial="true"][data-clean-trial="true"] { --trial-r:min(22vw,29dvh,96px); }
+    .archive-wheel[data-clean-trial="true"] .archive-wheel__item {
+      width:calc(var(--trial-r) - 8px); padding:4px;
+      grid-template-columns:minmax(0,1fr); column-gap:0;
+      grid-template-areas:"title" "year";
+    }
+    .archive-wheel[data-clean-trial="true"] .archive-wheel__artist { display:none; }
+    .archive-wheel[data-clean-trial="true"] .archive-wheel__year { font-size:11px; letter-spacing:0; }
+    .archive-wheel[data-clean-trial="true"] .archive-wheel__title { font-size:11px; }
+    .archive-wheel[data-clean-trial="true"] .archive-wheel__item.is-selected .archive-wheel__title { font-size:13px; }
+    .archive-wheel[data-centred-trial="true"][data-clean-trial="true"]:not(.is-collapsed) .archive-wheel__toggle {
+      top:-24px;
+    }
+    .archive-wheel[data-centred-trial="true"][data-clean-trial="true"] [data-trial-track] {
+      stroke-width:24px; vector-effect:non-scaling-stroke;
+    }
   }
-  .archive-wheel__quiet-close { font:17px/1 system-ui; color:#abb8bd; display:inline-block; }
-  .archive-wheel.is-collapsed .archive-wheel__quiet-close { visibility:hidden; }
+  @media(max-height:480px) {
+    /* A short landscape has a small arc despite desktop width. The toggle
+       otherwise sits on the centre title and steals its real click. */
+    .archive-wheel[data-centred-trial="true"][data-clean-trial="true"] .archive-wheel__item {
+      width:min(126px,calc(var(--trial-r) - 8px));
+    }
+    .archive-wheel[data-centred-trial="true"][data-clean-trial="true"]:not(.is-collapsed) .archive-wheel__toggle { top:-24px; }
+  }
+  .archive-wheel__quiet-close { font:11px/1 monospace; color:#c8d2d6; display:inline-block; }
+  .archive-wheel__quiet-open, .archive-wheel__portrait-label { display:none; }
+  .archive-wheel.is-collapsed .archive-wheel__quiet-open { display:inline-block; color:#edfaff; font:11px monospace; }
+  .archive-wheel.is-collapsed .archive-wheel__quiet-close { display:none; }
   .archive-wheel[data-clean-trial="true"] [data-trial-track] { stroke-width:22; }
   .archive-wheel[data-clean-trial="true"].is-collapsed [data-trial-track] { pointer-events:none; }
 </style>
 
 <script>
   import { getSelectedWork, setSelectedWork, subscribe } from '../../lib/workSelectionStore';
+  import { dispatchArchiveFilter, dispatchArchiveSelection, isArchiveWheelCommit } from '../../lib/archiveSelectionBrowser';
+  import { lightGestureGap, ownWheel, movedFromWheel, decideDirectWheel, decideDocumentWheel, insideWheelViewport, insideOpenDisc, resolveMeasuredWheel } from '../../lib/archiveWheelInput';
+  import type { WheelHit } from '../../lib/archiveWheelInput';
+  import { clampVelocity, projectCoast, advanceCoast } from '../../lib/archiveWheelCoast';
+  import { wheelDeltaPixels } from '../../lib/archiveWheelDelta';
+  import { estimateWheelSpeed } from '../../lib/archiveWheelSpeed';
+  import { archivePortraitMedia } from '../../lib/archivePortrait';
+  import { circularStationPose, stationEmphasis } from './wheelGeometry';
 
   const wheel = document.getElementById('archive-wheel');
   const rail = wheel?.querySelector<HTMLElement>('[data-wheel-rail]');
   const toggle = wheel?.querySelector<HTMLButtonElement>('[data-wheel-toggle]');
   const stepButtons = Array.from(wheel?.querySelectorAll<HTMLButtonElement>('[data-wheel-step]') ?? []);
+  const emptyReading = rail?.querySelector<HTMLElement>('[data-wheel-empty]');
   const items = Array.from(document.querySelectorAll<HTMLElement>('[data-wheel-work]'));
   const mapNodeById = new Map<string, HTMLElement>();
   const rowGap = 48;
   const cleanTrial = wheel?.dataset.cleanTrial === 'true';
   const centredTrial = wheel?.dataset.centredTrial === 'true';
-  const graphAnchor = centredTrial ? document.getElementById('map-target') : null;
+  const rebuild = centredTrial && cleanTrial && document.body.classList.contains('archive-rebuild');
+  const portrait = rebuild ? archivePortraitMedia() : null;
+  const blocked = () => Boolean(wheel?.closest('[inert]'));
+  const graphAnchor = centredTrial && !rebuild ? document.getElementById('map-target') : null;
   function alignTrial() {
     if (!wheel || !graphAnchor) return;
     const rect = graphAnchor.getBoundingClientRect();
@@ -513,17 +595,33 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
     window.addEventListener('scroll', alignTrial, { passive: true });
   }
   const wheelScrollDistance = 110;
+  // Light wheel travel has a shorter first detent, then rejoins the physical
+  // 110px/station scale. This maps distance, never the number of OS packets.
+  const lightDistance = 32;
+  const lightReach = .60;
+  const speckGap = 200; // isolated 1–2px sensor noise is not a continuing gesture
+  function mappedWheelDistance(pixels: number) {
+    const distance = Math.abs(pixels);
+    const steps = distance <= lightDistance ? distance * lightReach / lightDistance
+      : distance < wheelScrollDistance ? lightReach + (distance - lightDistance) * (1 - lightReach) / (wheelScrollDistance - lightDistance)
+      : distance / wheelScrollDistance;
+    return Math.sign(pixels) * steps;
+  }
   const wheelSettleDelay = 170;
   const dragStepDistance = 76;
   const renderRadius = 4;
   let selectedIndex = 0;
   let wheelOffset = 0;
   let dragging = false;
-  let dragStartY = 0;
+  let dragStartAxis = 0;
   let dragStartOffset = 0;
   let rotating = false;
   let settleTimer = 0;
   let layoutFrame = 0;
+  function clearFrame() {
+    cancelAnimationFrame(layoutFrame);
+    layoutFrame = 0;
+  }
   let pendingWheelOffset: number | null = null;
   let wheelScrollIntent: {
     startOffset: number;
@@ -532,6 +630,85 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
   } | null = null;
   let visibleItemList: HTMLElement[] = [];
   let renderedItems = new Set<HTMLElement>();
+  const reducedMotion = cleanTrial ? window.matchMedia('(prefers-reduced-motion:reduce)') : null;
+  // Bound catch-up from a single large packet; ordinary packets move the arc
+  // directly and measured velocity (never queued distance) drives the coast.
+  const scrollLookahead = 8;
+  let scrollTarget: number | null = null;
+  let scrollDirection = 0;
+  let lastScrollFrame: number | null = null;
+  let coastOrigin: number | null = null;
+  let coastReach = 0;
+  let coastElapsed = 0;
+  let wheelSamples: { at: number; pixels: number }[] = [];
+  let lastWheelInput = 0;
+  let wheelHadBacklog = false;
+  let directWheelOffset: number | null = null; // input-only position; coast may lead it
+  let lightTarget: number | null = null;
+  let lastWheelHit: WheelHit | null = null;
+  let ownerTimer = 0;
+  function clearWheelOwnership() {
+    lastWheelHit = null;
+    window.clearTimeout(ownerTimer);
+    ownerTimer = 0;
+  }
+  function ownWheelAt(x: number, y: number) {
+    lastWheelHit = ownWheel(lastWheelHit, { x, y, at: nowMs() });
+    window.clearTimeout(ownerTimer);
+    ownerTimer = window.setTimeout(clearWheelOwnership, lightGestureGap);
+  }
+  const trialArc = cleanTrial ? wheel?.querySelector<SVGSVGElement>('.archive-wheel__trial-arc') : null;
+  function handleCleanWheel(event: WheelEvent) {
+    if (event.defaultPrevented) return; // Already consumed by the direct listener (or another owner).
+    const active = Boolean(wheel && !wheel.classList.contains('is-collapsed') && !blocked());
+    const target = event.target as Element;
+    const classify = active && !event.ctrlKey;
+    const decision = decideDocumentWheel({
+      defaultPrevented: event.defaultPrevented, active, ctrlKey: event.ctrlKey,
+      // Classify only when active. Protected surfaces beat both continuation
+      // and a direct title/track hit in the document fallback.
+      directHit: classify && Boolean(target.closest('[data-trial-track],[data-wheel-work]')),
+      protectedHit: classify && Boolean(target.closest('[data-work],#point-preview,#trial-detail,.trial-drawer,#archive-trial-controls,#start-overlay,[data-wheel-toggle],[data-wheel-step],button:not([data-wheel-work]),a,input,textarea,select,summary,label,[role="button"],[contenteditable="true"]')),
+      x: event.clientX, y: event.clientY, at: nowMs(), lastHit: lastWheelHit,
+    });
+    // Only a fresh passive packet can require layout. Never measure for a
+    // direct hit, continuation, protected surface or previously handled event.
+    let outcome = decision;
+    if (decision === 'measure') {
+      const point = { x: event.clientX, y: event.clientY };
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      outcome = resolveMeasuredWheel(insideOpenDisc(
+        point, viewport, !portrait?.matches && insideWheelViewport(point, viewport) ? trialArc?.getBoundingClientRect() ?? null : null,
+      ));
+    }
+    if (outcome === 'clear') clearWheelOwnership();
+    if (outcome !== 'consume') return;
+    event.preventDefault();
+    ownWheelAt(event.clientX, event.clientY);
+    rotateByPixels(wheelDeltaPixels(event, window));
+  }
+  if (cleanTrial) document.addEventListener('wheel', handleCleanWheel, { passive: false });
+  const compactQuery = centredTrial && cleanTrial ? window.matchMedia('(max-width:760px)') : null;
+  let trialRadius = centredTrial ? wheel?.clientWidth : undefined;
+  if (centredTrial && wheel) new ResizeObserver(() => { trialRadius = wheel.clientWidth; layoutWheel(); }).observe(wheel);
+  let reducedWheelOrigin = 0;
+  let reducedWheelPixels = 0;
+  let gestureOrigin = 0;
+  let gesturePixels = 0;
+  let dragPointer: number | null = null;
+  let dragLastAxis = 0;
+  const dragCoordinate = (event: PointerEvent) => portrait?.matches ? event.clientX : event.clientY;
+  let dragSamples: { at: number; offset: number }[] = [];
+  let suppressDragClick = false;
+  let dragEndClick: { x: number; y: number; at: number } | null = null;
+  const nowMs = () => performance.now();
+  function quietVelocity(samples: { at: number; offset: number }[], now: number) {
+    const recent = samples.filter(s => now - s.at <= 125);
+    if (recent.length < 2 || recent.at(-1)!.at - recent[0].at < 12 ||
+        now - recent.at(-1)!.at > 85) return 0;
+    const elapsed = recent.at(-1)!.at - recent[0].at;
+    return clampVelocity((recent.at(-1)!.offset - recent[0].offset) / elapsed);
+  }
 
   document.querySelectorAll<HTMLElement>('[data-work][data-work-id]').forEach((node) => {
     const id = node.dataset.workId;
@@ -543,24 +720,43 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
     if (wasCollapsed === collapsed) return;
 
     wheel?.classList.toggle('is-collapsed', collapsed);
+    if (wheel && cleanTrial) wheel.tabIndex = collapsed ? -1 : 0;
     toggle?.setAttribute('aria-expanded', String(!collapsed));
+    syncToggleName();
     rail?.toggleAttribute('inert', collapsed);
     rail?.setAttribute('aria-hidden', String(collapsed));
     if (collapsed) {
-      clearSettleTimer();
-      cancelAnimationFrame(layoutFrame);
-      layoutFrame = 0;
-      pendingWheelOffset = null;
-      wheelScrollIntent = null;
-      rotating = false;
-      dragging = false;
-      wheel?.classList.remove('is-dragging');
+      cancelWheelMotion();
       wheelOffset = selectedIndex;
-      setSelectedWork(null);
+      if (!cleanTrial) setSelectedWork(null);
+      if (portrait?.matches) window.dispatchEvent(new Event('archive-preview-dismiss'));
     } else {
+      if (rebuild && getSelectedWork() === null) {
+        const id = visibleItems()[nearestIndex()]?.dataset.workId;
+        // Use the commit-only title intent without a click. The store subscriber renders;
+        // the station event would also show a Point preview.
+        if (id && dispatchArchiveSelection({ kind: 'wheel-title', workId: id }).changed) return;
+      }
       layoutWheel(true);
     }
   }
+
+  function syncToggleName() {
+    if (!portrait) return;
+    const collapsed = wheel?.classList.contains('is-collapsed');
+    toggle?.setAttribute('aria-label', portrait.matches
+      ? collapsed ? 'Browse works' : 'Close works browser'
+      : collapsed ? 'Open archive wheel' : 'Close archive wheel');
+  }
+  syncToggleName();
+  if (portrait) wheel?.addEventListener('archive-wheel-collapse', () => setCollapsed(true));
+  portrait?.addEventListener('change', () => {
+    cancelWheelMotion();
+    wheelOffset = selectedIndex;
+    trialRadius = wheel?.clientWidth;
+    syncToggleName();
+    layoutWheel();
+  });
 
   function rebuildVisibleItems() {
     visibleItemList = items.filter((item) => !item.classList.contains('is-hidden'));
@@ -591,14 +787,41 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
   }
 
   function clearSettleTimer() {
-    if (settleTimer) {
-      window.clearTimeout(settleTimer);
-      settleTimer = 0;
-    }
+    window.clearTimeout(settleTimer);
+    settleTimer = 0;
+  }
+
+  function cancelWheelMotion() {
+    clearSettleTimer();
+    clearFrame();
+    pendingWheelOffset = null;
+    wheelScrollIntent = null;
+    scrollTarget = null;
+    scrollDirection = 0;
+    lastScrollFrame = null;
+    coastOrigin = null;
+    coastElapsed = 0;
+    wheelSamples = [];
+    wheelHadBacklog = false;
+    directWheelOffset = null;
+    lightTarget = null;
+    clearWheelOwnership();
+    reducedWheelPixels = 0;
+    gesturePixels = 0;
+    scrollDirection = 0;
+    lastWheelInput = 0;
+    const captured = dragPointer;
+    dragPointer = null;
+    if (captured !== null && wheel?.hasPointerCapture(captured)) wheel.releasePointerCapture(captured);
+    dragSamples = [];
+    rotating = false;
+    dragging = false;
+    wheel?.classList.remove('is-dragging');
   }
 
   function syncFilteredItems() {
-    wheelScrollIntent = null;
+    if (cleanTrial) cancelWheelMotion();
+    else wheelScrollIntent = null;
     items.forEach((item) => {
       const id = item.dataset.workId;
       const mapNode = id ? mapNodeById.get(id) : null;
@@ -607,26 +830,31 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
 
     rebuildVisibleItems();
 
-    const selectedId = getSelectedWork();
     const list = visibleItems();
-    if (!list.length) {
-      setSelectedWork(null);
-      layoutWheel();
-      return;
-    }
-
-    const selectedVisibleIndex = list.findIndex((item) => item.dataset.workId === selectedId);
-    if (selectedVisibleIndex >= 0) {
-      selectedIndex = selectedVisibleIndex;
-      wheelOffset = selectedVisibleIndex;
+    if (cleanTrial) {
+      dispatchArchiveFilter(list.map(item => item.dataset.workId ?? ''), selectedIndex, (station) => {
+        if (station.kind === 'set') {
+          selectedIndex = station.index;
+          wheelOffset = selectedIndex;
+        }
+      });
     } else {
-      selectedIndex = clampIndex(selectedIndex);
-      wheelOffset = selectedIndex;
-      if (selectedId) {
+      const selectedId = getSelectedWork();
+      if (!list.length) {
         setSelectedWork(null);
+        layoutWheel();
+        return;
+      }
+      const selectedVisibleIndex = list.findIndex((item) => item.dataset.workId === selectedId);
+      if (selectedVisibleIndex >= 0) {
+        selectedIndex = selectedVisibleIndex;
+        wheelOffset = selectedVisibleIndex;
+      } else {
+        selectedIndex = clampIndex(selectedIndex);
+        wheelOffset = selectedIndex;
+        if (selectedId) setSelectedWork(null);
       }
     }
-
     layoutWheel();
   }
 
@@ -637,9 +865,188 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
     selectedIndex = clampIndex(index);
     wheelOffset = selectedIndex;
     const nextId = list[selectedIndex]?.dataset.workId ?? null;
-    const changed = getSelectedWork() !== nextId;
-    setSelectedWork(nextId);
-    if (!changed) layoutWheel();
+    if (!publishWheelSelection(nextId)) layoutWheel();
+  }
+
+  function publishWheelSelection(id: string | null) {
+    if (cleanTrial) return dispatchArchiveSelection({ kind: 'wheel-station', workId: id }).changed;
+    const changed = getSelectedWork() !== id;
+    setSelectedWork(id);
+    return changed;
+  }
+
+  function publishRenderedStation(force = false) {
+    const index = nearestIndex();
+    if (index !== selectedIndex || force) {
+      selectedIndex = index;
+      if (publishWheelSelection(visibleItems()[index]?.dataset.workId ?? null)) return;
+    }
+    layoutWheel();
+  }
+
+  function animateScroll(now: number) {
+    layoutFrame = 0;
+    const target = scrollTarget ?? wheelOffset;
+    if (scrollTarget === null && lightTarget === null) {
+      publishRenderedStation();
+      return;
+    }
+    const elapsed = lastScrollFrame === null ? 16.7 : Math.max(0, Math.min(32, now - lastScrollFrame));
+    lastScrollFrame = now;
+    if (lightTarget !== null) {
+      // Small packets render on the first paint. Below the midpoint the
+      // fractional position remains available to sparse packets; above it the
+      // detent starts moving immediately, independently of the intent gap.
+      const distance = lightTarget - wheelOffset;
+      // Keep sub-midpoint fractional travel alive through sparse physical
+      // packets; it approaches its budget rather than freezing or rewinding.
+      const responseMs = Math.abs(lightTarget - gestureOrigin) < .5 ? 260 : 90;
+      wheelOffset = Math.abs(distance) < .002 ? lightTarget :
+        clampOffset(wheelOffset + distance * (1 - Math.exp(-elapsed / responseMs)));
+      if (Math.abs(lightTarget - wheelOffset) >= .002) requestScrollFrame();
+    } else if (reducedMotion?.matches) {
+      wheelOffset = clampOffset(Math.round(target));
+      scrollTarget = null;
+      coastOrigin = null;
+      rotating = false;
+    } else if (coastOrigin !== null) {
+      coastElapsed += elapsed;
+      const frame = advanceCoast(coastOrigin, coastReach, target, coastElapsed, visibleItems().length);
+      wheelOffset = frame.offset;
+      if (frame.stopped) {
+        scrollTarget = null;
+        coastOrigin = null;
+        rotating = false;
+      }
+    } else {
+      // Large isolated packets traverse the intermediate labels at bounded speed.
+      const distance = target - wheelOffset;
+      const stride = Math.min(.40, elapsed * Math.max(.007, Math.min(.022, Math.abs(distance) * .006)));
+      wheelOffset = Math.abs(distance) <= Math.max(.001, stride) ? target : wheelOffset + Math.sign(distance) * stride;
+      if (wheelOffset === target) {
+        scrollTarget = null;
+        startCoast(0);
+      }
+    }
+    publishRenderedStation(scrollTarget === null && lightTarget === null);
+    if (scrollTarget !== null) requestScrollFrame();
+    else lastScrollFrame = null;
+  }
+
+  function requestScrollFrame() {
+    if (!layoutFrame) layoutFrame = requestAnimationFrame(animateScroll);
+  }
+
+  function scrollContinuously(rawPixels: number) {
+    if (dragging) return;
+    const now = nowMs();
+    const pixels = Math.max(-880, Math.min(880, rawPixels));
+    const direction = Math.sign(pixels);
+    if (reducedMotion?.matches) {
+      if (now - lastWheelInput > lightGestureGap || scrollDirection !== direction ||
+          (Math.abs(pixels) <= 2 && Math.abs(reducedWheelPixels) < 8 && now - lastWheelInput > speckGap)) {
+        reducedWheelOrigin = nearestIndex();
+        reducedWheelPixels = 0;
+      }
+      lastWheelInput = now;
+      scrollDirection = direction;
+      reducedWheelPixels += pixels;
+      wheelOffset = clampOffset(Math.round(reducedWheelOrigin + mappedWheelDistance(reducedWheelPixels)));
+      rotating = false;
+      publishRenderedStation(true);
+      return;
+    }
+    const reverse = scrollDirection !== direction;
+    const speckFresh = Math.abs(pixels) <= 2 && Math.abs(gesturePixels) < 8 && now - lastWheelInput > speckGap;
+    const fresh = now - lastWheelInput > lightGestureGap || reverse || speckFresh;
+    if (fresh) {
+      // Abandon only an isolated sub-8px noise trace; otherwise all reversals
+      // and intentional gestures start at the actual drawn position.
+      if (speckFresh && !reverse) wheelOffset = clampOffset(Math.round(wheelOffset));
+      wheelSamples = [];
+      wheelHadBacklog = false;
+      directWheelOffset = null;
+      gestureOrigin = wheelOffset; // especially on reversal, use the drawn arc
+      gesturePixels = 0;
+    }
+    gesturePixels += pixels;
+    lastWheelInput = now;
+    scrollDirection = direction;
+    const wasCoasting = coastOrigin !== null;
+    const drawnBeforeInput = wheelOffset;
+    coastOrigin = null;
+    lightTarget = null;
+    rotating = true;
+    // A reversal always starts at the drawn position, even during a large
+    // packet's pending catch-up. Projected coast is credited against packets
+    // already delivered by the OS, never added again as another gain.
+    if (Math.abs(pixels) > 220 || (!reverse && wheelHadBacklog && scrollTarget !== null)) {
+      wheelHadBacklog = true;
+      directWheelOffset = null;
+      const origin = reverse || wasCoasting ? wheelOffset : scrollTarget ?? wheelOffset;
+      scrollTarget = clampOffset(Math.max(wheelOffset - scrollLookahead, Math.min(wheelOffset + scrollLookahead,
+        origin + pixels / wheelScrollDistance)));
+      requestScrollFrame();
+    } else {
+      clearFrame();
+      scrollTarget = null;
+      // Input is cumulative ground truth. Credit whatever was already drawn
+      // by coast without ever rewinding on another same-sign native packet.
+      directWheelOffset = clampOffset(gestureOrigin + mappedWheelDistance(gesturePixels));
+      wheelOffset = direction > 0 ? Math.max(wheelOffset, directWheelOffset) : Math.min(wheelOffset, directWheelOffset);
+      requestScrollFrame();
+    }
+    const { samples, speed, lastGap } = estimateWheelSpeed(
+      wheelSamples, rawPixels, pixels, now, wheelHadBacklog, wheelScrollDistance);
+    wheelSamples = samples;
+    // Replace the prediction with the most recent measured speed on every
+    // packet. A native taper cannot inherit its earlier peak or add it twice.
+    // Do not magnetize a light gesture back between its sparse packets. Its
+    // fractional offset stays drawn until the gesture actually goes quiet.
+    const light = Math.abs(gesturePixels) <= 40 && !wheelHadBacklog;
+    if (light) {
+      // Keep the physical distance as intent, not as a 420ms visual gate.
+      // A sub-midpoint packet first paints a fraction and can accumulate with
+      // sparse siblings without oscillating back to the old station.
+      const input = clampOffset(gestureOrigin + mappedWheelDistance(gesturePixels));
+      const detent = clampOffset(Math.round(input));
+      const destination = Math.abs(input - gestureOrigin) < .5 ? input : detent;
+      // Stage the first fraction rather than jumping directly to the input
+      // budget. Subsequent paints approach it, including below-midpoint input.
+      wheelOffset = clampOffset(drawnBeforeInput + (wheelOffset - drawnBeforeInput) * .40);
+      lightTarget = direction > 0 ? Math.max(wheelOffset, destination) : Math.min(wheelOffset, destination);
+      requestScrollFrame();
+    } else if (scrollTarget === null) startCoast(speed, directWheelOffset ?? wheelOffset);
+
+    clearSettleTimer();
+    settleTimer = window.setTimeout(() => {
+      settleTimer = 0;
+      wheelSamples = [];
+      if (coastOrigin !== null) return;
+      if (lightTarget !== null) {
+        lightTarget = null;
+        const input = directWheelOffset ?? wheelOffset;
+        startCoast(0, Math.round(input) === Math.round(wheelOffset) ? wheelOffset : input);
+      } else if (scrollTarget === null) startCoast(0);
+    }, light ? lightGestureGap : samples.length > 1 ? Math.max(115, Math.min(230, lastGap * 1.4)) : 230);
+  }
+
+  function startCoast(speed: number, inputOrigin = wheelOffset) {
+    lightTarget = null;
+    // Magnetic progress between OS packets is not an additional wheel delta.
+    const { reach, detent, atRest } = projectCoast(speed, inputOrigin, wheelOffset, visibleItems().length);
+    if (atRest) {
+      scrollTarget = null;
+      rotating = false;
+      return;
+    }
+    coastOrigin = wheelOffset;
+    coastReach = reach;
+    coastElapsed = 0;
+    scrollTarget = detent;
+    rotating = true;
+    lastScrollFrame = null;
+    requestScrollFrame();
   }
 
   function setWheelOffset(index: number) {
@@ -651,14 +1058,20 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
       if (pendingWheelOffset === null) return;
       wheelOffset = pendingWheelOffset;
       pendingWheelOffset = null;
+      if (cleanTrial && rotating) {
+        const index = nearestIndex();
+        if (index !== selectedIndex) {
+          selectedIndex = index;
+          if (publishWheelSelection(visibleItems()[index]?.dataset.workId ?? null)) return;
+        }
+      }
       layoutWheel();
     });
   }
 
   function flushWheelOffset() {
     if (pendingWheelOffset === null) return;
-    cancelAnimationFrame(layoutFrame);
-    layoutFrame = 0;
+    clearFrame();
     wheelOffset = pendingWheelOffset;
     pendingWheelOffset = null;
   }
@@ -699,6 +1112,10 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
     const list = visibleItems();
     if (!list.length || !pixels || !Number.isFinite(pixels)) return;
     setCollapsed(false);
+    if (cleanTrial) {
+      scrollContinuously(pixels);
+      return;
+    }
     rotating = true;
     wheelScrollIntent ??= {
       startOffset: pendingWheelOffset ?? wheelOffset,
@@ -719,15 +1136,19 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
 
     const list = visibleItems();
     const selectedId = getSelectedWork();
+    const readingDock = portrait?.matches ?? false;
+    const focusedItem = document.activeElement;
+    const hadItemFocus = focusedItem instanceof HTMLElement && renderedItems.has(focusedItem);
+    if (emptyReading) emptyReading.hidden = !rebuild || list.length > 0;
+    for (const step of stepButtons) {
+      if (rebuild && !list.length) step.setAttribute('aria-disabled', 'true');
+      else step.removeAttribute('aria-disabled');
+    }
     if (!list.length) {
       rail?.setAttribute('data-empty', 'true');
-      renderedItems.forEach((item) => {
-        item.classList.remove('is-selected');
-        item.style.visibility = 'hidden';
-        item.style.opacity = '0';
-        item.style.pointerEvents = 'none';
-      });
+      renderedItems.forEach(hideStation);
       renderedItems.clear();
+      if (readingDock && hadItemFocus) toggle?.focus({ preventScroll: true });
       return;
     }
 
@@ -739,126 +1160,215 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
     }
 
     const centerIndex = nearestIndex();
-    const startIndex = Math.max(0, Math.floor(wheelOffset) - renderRadius);
-    const endIndex = Math.min(list.length - 1, Math.ceil(wheelOffset) + renderRadius);
+    if (rebuild && wheel) wheel.dataset.wheelOffset = String(wheelOffset);
+    const startIndex = readingDock ? centerIndex : Math.max(0, Math.floor(wheelOffset) - renderRadius);
+    const endIndex = readingDock ? centerIndex : Math.min(list.length - 1, Math.ceil(wheelOffset) + renderRadius);
     const nextRenderedItems = new Set<HTMLElement>();
+    const compact = compactQuery?.matches ?? false;
+    const radius = trialRadius;
 
     for (let visibleIndex = startIndex; visibleIndex <= endIndex; visibleIndex += 1) {
       const item = list[visibleIndex];
       if (!item) continue;
       nextRenderedItems.add(item);
+      if (readingDock) {
+        item.classList.add('is-selected');
+        item.setAttribute('aria-current', 'true');
+        item.style.visibility = 'visible';
+        item.style.opacity = '1';
+        item.style.transform = '';
+        item.style.pointerEvents = 'auto';
+        item.tabIndex = 0;
+        continue;
+      }
       const distance = visibleIndex - wheelOffset;
-      const abs = Math.abs(distance);
-      const curveX = Math.min(54, abs * abs * 5.5);
-      const rotate = distance * -2.8;
-      const opacity = abs < 0.45 ? 1 : abs < 1.45 ? 0.86 : abs < 2.45 ? 0.68 : 0.42;
-      const scale = abs < 0.45 ? 1 : abs < 1.45 ? 0.97 : abs < 2.45 ? 0.92 : 0.86;
+      const current = visibleIndex === centerIndex;
+      item.classList.toggle('is-selected', current);
+      if (rebuild && current) item.setAttribute('aria-current', 'true');
+      else item.removeAttribute('aria-current');
 
-      item.classList.toggle('is-selected', visibleIndex === centerIndex);
-      item.style.visibility = 'visible';
-      item.style.opacity = String(opacity);
-      item.style.transform = `translate3d(${-curveX}px, ${distance * rowGap}px, 0) rotate(${rotate}deg) scale(${scale})`;
-      item.style.pointerEvents = abs > 3 ? 'none' : 'auto';
-      if (cleanTrial) item.tabIndex = abs <= 3 ? 0 : -1;
-      if (centredTrial && wheel) {
-        const radius = wheel.clientWidth;
-        const angle = distance * .30;
-        const x = -(radius - 6) * Math.cos(angle);
-        const y = (radius - 6) * Math.sin(angle);
-        const withinArc = Math.abs(angle) < 1.43;
-        item.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0) translateY(-50%) rotate(' + (-angle) + 'rad) scale(' + scale + ')';
+      if (radius !== undefined) {
+        const { x, y, rotation, scale, withinArc, opacity, selectable } = circularStationPose(distance, radius, compact, cleanTrial);
+        item.style.transform = `translate3d(${x}px, ${y}px, 0) translateY(-50%) rotate(${rotation}rad) scale(${scale})`;
         item.style.visibility = withinArc ? 'visible' : 'hidden';
-        item.style.pointerEvents = withinArc && abs < 3.6 ? 'auto' : 'none';
+        item.style.opacity = String(opacity);
+        item.style.pointerEvents = selectable ? 'auto' : 'none';
+        if (cleanTrial) item.tabIndex = selectable ? 0 : -1;
+      } else {
+        const abs = Math.abs(distance);
+        const { opacity, scale } = stationEmphasis(abs);
+        const curveX = Math.min(54, abs * abs * 5.5);
+        const rotate = distance * -2.8;
+        item.style.visibility = 'visible';
+        item.style.opacity = String(opacity);
+        item.style.transform = `translate3d(${-curveX}px, ${distance * rowGap}px, 0) rotate(${rotate}deg) scale(${scale})`;
+        item.style.pointerEvents = abs > 3 ? 'none' : 'auto';
+        if (cleanTrial) item.tabIndex = abs <= 3 ? 0 : -1;
       }
     }
 
     renderedItems.forEach((item) => {
-      if (nextRenderedItems.has(item)) return;
-      item.classList.remove('is-selected');
-      item.style.visibility = 'hidden';
-      item.style.opacity = '0';
-      item.style.pointerEvents = 'none';
+      if (!nextRenderedItems.has(item)) hideStation(item);
     });
     renderedItems = nextRenderedItems;
+    if (hadItemFocus && (readingDock ? focusedItem !== list[centerIndex] : rebuild && focusedItem.tabIndex < 0)) {
+      list[centerIndex]?.focus({ preventScroll: true });
+    }
+  }
+
+  function hideStation(item: HTMLElement) {
+    item.classList.remove('is-selected');
+    item.removeAttribute('aria-current');
+    item.style.visibility = 'hidden';
+    item.style.opacity = '0';
+    item.style.pointerEvents = 'none';
+    if (cleanTrial) item.tabIndex = -1;
   }
 
   wheel?.addEventListener('wheel', (event) => {
+    if (blocked()) return;
+    if (cleanTrial) {
+      const collapsed = wheel.classList.contains('is-collapsed');
+      const target = event.target as Element;
+      const controlHit = !collapsed && !event.ctrlKey && Boolean(target.closest('[data-wheel-toggle],[data-wheel-step]'));
+      const decision = decideDirectWheel({
+        collapsed, ctrlKey: event.ctrlKey, controlHit,
+        directHit: !collapsed && !event.ctrlKey && !controlHit && Boolean(target.closest('[data-trial-track],[data-wheel-work]')),
+        x: event.clientX, y: event.clientY, at: nowMs(), lastHit: lastWheelHit,
+      });
+      if (decision === 'clear') clearWheelOwnership();
+      if (decision !== 'consume') return; // document fallback receives unconsumed packets
+      ownWheelAt(event.clientX, event.clientY);
+    }
     event.preventDefault();
-    const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-    const rawDelta = event.deltaY * modeMultiplier;
-    rotateByPixels(rawDelta);
+    rotateByPixels(wheelDeltaPixels(event, window));
   }, { passive: false });
 
   wheel?.addEventListener('keydown', (event) => {
+    if (blocked() || (cleanTrial && wheel.classList.contains('is-collapsed'))) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
       event.preventDefault();
+      if (cleanTrial) cancelWheelMotion();
       selectVisibleIndex(selectedIndex + 1);
     }
     if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
       event.preventDefault();
+      if (cleanTrial) cancelWheelMotion();
       selectVisibleIndex(selectedIndex - 1);
     }
   });
 
   wheel?.addEventListener('pointerdown', (event) => {
-    if ((event.target as HTMLElement).closest('[data-wheel-toggle]')) return;
-    if ((event.target as HTMLElement).closest('[data-wheel-step]')) return;
-    if (centredTrial && !(event.target as Element).closest('[data-trial-track]')) return;
+    if (blocked()) return;
+    const target = event.target as Element;
+    if (target.closest('[data-wheel-toggle],[data-wheel-step]')) return;
+    if (portrait?.matches) {
+      if (!event.isPrimary || event.button !== 0 || !target.closest('[data-wheel-work]')) return;
+    } else if (centredTrial && !target.closest('[data-trial-track]')) return;
     setCollapsed(false);
-    clearSettleTimer();
+    if (cleanTrial) cancelWheelMotion();
+    else clearSettleTimer();
     wheelScrollIntent = null;
     rotating = true;
     dragging = true;
-    wheel.classList.add('is-dragging');
-    dragStartY = event.clientY;
+    dragPointer = event.pointerId;
+    dragStartAxis = dragLastAxis = dragCoordinate(event);
+    dragSamples = [{ at: nowMs(), offset: wheelOffset }];
+    suppressDragClick = false;
+    dragEndClick = null;
     dragStartOffset = wheelOffset;
-    wheel.setPointerCapture(event.pointerId);
+    // Preserve an ordinary tap on the title. Capture only a real dock swipe.
+    if (!portrait?.matches) {
+      wheel.classList.add('is-dragging');
+      wheel.setPointerCapture(event.pointerId);
+    }
   });
 
+  if (cleanTrial) document.addEventListener('pointermove', (event) => {
+    if (movedFromWheel(lastWheelHit, { x: event.clientX, y: event.clientY })) clearWheelOwnership();
+  }, { passive:true });
   wheel?.addEventListener('pointermove', (event) => {
-    if (!dragging) return;
-    const delta = (event.clientY - dragStartY) / dragStepDistance;
-    setWheelOffset(dragStartOffset - delta);
+    if (!dragging || (cleanTrial && event.pointerId !== dragPointer)) return;
+    if (cleanTrial) {
+      const axis = dragCoordinate(event);
+      const moved = Math.abs(axis - dragStartAxis) > 8;
+      if (portrait?.matches && !suppressDragClick) {
+        if (!moved) return;
+        wheel.setPointerCapture(event.pointerId);
+        wheel.classList.add('is-dragging');
+      }
+      const change = Math.max(-180, Math.min(180, axis - dragLastAxis));
+      dragLastAxis = axis;
+      wheelOffset = clampOffset(wheelOffset - change / dragStepDistance);
+      suppressDragClick ||= moved;
+      const at = nowMs();
+      dragSamples.push({ at, offset: wheelOffset });
+      dragSamples = dragSamples.filter(s => at - s.at <= 125);
+      publishRenderedStation();
+    } else {
+      const delta = (event.clientY - dragStartAxis) / dragStepDistance;
+      setWheelOffset(dragStartOffset - delta);
+    }
   });
 
-  wheel?.addEventListener('pointerup', (event) => {
-    if (!dragging) return;
+  function endDrag(event: PointerEvent, canceled: boolean) {
+    if (!dragging || (cleanTrial && event.pointerId !== dragPointer)) return;
     dragging = false;
-    wheel.classList.remove('is-dragging');
-    if (wheel.hasPointerCapture(event.pointerId)) {
-      wheel.releasePointerCapture(event.pointerId);
-    }
-    snapToNearest();
+    dragPointer = null;
+    if (suppressDragClick) dragEndClick = { x: event.clientX, y: event.clientY, at: nowMs() };
+    wheel?.classList.remove('is-dragging');
+    if (wheel?.hasPointerCapture(event.pointerId)) wheel.releasePointerCapture(event.pointerId);
+    if (cleanTrial) {
+      const speed = canceled ? 0 : quietVelocity(dragSamples, nowMs());
+      dragSamples = [];
+      if (portrait?.matches && !suppressDragClick) { rotating = false; return; }
+      if (!canceled && !reducedMotion?.matches) startCoast(speed);
+      else snapToNearest();
+    } else snapToNearest();
+  }
+  wheel?.addEventListener('pointerup', (event) => endDrag(event, false));
+  wheel?.addEventListener('pointercancel', (event) => endDrag(event, true));
+  wheel?.addEventListener('lostpointercapture', (event) => {
+    if (!portrait?.matches || event.target === wheel) endDrag(event, true);
   });
-
-  wheel?.addEventListener('pointercancel', (event) => {
-    if (!dragging) return;
-    dragging = false;
-    wheel.classList.remove('is-dragging');
-    if (wheel.hasPointerCapture(event.pointerId)) {
-      wheel.releasePointerCapture(event.pointerId);
-    }
-    snapToNearest();
+  wheel?.addEventListener('pointerleave', (event) => {
+    if (portrait?.matches && !wheel.hasPointerCapture(event.pointerId)) endDrag(event, true);
   });
+  wheel?.addEventListener('click', (event) => {
+    if (!cleanTrial || !suppressDragClick || !dragEndClick) return;
+    if (nowMs() - dragEndClick.at > 320) { suppressDragClick = false; return; }
+    if (event.detail === 0 || Math.hypot(event.clientX - dragEndClick.x, event.clientY - dragEndClick.y) > 12) return;
+    suppressDragClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
 
   items.forEach((item) => {
     item.addEventListener('click', () => {
+      if (blocked()) return;
       if (!item.classList.contains('is-hidden')) {
         setCollapsed(false);
-        setSelectedWork(item.dataset.workId ?? null);
+        if (cleanTrial) cancelWheelMotion();
+        if (cleanTrial) {
+          dispatchArchiveSelection({ kind: 'wheel-title', workId: item.dataset.workId ?? null });
+          layoutWheel();
+        } else setSelectedWork(item.dataset.workId ?? null);
       }
     });
   });
 
   toggle?.addEventListener('click', () => {
+    if (blocked()) return;
     setCollapsed(!wheel?.classList.contains('is-collapsed'));
   });
 
   stepButtons.forEach((button) => {
     button.addEventListener('click', () => {
+      if (blocked()) return;
       const direction = Number(button.dataset.wheelStep);
       if (!direction) return;
-      clearSettleTimer();
+      if (cleanTrial) cancelWheelMotion();
+      else clearSettleTimer();
       rotating = false;
       selectVisibleIndex(selectedIndex + direction);
     });
@@ -866,23 +1376,38 @@ const trialTicks = Array.from({ length: 31 }, (_, i) => {
 
   if (centredTrial) {
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !wheel?.classList.contains('is-collapsed')) {
+      if (!blocked() && event.key === 'Escape' && !wheel?.classList.contains('is-collapsed')) {
         if (cleanTrial && document.body.classList.contains('trial-has-drawer')) return;
         setCollapsed(true);
         toggle?.focus({ preventScroll: true });
       }
     });
     document.addEventListener('click', (event) => {
-      if ((event.target as Element).closest('#archive-wheel,[data-work]')) return;
-      if (cleanTrial && (event.target as Element).closest('.trial-drawer,#archive-trial-controls')) return;
+      const target = event.target as Element;
+      if (blocked() || target.closest('#archive-wheel,[data-work],[data-archive-stop]')) return;
+      if (cleanTrial && target.closest('.trial-drawer,#archive-trial-controls')) return;
+      if (rebuild && target.closest('#point-preview')) return;
       if (!wheel?.classList.contains('is-collapsed')) setCollapsed(true);
     });
   }
-  subscribe(() => layoutWheel());
-  window.addEventListener('work-filters-applied', syncFilteredItems);
-  window.addEventListener('beforeunload', () => {
-    cancelAnimationFrame(layoutFrame);
-    clearSettleTimer();
+  subscribe((id) => {
+    if (cleanTrial && !isArchiveWheelCommit()) {
+      cancelWheelMotion();
+      const index = visibleItems().findIndex(item => item.dataset.workId === id);
+      if (index >= 0) {
+        selectedIndex = index;
+        wheelOffset = index;
+      }
+    }
+    layoutWheel();
   });
+  window.addEventListener('work-filters-applied', syncFilteredItems);
+  reducedMotion?.addEventListener('change', () => {
+    if (reducedMotion.matches && (scrollTarget !== null || dragging)) {
+      cancelWheelMotion();
+      selectVisibleIndex(nearestIndex());
+    }
+  });
+  window.addEventListener('beforeunload', cancelWheelMotion);
   syncFilteredItems();
 </script>

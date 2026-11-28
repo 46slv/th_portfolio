@@ -11,10 +11,10 @@ type AudioState = {
   stereoSplitter: ChannelSplitterNode;
   leftAnalyser: AnalyserNode;
   rightAnalyser: AnalyserNode;
-  meterData: Uint8Array;
-  waveformData: Float32Array;
-  leftWaveformData: Float32Array;
-  rightWaveformData: Float32Array;
+  meterData: Uint8Array<ArrayBuffer>;
+  waveformData: Float32Array<ArrayBuffer>;
+  leftWaveformData: Float32Array<ArrayBuffer>;
+  rightWaveformData: Float32Array<ArrayBuffer>;
   visualFrame: {
     mono: Float32Array;
     left: Float32Array;
@@ -27,6 +27,20 @@ type AudioState = {
 
 let state: AudioState | null = null;
 let startup: Promise<void> | null = null;
+let startingContext: AudioContext | null = null;
+let sceneStopped = false;
+
+// The scene hold is independent of the listener's audio-only Pause setting.
+// Suspend the context itself (not gain or the source) to hold its sample clock.
+export async function setAudioSceneStopped(stopped: boolean) {
+  sceneStopped = stopped;
+  const context = state?.context ?? startingContext;
+  if (!context) return;
+  if (stopped) await context.suspend();
+  else if (!state || state.isPlaying) await context.resume();
+}
+// Faders remain usable while the track loads or waits for an explicit retry.
+const requested = { volume: 0.5, speed: 1, distortion: 0, delay: 0, reverb: 0 };
 
 function getAudioContext(): AudioContext {
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
@@ -141,12 +155,13 @@ export async function startAudio() {
 
 async function initializeAudio() {
   if (state) {
-    await state.context.resume();
+    if (!sceneStopped) await state.context.resume();
     state.isPlaying = true;
     return;
   }
 
   const context = getAudioContext();
+  startingContext = context;
   try {
     // Resume while still handling the user gesture, before any network wait.
     await context.resume();
@@ -159,18 +174,21 @@ async function initializeAudio() {
     const source = context.createBufferSource();
     source.buffer = audioBuffer;
     source.loop = true;
+    // Apply the latest fader settings before the source renders its first frame.
+    source.playbackRate.value = requested.speed;
 
     const gain = context.createGain();
-    gain.gain.value = 0.5;
+    gain.gain.value = requested.volume;
 
     const delay = context.createDelay(2);
     delay.delayTime.value = 0.4;
     const delayGain = context.createGain();
-    delayGain.gain.value = 0;
+    delayGain.gain.value = requested.delay;
 
     const reverb = context.createConvolver();
+    if (requested.reverb > 0) reverb.buffer = createImpulse(context, 2.5, 4);
     const reverbGain = context.createGain();
-    reverbGain.gain.value = 0;
+    reverbGain.gain.value = requested.reverb;
 
     const distortion = context.createWaveShaper();
     const analyser = context.createAnalyser();
@@ -208,12 +226,13 @@ async function initializeAudio() {
         left: leftWaveformData,
         right: rightWaveformData,
       },
-      distortionAmount: 0,
-      reverbReady: false,
+      distortionAmount: requested.distortion,
+      reverbReady: requested.reverb > 0,
       isPlaying: true,
     };
 
     connectEffectGraph();
+    // A source scheduled during Stop cannot render on the suspended context.
     source.start(0);
   } catch (error) {
     if (state?.context === context) {
@@ -225,6 +244,8 @@ async function initializeAudio() {
       // Preserve the startup error even if a browser cannot close the context.
     }
     throw error;
+  } finally {
+    startingContext = null;
   }
 }
 
@@ -232,41 +253,50 @@ export async function togglePlayback() {
   if (!state) return false;
 
   if (state.isPlaying) {
-    await state.context.suspend();
     state.isPlaying = false;
+    try { await state.context.suspend(); } catch (error) { state.isPlaying = true; throw error; }
   } else {
-    await state.context.resume();
     state.isPlaying = true;
+    try { if (!sceneStopped) await state.context.resume(); } catch (error) { state.isPlaying = false; throw error; }
   }
 
   return state.isPlaying;
 }
 
 export function setVolume(value: number) {
+  if (!Number.isFinite(value)) return;
+  requested.volume = value;
   if (!state) return;
   state.gain.gain.setTargetAtTime(value, state.context.currentTime, 0.015);
 }
 
 export function setSpeed(value: number) {
+  if (!Number.isFinite(value)) return;
+  requested.speed = value;
   if (!state) return;
   state.source.playbackRate.setTargetAtTime(value, state.context.currentTime, 0.015);
 }
 
 export function setDistortion(value: number) {
-  if (!state) return;
+  if (!Number.isFinite(value)) return;
   const nextAmount = Math.max(0, value);
-  if (state.distortionAmount === nextAmount) return;
+  requested.distortion = nextAmount;
+  if (!state || state.distortionAmount === nextAmount) return;
   state.distortionAmount = nextAmount;
   connectEffectGraph();
 }
 
 export function setDelay(value: number) {
+  if (!Number.isFinite(value)) return;
+  requested.delay = value;
   if (!state) return;
   state.delay.delayTime.setTargetAtTime(0.4, state.context.currentTime, 0.015);
   state.delayGain.gain.setTargetAtTime(value, state.context.currentTime, 0.015);
 }
 
 export function setReverb(value: number) {
+  if (!Number.isFinite(value)) return;
+  requested.reverb = value;
   if (!state) return;
   if (value > 0 && !state.reverbReady) {
     state.reverb.buffer = createImpulse(state.context, 2.5, 4);
@@ -276,11 +306,11 @@ export function setReverb(value: number) {
 }
 
 export function isAudioPlaying() {
-  return Boolean(state?.isPlaying && state.context.state === "running");
+  return Boolean(!sceneStopped && state?.isPlaying && state.context.state === "running");
 }
 
 export function getAudioVisualFrame() {
-  if (!state || !state.isPlaying || state.context.state !== "running") return null;
+  if (!state || !isAudioPlaying()) return null;
 
   state.analyser.getFloatTimeDomainData(state.waveformData);
   state.leftAnalyser.getFloatTimeDomainData(state.leftWaveformData);
@@ -290,7 +320,7 @@ export function getAudioVisualFrame() {
 }
 
 export function getMeterLevel() {
-  if (!state || !state.isPlaying || state.context.state !== "running") return 0;
+  if (!state || !isAudioPlaying()) return 0;
 
   state.analyser.getByteTimeDomainData(state.meterData);
   let sum = 0;

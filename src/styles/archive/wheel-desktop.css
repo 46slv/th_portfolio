@@ -1,0 +1,94 @@
+/* Publish the skin's dimensions at the rebuild root so the page can reserve clearance. */
+body.archive-rebuild {
+  --archive-rail: clamp(218px, 22vw, 306px);
+  --archive-wheel-radius: min(var(--archive-rail), 36dvh);
+}
+@media (min-width:761px) {
+  body.archive-rebuild { --archive-wheel-radius:min(34vw,36dvh,310px); }
+}
+
+body.archive-rebuild #archive-wheel .archive-wheel__item { transition:none; }
+body.archive-rebuild #archive-wheel .archive-wheel__arc-rim {
+  display:initial; stroke:#8faab4; stroke-opacity:.38; stroke-width:1; vector-effect:non-scaling-stroke;
+}
+body.archive-rebuild #archive-wheel .archive-wheel__trial-arc line {
+  display:initial; stroke:#c2e3e9; stroke-width:1.25; filter:none!important;
+}
+@media (width > 600px), (orientation:landscape) {
+  body.archive-rebuild #archive-wheel {
+    --wheel-idle-radius: clamp(48px, 9dvh, 68px);
+    --wheel-actions-top: max(-44px, calc(var(--archive-wheel-radius) + 8px - 50dvh));
+    right:var(--archive-edge); width:var(--archive-wheel-radius); height:calc(2 * var(--archive-wheel-radius));
+    top:50dvh; transform:translateY(-50%); bottom:auto;
+  }
+  body.archive-rebuild #archive-wheel::before { display:none; }
+  /* Hide only decoration; the SVG track and half-disc still handle input. */
+  body.archive-rebuild #archive-wheel .archive-wheel__arc-rim,
+  body.archive-rebuild #archive-wheel:not(.is-collapsed) .archive-wheel__trial-arc line:not([data-trial-track]) { display:none; }
+  /* One actual half-circle for both poses, centred on the same right-edge hub. */
+  body.archive-rebuild #archive-wheel .archive-wheel__trial-arc {
+    inset:50% 0 auto auto; width:var(--archive-wheel-radius); height:calc(2 * var(--archive-wheel-radius));
+    transform:translateY(-50%); transition:none;
+  }
+  @media (prefers-reduced-motion:no-preference) {
+    body.archive-rebuild:not([data-archive-stopped]) #archive-wheel .archive-wheel__trial-arc {
+      transition:width .32s cubic-bezier(.22,1,.36,1), height .32s cubic-bezier(.22,1,.36,1);
+    }
+  }
+  body.archive-rebuild #archive-wheel.is-collapsed .archive-wheel__trial-arc {
+    width:var(--wheel-idle-radius); height:calc(2 * var(--wheel-idle-radius));
+  }
+  body.archive-rebuild #archive-wheel [data-trial-track] { stroke-width:22px; vector-effect:non-scaling-stroke; }
+  body.archive-rebuild #archive-wheel [data-wheel-toggle] {
+    right:0; width:56px; height:44px; top:var(--wheel-actions-top);
+    transform:none; justify-content:center;
+  }
+  body.archive-rebuild #archive-wheel.is-collapsed [data-wheel-toggle] {
+    right:0; top:50%; width:var(--wheel-idle-radius); height:44px;
+    transform:translateY(-50%); padding-inline-start:12px;
+  }
+  body.archive-rebuild #archive-wheel .archive-wheel__quiet-open,
+  body.archive-rebuild #archive-wheel .archive-wheel__quiet-close { font-size:12px; }
+  body.archive-rebuild #archive-wheel .archive-wheel__step-controls {
+    top:var(--wheel-actions-top); right:60px; left:auto; width:auto; height:44px;
+    display:flex; gap:2px; transform:none;
+  }
+  body.archive-rebuild #archive-wheel.is-collapsed .archive-wheel__step-controls { display:none; }
+  body.archive-rebuild #archive-wheel [data-wheel-step] {
+    position:static; inset:auto; transform:none; min-width:44px; width:49px; height:44px;
+    opacity:1; pointer-events:auto; color:#b9cbd0; font:12px monospace;
+  }
+  body.archive-rebuild #archive-wheel [data-wheel-step][aria-disabled="true"] { opacity:.45; }
+  body.archive-rebuild #archive-wheel .archive-wheel__item {
+    left:100%; right:auto; width:min(190px, 65%, calc(100% - 20px)); min-height:44px;
+    padding:2px 6px; transform-origin:left center;
+    grid-template-columns:max-content minmax(0,1fr); grid-template-areas:"title title" "year artist";
+    align-content:center; gap:2px 6px; text-align:left; color:#d5e5e9;
+    background:linear-gradient(90deg,#080f14eb,#080f1499 80%,transparent);
+  }
+  body.archive-rebuild #archive-wheel .archive-wheel__title {
+    display:block; white-space:normal; font:600 13px/1.12 system-ui,sans-serif; text-transform:none;
+  }
+  body.archive-rebuild #archive-wheel .archive-wheel__item.is-selected {
+    color:#f1fcff;
+    background:linear-gradient(90deg,#0a1b22f0,#0a1b22bb 80%,transparent);
+  }
+  body.archive-rebuild #archive-wheel .archive-wheel__item.is-selected .archive-wheel__title { font-size:15px; }
+  body.archive-rebuild #archive-wheel .archive-wheel__title > .line-action__word {
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+    overflow:hidden; overflow-wrap:anywhere; text-overflow:ellipsis;
+  }
+  body.archive-rebuild #archive-wheel .archive-wheel__artist { display:block; }
+  body.archive-rebuild #archive-wheel [data-wheel-empty] {
+    position:absolute; top:50%; right:0; left:calc(8% + 7px); transform:translateY(-50%);
+    padding:10px; background:linear-gradient(90deg,#0b161c,transparent); color:#bfccd0; font:12px/1.35 monospace;
+  }
+}
+@media (min-width:761px) {
+  body.archive-rebuild #archive-wheel { right:var(--th-safe-right, 0px); --wheel-idle-radius:calc(.19 * var(--archive-wheel-radius)); }
+  body.archive-rebuild #archive-wheel .archive-wheel__item { width:min(164px,54%); }
+  body.archive-rebuild #archive-wheel .archive-wheel__title > .line-action__word { -webkit-line-clamp:1; }
+}
+@media (forced-colors:active) {
+  body.archive-rebuild #archive-wheel :is(.archive-wheel__arc-rim, .archive-wheel__trial-arc line) { stroke:CanvasText; }
+}

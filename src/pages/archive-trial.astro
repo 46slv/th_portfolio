@@ -4,13 +4,7 @@ import WorksMap from '../components/WorksMap.astro';
 import ArchiveWheel from '../components/works/ArchiveWheel.astro';
 import Footer from '../components/layout/Footer.astro';
 import StartOverlay from '../components/startup/StartOverlay.astro';
-import { works } from '../data/works';
-import { getWorkId } from '../lib/workIds';
-
-const wheelEntries = works.map((work, index) => ({
-  id: getWorkId(work, index),
-  work,
-}));
+import { wheelEntries } from '../data/works';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 

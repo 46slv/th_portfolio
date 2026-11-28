@@ -10,19 +10,21 @@ import MapLissajous from './works/MapLissajous.astro';
 import { getWorkId } from '../lib/workIds';
 import '../styles/global.css';
 
+const { externalAudioHud = false, externalWorkPreview = false, rebuildScope = false } = Astro.props;
 const allTags = [...new Set(works.flatMap((work) => work.tags ?? []))].sort();
 const allYears = [...new Set(works.map((work) => String(work.year)))].sort().reverse();
 ---
 
-<ContactBar />
+<ContactBar archiveLine={externalWorkPreview} />
 
-<div class="max-w-4xl mx-auto pt-6 px-4 space-y-4">
+{!rebuildScope && <div class="max-w-4xl mx-auto pt-6 px-4 space-y-4">
   <TagFilter tags={allTags} />
   <YearFilter years={allYears} />
-</div>
+</div>}
 
 <div class="main-layout">
   <div class="relative aspect-square px-4">
+    {rebuildScope && <MapLissajous rebuildScope />}
     <div id="map-target" class="map-container w-full h-full bg-zinc-950/40 border border-zinc-800 overflow-hidden font-mono text-[10px]">
       <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #27272a 1px, transparent 1px); background-size: 20px 20px;"></div>
 
@@ -30,20 +32,20 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
         <div class="w-full h-[1px] bg-zinc-800"></div>
         <div class="absolute h-full w-[1px] bg-zinc-800"></div>
       </div>
-      <MapLissajous />
+      {!rebuildScope && <MapLissajous />}
       <div class="absolute top-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Maniac [+]</div>
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-zinc-700 tracking-widest uppercase text-[8px]">Popular [-]</div>
       <div class="absolute left-4 top-1/2 -translate-y-1/2 -rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-left">Electro [L]</div>
       <div class="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-zinc-700 tracking-widest uppercase text-[8px] origin-right">Acoustic [R]</div>
 
-      <div class="absolute inset-16 sm:inset-24">
+      <div class="work-coordinate-plane absolute inset-16 sm:inset-24">
         {works.map((work, index) => <WorkNode work={work} index={index} workId={getWorkId(work, index)} />)}
       </div>
-      <SharedWorkTooltip />
+      {!externalWorkPreview && <SharedWorkTooltip />}
     </div>
   </div>
 
-  <AudioHud />
+  {!externalAudioHud && <AudioHud />}
 </div>
 
 <style>
@@ -62,6 +64,10 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
     opacity: 1;
   }
 
+  :global(body.archive-rebuild) .map-container {
+    z-index: 1;
+  }
+
   .map-container {
     perspective: 1200px;
     transform-style: preserve-3d;
@@ -77,432 +83,7 @@ const allYears = [...new Set(works.map((work) => String(work.year)))].sort().rev
 </style>
 
 <script>
-  import {
-    getMeterLevel,
-    getAudioVisualFrame,
-    isAudioPlaying,
-    setDelay,
-    setDistortion,
-    setReverb,
-    setSpeed,
-    setVolume,
-    startAudio,
-    togglePlayback,
-  } from '../lib/audio/audioEngine';
-  import { applyWorkFilters, setTag, setYear } from '../lib/filterStore';
-  import { subscribe } from '../lib/workSelectionStore';
-  import { setPlaybackRate, startVisualShift } from './effects/VisualShift';
+  import { bootWorksMap } from './works/map/bootWorksMap';
 
-  let isStarted = false;
-  let isAudioStarting = false;
-  let isAudioReady = false;
-  let meterFrame = 0;
-  let lastMeterTime = 0;
-  let lastMeterScale = -1;
-  let waveformGain = 1;
-  let lissajousGain = 1;
-  const meterInterval = 1000 / 24;
-
-  function prepareCanvas(canvas: HTMLCanvasElement) {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const width = Math.max(1, Math.round(rect.width * dpr));
-    const height = Math.max(1, Math.round(rect.height * dpr));
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
-    }
-    return { context: canvas.getContext('2d'), width, height, dpr };
-  }
-
-  function renderWaveform(data: Float32Array | null) {
-    const canvas = document.getElementById('waveform-scope') as HTMLCanvasElement | null;
-    if (!canvas) return;
-    const { context, width, height, dpr } = prepareCanvas(canvas);
-    if (!context) return;
-
-    context.clearRect(0, 0, width, height);
-    context.beginPath();
-    context.moveTo(0, height / 2);
-    context.lineTo(width, height / 2);
-    context.strokeStyle = 'rgba(34, 211, 238, 0.12)';
-    context.lineWidth = Math.max(1, dpr * 0.5);
-    context.stroke();
-    if (!data) return;
-
-    let peak = 0;
-    for (let index = 0; index < data.length; index += 1) {
-      peak = Math.max(peak, Math.abs(data[index]));
-    }
-    const targetGain = peak > 0.005 ? Math.min(4, 0.78 / peak) : 1;
-    waveformGain += (targetGain - waveformGain) * 0.16;
-
-    context.beginPath();
-    const step = Math.max(1, Math.floor(data.length / Math.max(1, width / dpr)));
-    let pointIndex = 0;
-    for (let index = 0; index < data.length; index += step) {
-      const x = (pointIndex / Math.max(1, Math.ceil(data.length / step) - 1)) * width;
-      const y = height / 2 - data[index] * waveformGain * height * 0.42;
-      if (pointIndex === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
-      pointIndex += 1;
-    }
-    context.strokeStyle = 'rgba(103, 232, 249, 0.82)';
-    context.lineWidth = Math.max(1, dpr * 0.7);
-    context.stroke();
-  }
-
-  function renderLissajous(left: Float32Array | null, right: Float32Array | null) {
-    const canvas = document.getElementById('map-lissajous') as HTMLCanvasElement | null;
-    if (!canvas) return;
-    const { context, width, height, dpr } = prepareCanvas(canvas);
-    if (!context) return;
-    context.clearRect(0, 0, width, height);
-    if (!left || !right) return;
-
-    const length = Math.min(left.length, right.length);
-    let peak = 0;
-    for (let index = 0; index < length; index += 1) {
-      peak = Math.max(peak, Math.abs(left[index]), Math.abs(right[index]));
-    }
-    if (peak < 0.005) return;
-    const targetGain = Math.min(5, 0.82 / peak);
-    lissajousGain += (targetGain - lissajousGain) * 0.12;
-
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const scale = Math.min(width, height) * 0.43 * lissajousGain;
-    const step = Math.max(1, Math.ceil(length / 512));
-    if (document.body.classList.contains('archive-rebuild')) {
-      context.fillStyle = 'rgba(103, 232, 249, 0.14)';
-      const d = Math.max(1, dpr * .78);
-      for (let index = 0; index < length; index += step) {
-        const x = centerX + left[index] * scale;
-        const y = centerY - right[index] * scale;
-        context.fillRect(x - d / 2, y - d / 2, d, d);
-      }
-      return;
-    }
-    context.beginPath();
-    let pointIndex = 0;
-    for (let index = 0; index < length; index += step) {
-      const x = centerX + left[index] * scale;
-      const y = centerY - right[index] * scale;
-      if (pointIndex === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
-      pointIndex += 1;
-    }
-    context.strokeStyle = 'rgba(103, 232, 249, 0.34)';
-    context.lineWidth = Math.max(1, dpr * 0.55);
-    context.stroke();
-  }
-
-  function renderAudioScopes() {
-    const frame = getAudioVisualFrame();
-    renderWaveform(frame?.mono ?? null);
-    renderLissajous(frame?.left ?? null, frame?.right ?? null);
-  }
-
-  function renderMeter(value: number) {
-    const vBar = document.getElementById('v-bar');
-    const scale = Math.round(Math.max(0, Math.min(1, value)) * 100) / 100;
-    if (!vBar || scale === lastMeterScale) return;
-    lastMeterScale = scale;
-    vBar.style.transform = `scaleX(${scale})`;
-  }
-
-  function updateMeter(timestamp: number) {
-    meterFrame = 0;
-    if (document.hidden) return;
-
-    if (timestamp - lastMeterTime >= meterInterval) {
-      lastMeterTime = timestamp;
-      renderMeter(getMeterLevel());
-      renderAudioScopes();
-    }
-
-    if (isAudioPlaying()) {
-      meterFrame = requestAnimationFrame(updateMeter);
-    } else {
-      renderMeter(0);
-    }
-  }
-
-  function startMeter() {
-    if (meterFrame || document.hidden || !isAudioPlaying()) return;
-    lastMeterTime = 0;
-    meterFrame = requestAnimationFrame(updateMeter);
-  }
-
-  function stopMeter() {
-    cancelAnimationFrame(meterFrame);
-    meterFrame = 0;
-    renderMeter(0);
-    renderWaveform(null);
-    renderLissajous(null, null);
-  }
-
-  async function startExperience() {
-    if (isStarted) return;
-    isStarted = true;
-
-    document.getElementById('start-overlay')?.classList.add('hidden');
-    document.body.classList.remove('is-blurred');
-    document.body.style.overflow = 'auto';
-    const shell = document.getElementById('site-shell');
-    shell?.style.setProperty('transition', 'none');
-    shell?.style.setProperty('filter', 'none');
-    const mainLayout = document.querySelector<HTMLElement>('.main-layout');
-    mainLayout?.style.setProperty('transition', 'none');
-    mainLayout?.style.setProperty('opacity', '1');
-
-    startVisualShift();
-
-    await initializeAudio();
-  }
-
-  async function initializeAudio() {
-    if (isAudioStarting || isAudioReady) return;
-    isAudioStarting = true;
-    const button = document.getElementById('play-pause-btn') as HTMLButtonElement | null;
-    if (button) {
-      button.disabled = true;
-      button.setAttribute('aria-busy', 'true');
-      button.innerText = 'Initializing Transmission';
-    }
-    try {
-      await startAudio();
-      isAudioReady = true;
-      if (button) button.innerText = 'Pause Transmission';
-      startMeter();
-    } catch (error) {
-      if (button) button.innerText = 'Retry Transmission';
-      console.error(error);
-    } finally {
-      isAudioStarting = false;
-      if (button) {
-        button.disabled = false;
-        button.removeAttribute('aria-busy');
-      }
-    }
-  }
-
-  function bindContactCopy() {
-    document.querySelectorAll<HTMLElement>('[data-contact-copy]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const text = button.dataset.contactCopy;
-        if (!text) return;
-
-        navigator.clipboard.writeText(text).then(() => {
-          const toast = document.getElementById('copy-toast');
-          toast?.classList.add('is-visible');
-          setTimeout(() => toast?.classList.remove('is-visible'), 2000);
-        });
-      });
-    });
-  }
-
-  function bindFilters() {
-    document.querySelectorAll<HTMLButtonElement>('[data-filter-tag]').forEach((button) => {
-      button.addEventListener('click', () => {
-        startExperience();
-        const value = button.dataset.filterTag;
-        setTag(value && value !== '__all__' ? value : null);
-        applyWorkFilters();
-      });
-    });
-
-    document.querySelectorAll<HTMLButtonElement>('[data-filter-year]').forEach((button) => {
-      button.addEventListener('click', () => {
-        startExperience();
-        const value = button.dataset.filterYear;
-        setYear(value && value !== '__all__' ? value : null);
-        applyWorkFilters();
-      });
-    });
-  }
-
-  function bindWorkSelection() {
-    const workNodes = Array.from(document.querySelectorAll<HTMLElement>('[data-work][data-work-id]'));
-    const nodeById = new Map<string, HTMLElement>();
-    const mapTarget = document.getElementById('map-target');
-    const tooltip = document.getElementById('work-tooltip');
-    const tooltipTitle = tooltip?.querySelector<HTMLElement>('[data-tooltip-title]');
-    const tooltipArtist = tooltip?.querySelector<HTMLElement>('[data-tooltip-artist]');
-    const tooltipYear = tooltip?.querySelector<HTMLElement>('[data-tooltip-year]');
-    const tooltipTags = tooltip?.querySelector<HTMLElement>('[data-tooltip-tags]');
-    const tooltipMedia = tooltip?.querySelector<HTMLElement>('[data-tooltip-media]');
-    const tooltipImage = tooltip?.querySelector<HTMLImageElement>('[data-tooltip-image]');
-    let selectedNode: HTMLElement | null = null;
-    let previewNode: HTMLElement | null = null;
-
-    workNodes.forEach((node) => {
-      const id = node.dataset.workId;
-      if (id) nodeById.set(id, node);
-    });
-
-    function positionTooltip(node: HTMLElement) {
-      if (!tooltip || !mapTarget) return;
-      const nodeRect = node.getBoundingClientRect();
-      const mapRect = mapTarget.getBoundingClientRect();
-      const tooltipWidth = 220;
-      const tooltipHeight = tooltip.offsetHeight || 180;
-      const preferredLeft = nodeRect.left - mapRect.left + 18;
-      const left = Math.max(8, Math.min(preferredLeft, mapRect.width - tooltipWidth - 8));
-      const above = nodeRect.top - mapRect.top - tooltipHeight - 10;
-      const top = above >= 8 ? above : Math.min(mapRect.height - tooltipHeight - 8, nodeRect.bottom - mapRect.top + 10);
-      tooltip.style.left = `${left}px`;
-      tooltip.style.top = `${Math.max(8, top)}px`;
-    }
-
-    function showTooltip(node: HTMLElement | null) {
-      if (!node || !tooltip || node.classList.contains('is-inactive')) return;
-
-      const title = node.dataset.tooltipTitle || 'Untitled';
-      const artist = node.dataset.tooltipArtist || 'Unknown';
-      const tags = node.dataset.tooltipTags || '';
-      const thumbnail = node.dataset.tooltipThumbnail || '';
-
-      if (tooltipTitle) tooltipTitle.textContent = title;
-      if (tooltipArtist) tooltipArtist.textContent = `ID: ${artist}`;
-      if (tooltipYear) tooltipYear.textContent = node.dataset.year || 'Unknown';
-      if (tooltipTags) {
-        tooltipTags.textContent = tags;
-        tooltipTags.classList.toggle('hidden', !tags);
-      }
-      if (tooltipImage && tooltipMedia) {
-        if (thumbnail) {
-          if (tooltipImage.dataset.currentSrc !== thumbnail) {
-            tooltipImage.src = thumbnail;
-            tooltipImage.dataset.currentSrc = thumbnail;
-          }
-          tooltipImage.alt = `${title} thumbnail`;
-          tooltipMedia.classList.remove('hidden');
-        } else {
-          tooltipMedia.classList.add('hidden');
-          tooltipImage.removeAttribute('src');
-          delete tooltipImage.dataset.currentSrc;
-          tooltipImage.alt = '';
-        }
-      }
-
-      positionTooltip(node);
-      tooltip.classList.add('is-visible');
-      tooltip.setAttribute('aria-hidden', 'false');
-    }
-
-    function hideTooltip() {
-      tooltip?.classList.remove('is-visible');
-      tooltip?.setAttribute('aria-hidden', 'true');
-    }
-
-    function restoreSelectedTooltip() {
-      if (previewNode) return;
-      if (selectedNode) showTooltip(selectedNode);
-      else hideTooltip();
-    }
-
-    mapTarget?.addEventListener('pointerover', (event) => {
-      const node = (event.target as HTMLElement).closest<HTMLElement>('[data-work][data-work-id]');
-      if (!node || !mapTarget.contains(node) || node === previewNode) return;
-      previewNode = node;
-      showTooltip(node);
-    });
-
-    mapTarget?.addEventListener('pointerout', (event) => {
-      const node = (event.target as HTMLElement).closest<HTMLElement>('[data-work][data-work-id]');
-      if (!node || node !== previewNode) return;
-      if (event.relatedTarget instanceof Node && node.contains(event.relatedTarget)) return;
-      previewNode = null;
-      restoreSelectedTooltip();
-    });
-
-    mapTarget?.addEventListener('focusin', (event) => {
-      const node = (event.target as HTMLElement).closest<HTMLElement>('[data-work][data-work-id]');
-      if (!node || !mapTarget.contains(node)) return;
-      previewNode = node;
-      showTooltip(node);
-    });
-
-    mapTarget?.addEventListener('focusout', (event) => {
-      const node = (event.target as HTMLElement).closest<HTMLElement>('[data-work][data-work-id]');
-      if (!node || node !== previewNode) return;
-      if (event.relatedTarget instanceof Node && node.contains(event.relatedTarget)) return;
-      previewNode = null;
-      restoreSelectedTooltip();
-    });
-
-    subscribe((selectedId) => {
-      const nextNode = selectedId ? nodeById.get(selectedId) ?? null : null;
-      if (nextNode === selectedNode) return;
-      selectedNode?.classList.remove('is-selected');
-      nextNode?.classList.add('is-selected');
-      selectedNode = nextNode;
-      if (!previewNode) restoreSelectedTooltip();
-    });
-  }
-
-  function bindAudioControls() {
-    const playPauseButton = document.getElementById('play-pause-btn');
-    const toggleAudio = async () => {
-      if (isAudioStarting) return;
-      if (!isAudioReady) {
-        await initializeAudio();
-        return;
-      }
-      const playing = await togglePlayback();
-      if (playPauseButton) {
-        playPauseButton.innerText = playing ? 'Pause Transmission' : 'Resume Transmission';
-      }
-      if (playing) startMeter();
-      else stopMeter();
-    };
-    playPauseButton?.addEventListener('click', toggleAudio);
-    document.querySelectorAll('.work-trigger').forEach((trigger) => {
-      trigger.addEventListener('click', toggleAudio);
-    });
-
-    document.getElementById('vol-fader')?.addEventListener('input', (event) => {
-      setVolume(Number((event.target as HTMLInputElement).value));
-    });
-    document.getElementById('speed-fader')?.addEventListener('input', (event) => {
-      const value = Number((event.target as HTMLInputElement).value);
-      setSpeed(value);
-      setPlaybackRate(value);
-    });
-    document.getElementById('dist-fader')?.addEventListener('input', (event) => {
-      setDistortion(Number((event.target as HTMLInputElement).value));
-    });
-    document.getElementById('delay-fader')?.addEventListener('input', (event) => {
-      setDelay(Number((event.target as HTMLInputElement).value));
-    });
-    document.getElementById('reverb-fader')?.addEventListener('input', (event) => {
-      setReverb(Number((event.target as HTMLInputElement).value));
-    });
-  }
-
-  function initWorksMap() {
-    bindContactCopy();
-    bindFilters();
-    bindWorkSelection();
-    bindAudioControls();
-    applyWorkFilters();
-    document.getElementById('start-overlay')?.addEventListener('click', startExperience);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initWorksMap, { once: true });
-  } else {
-    initWorksMap();
-  }
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      cancelAnimationFrame(meterFrame);
-      meterFrame = 0;
-    } else {
-      startMeter();
-    }
-  });
-  window.addEventListener('beforeunload', () => cancelAnimationFrame(meterFrame));
+  bootWorksMap();
 </script>

@@ -33,6 +33,14 @@ The latest user observation overrides the previous preview-only suppression: the
 
 Two older failure paths remain separate acceptance cases: keyboard focus reaching excluded points, and pending Wheel scroll/snap restoring a selection after filtering. Neither is softened by the visual redesign.
 
+## 2026-11-24 correction: left-center Audio, preview blur off
+
+Place the Audio trigger at the left edge, centered on the Graph's horizontal axis. The drawer overlays from the left, with responsive viewport bounds; the Graph does not move. Temporarily disable background blur for Audio, filters and Work detail in the rebuild preview. Their existing dimming remains, and standalone Archive Wheel browsing still neither dims nor blurs the field. The earlier dim+blur design remains recorded above.
+
+## 2026-11-25: accept the first scroll anywhere in the open semicircle
+
+The initial correction concerned a moving label slipping away from an already active gesture. It did not solve starting on empty space. The open Wheel must accept the **first packet** over the passive half-disc, not just its track or labels. Closed state, rectangle corners outside the arc, interactive overlays and Points keep their own input. The earlier tick-only closed treatment is superseded by a line and `Wheel` label. The current requirements for light input, inertia and nearest stopping, line buttons and enlarged work-point distribution are in the [canonical specification](TH_PORTFOLIO_GRAPH_CENTERED_UI_SPEC.md); the [task checklist](../agent/TH_ARCHIVE_INTERACTION_TASKS.md) separates these acceptance cases.
+
 ## Acceptance to carry forward
 
 1. Compare closed, Wheel open, Audio open, and selected Work states. Measure that Graph centre and square geometry are unchanged; confirm visually that only the main field dims behind the three designated overlays.

@@ -1,6 +1,21 @@
-<button id="start-overlay" type="button" aria-label="Initialize site experience and audio">
-  <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">Initialize System</span>
-  <span class="text-zinc-600 text-[8px] uppercase tracking-widest mt-2">Click, Enter, or Space to Begin</span>
+---
+const { archivePreview = false } = Astro.props;
+---
+<button
+  id="start-overlay"
+  type="button"
+  class={archivePreview ? 'start-overlay--boot' : undefined}
+  lang={archivePreview ? 'en' : undefined}
+  aria-label={archivePreview ? 'Boot archive and start audio' : 'Initialize site experience and audio'}
+>
+  {archivePreview ? (
+    <span class="start-overlay__command" aria-hidden="true"><span class="start-overlay__word">boot</span><span class="start-overlay__cursor" aria-hidden="true"></span></span>
+  ) : (
+    <>
+      <span class="text-cyan-400 text-[10px] tracking-[0.4em] animate-pulse uppercase border border-cyan-400/50 px-4 py-2 bg-black/60">Initialize System</span>
+      <span class="text-zinc-600 text-[8px] uppercase tracking-widest mt-2">Click, Enter, or Space to Begin</span>
+    </>
+  )}
 </button>
 
 <style>
@@ -23,6 +38,53 @@
     transition:
       opacity 0.8s ease,
       visibility 0.8s;
+  }
+
+  #start-overlay.start-overlay--boot {
+    background: #000;
+  }
+
+  .start-overlay__command {
+    display: flex;
+    align-items: center;
+    gap: 0.35em;
+    /* Reserve the finished command's width, including the space before its caret. */
+    inline-size: calc(4ch + 0.35em + 1px);
+    white-space: nowrap;
+    color: #67e8ff;
+    font: 18px/1.25 ui-monospace, monospace;
+    letter-spacing: 0;
+    text-align: start;
+    text-transform: none;
+  }
+
+  .start-overlay__word {
+    flex: none;
+    overflow: hidden;
+  }
+
+  .start-overlay__cursor {
+    block-size: 1em;
+    border-inline-start: 1px solid currentColor;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .start-overlay__word {
+      animation: start-overlay-type 640ms steps(1, end) both;
+    }
+    .start-overlay__cursor {
+      animation: start-overlay-caret 160ms step-end both;
+    }
+  }
+
+  @keyframes start-overlay-caret { from { opacity: 0; } to { opacity: 1; } }
+
+  @keyframes start-overlay-type {
+    from { inline-size: 0; }
+    25% { inline-size: 1ch; }
+    50% { inline-size: 2ch; }
+    75% { inline-size: 3ch; }
+    to { inline-size: 4ch; }
   }
 
   #start-overlay.hidden {

@@ -7,8 +7,8 @@ const { years } = Astro.props;
 ---
 
 <div class="flex flex-wrap gap-2 text-[10px] opacity-70">
-  <button type="button" data-filter-year="__all__" class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">All Years</button>
+  <button type="button" data-filter-year="__all__" class="line-action px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase"><span class="line-action__word">All Years</span></button>
   {years.map((year) => (
-    <button type="button" data-filter-year={year} class="px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase">{year}</button>
+    <button type="button" data-filter-year={year} class="line-action px-2 py-1 border border-zinc-800 hover:text-cyan-400 transition-all uppercase"><span class="line-action__word">{year}</span></button>
   ))}
 </div>

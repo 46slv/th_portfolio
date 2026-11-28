@@ -37,6 +37,8 @@ npm run preview -- --host 127.0.0.1
 
 ## Project Structure
 
+変更を始める前に[編集担当・変更範囲・検証手順](docs/agent/EDITING-JA.md)を参照してください。地図配置・音・ホイールの形状は別の編集範囲です。
+
 ```text
 src/
   components/

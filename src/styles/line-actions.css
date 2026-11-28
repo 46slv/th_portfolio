@@ -1,0 +1,41 @@
+/* Archive rebuild: commands are words, not framed controls or prefixed rules.
+   The word carries the state; the button keeps its generous native hit target. */
+body.archive-rebuild .line-action {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  vertical-align:middle;
+  background-color:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
+body.archive-rebuild .line-action::before,
+body.archive-rebuild .line-action::after { content:none; }
+body.archive-rebuild .line-action__word { display:inline-block; }
+body.archive-rebuild .line-action:hover > .line-action__word,
+body.archive-rebuild .line-action:focus-visible > .line-action__word,
+body.archive-rebuild .trial-audio-launcher:hover .line-action__word,
+body.archive-rebuild .trial-audio-launcher:focus-visible .line-action__word {
+  color:#67e8ff;
+  text-decoration:underline;
+  text-decoration-thickness:1px;
+  text-underline-offset:4px;
+}
+body.archive-rebuild .line-action:focus-visible,
+body.archive-rebuild .trial-audio-launcher:focus-visible { outline:2px solid #67e8ff; outline-offset:2px; }
+
+body.archive-rebuild .contact-link { min-height:44px; }
+body.archive-rebuild #trial-detail-link,
+body.archive-rebuild [data-preview-link] { text-decoration:none; }
+body.archive-rebuild #trial-detail-link .line-action__word,
+body.archive-rebuild [data-preview-link] .line-action__word { text-decoration:underline; text-underline-offset:4px; }
+@media (forced-colors:active) {
+  body.archive-rebuild .line-action:focus-visible .line-action__word,
+  body.archive-rebuild .trial-audio-launcher:focus-visible .line-action__word { text-decoration-color:CanvasText; }
+  body.archive-rebuild .line-action:focus-visible,
+  body.archive-rebuild .trial-audio-launcher:focus-visible { outline-color:Highlight; }
+}
+@media (prefers-reduced-motion:reduce) {
+  body.archive-rebuild .line-action__word { transition:none!important; }
+}

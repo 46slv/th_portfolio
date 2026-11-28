@@ -1,73 +1,176 @@
 ---
 ---
 <section id="point-preview" aria-labelledby="point-preview-title" hidden>
-  <p data-preview-meta></p>
-  <h2 id="point-preview-title"></h2>
+  <div class="caption-lead">
+    <div data-preview-thumbnail class="work-thumbnail" hidden></div>
+    <div class="caption-lead__text">
+      <p data-preview-meta></p>
+      <h2 id="point-preview-title"></h2>
+    </div>
+  </div>
   <p data-preview-tags></p>
-  <a data-preview-link target="_blank" rel="noopener noreferrer">OPEN WORK <span aria-hidden="true">↗</span></a>
+  <a data-preview-link class="line-action" target="_blank" rel="noopener noreferrer"><span class="line-action__word">Open work</span></a>
 </section>
 
 <style>
   #point-preview {
     position:fixed; z-index:69; width:min(224px,calc(100vw - 24px));
+    max-height:calc(100dvh - 24px); overflow:auto; overscroll-behavior:contain;
     padding:13px 15px 8px; background:#0a1013; border:1px solid #35494f;
     box-shadow:0 12px 28px #0008; color:#e1edf0;
   }
+  :global(body.archive-rebuild) #point-preview {
+    border:0; border-radius:0; box-shadow:none;
+    background:radial-gradient(ellipse 43% 42% at 50% 50%, rgba(4,12,16,.94) 0%, rgba(4,12,16,.7) 45%, transparent 100%);
+    padding:18px 20px 13px; color:#e7f5f7;
+  }
+  :global(body.archive-rebuild) #point-preview.is-caption {
+    padding:12px 16px 8px;
+    background:radial-gradient(ellipse 60% 54% at 50% 50%, rgba(4,12,16,.96) 0%, rgba(4,12,16,.82) 47%, transparent 100%);
+  }
+  :global(body.archive-rebuild) #point-preview.is-caption .caption-lead {
+    display:flex; align-items:flex-start; gap:12px;
+  }
+  :global(body.archive-rebuild) #point-preview.is-caption .caption-lead__text { flex:1; min-width:0; }
+  :global(body.archive-rebuild) #point-preview.is-caption .work-thumbnail {
+    flex:none; width:56px; height:56px; margin:0;
+  }
+  :global(body.archive-rebuild) #point-preview.is-caption #point-preview-title { margin:4px 0 0; }
+  :global(body.archive-rebuild) #point-preview.is-caption [data-preview-tags] { margin-top:8px; }
+  :global(body.archive-rebuild) #point-preview:not([hidden]) {
+    animation:point-peek-enter 150ms ease-out both;
+  }
+  @keyframes point-peek-enter { from { opacity:0; } to { opacity:1; } }
+  @media (prefers-reduced-motion:reduce) {
+    :global(body.archive-rebuild) #point-preview:not([hidden]) { animation:none; transition:none !important; }
+    :global(body.archive-rebuild) #point-preview * { transition:none !important; }
+  }
   #point-preview[hidden], [data-preview-link][hidden] { display:none; }
+  .work-thumbnail { height:76px; margin-bottom:8px; }
+  .work-thumbnail[hidden], .work-thumbnail :global(img[hidden]) { display:none; }
+  .work-thumbnail :global(a) { display:block; width:100%; height:100%; cursor:pointer; }
+  :global(body.archive-rebuild) .work-thumbnail :global(a:hover),
+  :global(body.archive-rebuild) .work-thumbnail :global(a:focus-visible) { outline:2px solid #67e8ff; outline-offset:2px; }
+  .work-thumbnail :global(img) { display:block; width:100%; height:100%; object-fit:cover; }
   #point-preview-title { margin:5px 0; font-size:15px; line-height:1.3; overflow-wrap:anywhere; }
   p { margin:0; color:#aebac0; font:10px/1.5 monospace; overflow-wrap:anywhere; }
+  :global(body.archive-rebuild) p { color:#b8cbd0; font-size:12px; }
   [data-preview-link] {
     display:inline-flex; min-height:44px; align-items:center; gap:6px; color:#81eaff;
     text-decoration:underline; text-underline-offset:3px; font:11px monospace;
   }
   [data-preview-link]:focus-visible { outline:2px solid #81eaff; outline-offset:3px; }
+  :global(body.archive-rebuild) [data-preview-link] { font-size:12px; }
   :global(body.archive-rebuild [data-point-float].has-point-preview) { animation-play-state:paused; }
 </style>
 
 <script>
+  import { workThumbnail } from '../../lib/workThumbnail';
+  import { dispatchArchiveSelection } from '../../lib/archiveSelectionBrowser';
+  import { archivePortraitMedia } from '../../lib/archivePortrait';
+
   const card = document.querySelector<HTMLElement>('#point-preview')!;
   const title = card.querySelector<HTMLElement>('h2')!;
   const meta = card.querySelector<HTMLElement>('[data-preview-meta]')!;
   const tags = card.querySelector<HTMLElement>('[data-preview-tags]')!;
   const link = card.querySelector<HTMLAnchorElement>('[data-preview-link]')!;
+  const showThumbnail = workThumbnail(card.querySelector<HTMLElement>('[data-preview-thumbnail]')!);
   const points = Array.from(document.querySelectorAll<HTMLAnchorElement>('#map-target [data-point-float]'));
   const hoverMedia = matchMedia('(any-hover: hover)');
+  const portrait = document.body.classList.contains('archive-rebuild') ? archivePortraitMedia() : null;
   const pointSelector = '#map-target [data-point-float]';
   let origin: HTMLAnchorElement | null = null;
   let suppressed: HTMLAnchorElement | null = null;
+  let wheelPreview = false;
   let anchor: DOMRect | null = null;
   let side: 'left' | 'right' | 'above' | 'below' = 'right';
   let mouse = { x: -100, y: -100 };
-  let closeTimer = 0;
+  let closeTimer: (() => void) | undefined;
   let touchUntil = 0;
+  let resizeTimer: (() => void) | undefined;
+  const now = () => performance.now();
+  const after = (run: () => void, ms: number) => {
+    const id = window.setTimeout(run, ms);
+    return () => window.clearTimeout(id);
+  };
+  let placedSize: string | null = null;
+  const lead = card.querySelector<HTMLElement>('.caption-lead')!;
+  const previewSize = () => `${card.offsetWidth}:${card.offsetHeight}:${lead.offsetHeight}:${tags.offsetHeight}`;
 
   for (const point of points) point.removeAttribute('aria-describedby');
   const isLive = (point: HTMLAnchorElement) =>
-    !point.closest('[data-work]')?.matches('.is-hidden,.is-inactive,[aria-hidden="true"]') &&
+    !point.closest('[inert]') && !point.closest('[data-work]')?.matches('.is-hidden,.is-inactive,[aria-hidden="true"]') &&
     Boolean(point.getClientRects().length) && point.tabIndex !== -1;
   const inside = (r: DOMRect, x: number, y: number, pad = 0) =>
     x >= r.left-pad && x <= r.right+pad && y >= r.top-pad && y <= r.bottom+pad;
-  const clearClose = () => { window.clearTimeout(closeTimer); closeTimer = 0; };
+  const clearClose = () => { closeTimer?.(); closeTimer = undefined; };
 
   function place() {
     if (!origin) return;
     anchor = origin.getBoundingClientRect();
-    const w = card.offsetWidth, h = card.offsetHeight, gap = 19, edge = 12;
-    const vx = document.documentElement.clientWidth, vy = document.documentElement.clientHeight;
+    card.classList.remove('is-portrait-above');
+    if (portrait?.matches) {
+      card.classList.add('is-caption');
+      card.style.left = card.style.top = card.style.maxHeight = '';
+      const bottomCard = card.getBoundingClientRect();
+      side = bottomCard.top < anchor.bottom + 12 ? 'above' : 'below';
+      card.classList.toggle('is-portrait-above', side === 'above');
+      placedSize = previewSize();
+      return;
+    }
+    const gap = 19, edge = 12;
+    const viewportWidth = document.documentElement.clientWidth, vy = document.documentElement.clientHeight;
+    const wheelLeft = document.getElementById('archive-wheel')?.getBoundingClientRect().left;
+    // While browsing, keep the contextual card away from the owned Wheel lane.
+    const archive = document.body.classList.contains('archive-rebuild');
+    // Measure offscreen so a ResizeObserver pass never temporarily expands the
+    // live caption over its Point. Ignore the previous Point's scroll cap.
+    const probe = archive ? card.cloneNode(true) as HTMLElement : null;
+    if (probe) {
+      probe.classList.remove('is-caption');
+      probe.style.cssText = 'position:fixed; left:0; top:0; visibility:hidden; pointer-events:none';
+      document.body.append(probe);
+    }
+    const w = (probe ?? card).offsetWidth, h = (probe ?? card).offsetHeight;
+    const vx = (archive || wheelPreview) && wheelLeft != null && wheelLeft >= w+edge*2 ? wheelLeft - 8 : viewportWidth;
     const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-    let x: number, y: number;
-    if (anchor.right + gap + w <= vx-edge || anchor.left - gap - w >= edge) {
-      side = anchor.right + gap + w <= vx-edge && anchor.x < vx * .65 ? 'right' : 'left';
-      if (anchor.left - gap - w < edge) side = 'right';
+    const rightFits = anchor.right + gap + w <= vx-edge;
+    const leftFits = anchor.left - gap - w >= edge;
+    const aboveRoom = anchor.top - gap - edge;
+    const belowRoom = vy - edge - anchor.bottom - gap;
+    let x: number, y: number, finalHeight = h;
+    if (probe && !(h <= vy-edge*2 && (rightFits || leftFits)) &&
+        !(w <= vx-edge*2 && (aboveRoom >= h || belowRoom >= h))) {
+      // Reflow only when the full-size card has no non-overlapping home.
+      // Scroll the notes if even the caption cannot fit; never shrink type.
+      probe.classList.add('is-caption');
+      probe.style.maxHeight = 'none';
+      const captionHeight = probe.offsetHeight;
+      side = belowRoom >= captionHeight || belowRoom >= aboveRoom ? 'below' : 'above';
+      const room = Math.max(0, side === 'below' ? belowRoom : aboveRoom);
+      finalHeight = Math.min(captionHeight, room);
+      card.classList.add('is-caption');
+      card.style.maxHeight = room + 'px';
+      x = clamp(anchor.left + anchor.width/2 - w/2, edge, vx-edge-w);
+      y = side === 'above' ? anchor.top-gap-finalHeight : anchor.bottom+gap;
+    } else if (rightFits || leftFits) {
+      card.classList.remove('is-caption');
+      card.style.maxHeight = '';
+      side = rightFits && anchor.x < vx * .65 ? 'right' : 'left';
+      if (!leftFits) side = 'right';
       x = side === 'right' ? anchor.right+gap : anchor.left-gap-w;
       y = clamp(anchor.top + anchor.height/2 - h/2, edge, vy-edge-h);
     } else {
-      side = anchor.top - gap - h >= edge ? 'above' : 'below';
+      card.classList.remove('is-caption');
+      card.style.maxHeight = '';
+      side = aboveRoom >= h ? 'above' : 'below';
       y = side === 'above' ? anchor.top-gap-h : anchor.bottom+gap;
       x = clamp(anchor.left + anchor.width/2 - w/2, edge, vx-edge-w);
     }
+    probe?.remove();
     card.style.left = clamp(x,edge,vx-edge-w)+'px';
-    card.style.top = clamp(y,edge,vy-edge-h)+'px';
+    card.style.top = clamp(y,edge,vy-edge-finalHeight)+'px';
+    placedSize = previewSize();
   }
 
   // Keep the actual gap open, not a race against a timer. The tolerant corridor
@@ -94,10 +197,19 @@
 
   function hide(restore = false) {
     clearClose();
+    resizeTimer?.();
     const point = origin;
     origin = null;
+    wheelPreview = false;
     anchor = null;
+    if (point && document.body.classList.contains('archive-rebuild'))
+      dispatchArchiveSelection({ kind: 'preview', workId: null });
     card.hidden = true;
+    card.scrollTop = 0;
+    card.classList.remove('is-caption', 'is-portrait-above');
+    card.style.maxHeight = '';
+    placedSize = null;
+    showThumbnail();
     point?.classList.remove('has-point-preview');
     point?.removeAttribute('aria-controls');
     if (restore && point && isLive(point)) {
@@ -106,14 +218,23 @@
     }
   }
 
-  function show(point: HTMLAnchorElement) {
+  function show(point: HTMLAnchorElement, fromWheel = false) {
+    if (fromWheel) suppressed = null;
     if (point === suppressed || !isLive(point) || document.body.classList.contains('trial-has-drawer') ||
         document.body.classList.contains('is-blurred')) return;
-    if (origin === point) { clearClose(); return; }
+    if (origin === point) {
+      if (fromWheel && !wheelPreview) { wheelPreview = true; place(); }
+      clearClose();
+      return;
+    }
     const data = point.closest<HTMLElement>('[data-work]')?.dataset;
     if (!data) return;
     hide();
+    // A contextual Point/Card peek is an input, never a committed selection.
+    if (document.body.classList.contains('archive-rebuild'))
+      dispatchArchiveSelection({ kind: 'preview', workId: data.workId ?? null });
     origin = point;
+    wheelPreview = fromWheel;
     point.classList.add('has-point-preview');
     point.setAttribute('aria-controls',card.id);
     title.textContent = data.tooltipTitle || '';
@@ -121,6 +242,7 @@
     tags.textContent = data.tooltipTags || '';
     link.hidden = !point.hasAttribute('href') || !/^https?:\/\//i.test(point.href);
     if (link.hidden) link.removeAttribute('href'); else link.href = point.href;
+    showThumbnail(data.tooltipThumbnail, link.hidden ? undefined : link.href, title.textContent || undefined);
     card.hidden = false;
     place();
   }
@@ -128,7 +250,7 @@
   function retain() {
     if (!origin) return false;
     const focus = document.activeElement;
-    return focus === origin || card.contains(focus) ||
+    return wheelPreview || focus === origin || card.contains(focus) ||
       Boolean(anchor && inside(anchor,mouse.x,mouse.y,3)) ||
       inside(card.getBoundingClientRect(),mouse.x,mouse.y,2) || corridor(mouse.x,mouse.y);
   }
@@ -136,35 +258,41 @@
   function reconcile() {
     if (!origin) return;
     if (retain()) { clearClose(); return; }
-    if (!closeTimer) closeTimer = window.setTimeout(() => {
-      closeTimer = 0;
+    if (!closeTimer) closeTimer = after(() => {
+      closeTimer = undefined;
       if (!retain()) hide();
     }, 160);
   }
 
   document.addEventListener('pointermove', e => {
-    if (e.pointerType !== 'mouse' || !hoverMedia.matches) return;
+    if ((e.target as Element).closest('[data-archive-stop]') || e.pointerType !== 'mouse' || !hoverMedia.matches) return;
     mouse = {x:e.clientX,y:e.clientY};
     const target = (e.target as Element).closest<HTMLAnchorElement>(pointSelector);
     if (target !== suppressed && document.activeElement !== suppressed) suppressed = null;
-    if (target && target !== origin && !card.contains(document.activeElement) && !corridor(mouse.x,mouse.y)) show(target);
+    if (target && target !== origin && !card.contains(document.activeElement) &&
+        (wheelPreview || !corridor(mouse.x,mouse.y))) show(target);
     reconcile();
   });
   document.addEventListener('pointerout', e => {
     if (e.pointerType === 'mouse' && !e.relatedTarget) { mouse = {x:-100,y:-100}; reconcile(); }
   });
   document.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'touch') touchUntil = performance.now()+500;
-    const target = e.target as Node;
+    const target = e.target as Element;
+    if (target.closest('[data-archive-stop]')) return;
+    if (e.pointerType === 'touch') touchUntil = now()+500;
+    if (wheelPreview && target instanceof Element && target.closest('#archive-wheel')) return;
     if (origin && !origin.contains(target) && !card.contains(target)) hide();
   }, true);
   document.addEventListener('focusin', e => {
+    if ((e.target as Element).closest('[data-archive-stop]')) return;
     const target = (e.target as Element).closest<HTMLAnchorElement>(pointSelector);
     if (target !== suppressed) suppressed = null;
-    if (target && performance.now() >= touchUntil) show(target);
+    if (target && now() >= touchUntil) show(target);
     else reconcile();
   });
-  document.addEventListener('focusout', () => queueMicrotask(reconcile));
+  document.addEventListener('focusout', e => {
+    if (!(e.relatedTarget instanceof Element) || !e.relatedTarget.closest('[data-archive-stop]')) queueMicrotask(reconcile);
+  });
   document.addEventListener('keydown', e => {
     if (!origin) return;
     if (e.key === 'Escape') {
@@ -176,6 +304,7 @@
     } else if (e.key === 'Tab' && !e.shiftKey && document.activeElement === origin && !link.hidden) {
       e.preventDefault();
       link.focus({preventScroll:true});
+      if (card.scrollHeight > card.clientHeight) card.scrollTop = card.scrollHeight - card.clientHeight;
     } else if (e.key === 'Tab' && document.activeElement === link) {
       if (e.shiftKey) { e.preventDefault(); origin.focus({preventScroll:true}); return; }
       const idx = points.indexOf(origin);
@@ -183,7 +312,35 @@
       if (next) { e.preventDefault(); next.focus({preventScroll:true}); }
     }
   }, true);
-  window.addEventListener('resize', () => { if (origin) place(); });
+  window.addEventListener('archive-wheel-selected', e => {
+    const id = (e as CustomEvent<string>).detail;
+    const point = points.find(p => p.closest<HTMLElement>('[data-work]')?.dataset.workId === id);
+    if (point) show(point,true);
+  });
+  window.addEventListener('archive-preview-restore-focus', e => {
+    const point = (e as CustomEvent<HTMLAnchorElement>).detail;
+    if (points.includes(point)) suppressed = point;
+  });
+  // Observe the notes as well as the outer scroll cap: font/image resolution
+  // can change natural content without changing a height-bounded caption.
+  const sizeObserver = new ResizeObserver(() => {
+    if (origin && !card.hidden && previewSize() !== placedSize) place();
+  });
+  sizeObserver.observe(card);
+  sizeObserver.observe(lead);
+  sizeObserver.observe(tags);
+  window.addEventListener('resize', () => {
+    if (!origin) return;
+    place();
+    // Only a viewport change can animate the Point's underlying coordinate.
+    // Recheck once its existing transform has settled; never chase Wheel input.
+    resizeTimer?.();
+    const point = origin;
+    resizeTimer = after(() => {
+      resizeTimer = undefined;
+      if (origin === point) place();
+    }, 320);
+  });
   window.addEventListener('work-filters-applied', () => hide());
   window.addEventListener('archive-preview-dismiss', () => hide());
 </script>

@@ -1,0 +1,259 @@
+@import "./archive/wheel-desktop.css";
+
+body.archive-rebuild {
+  --archive-edge: max(12px, var(--th-safe-right));
+  --archive-lane: calc(var(--archive-rail) + var(--archive-edge) + 16px);
+  --archive-graph-fit: min(93dvh, max(57vw, calc(1042px - 37.6vw)));
+  overflow: hidden;
+}
+body.archive-rebuild #archive-content,
+body.archive-rebuild #archive-scene { position:fixed; inset:0; }
+body.archive-rebuild[data-archive-stopped] #archive-scene { filter:grayscale(1); }
+body.archive-rebuild[data-archive-stopped] [data-point-float] { animation-play-state:paused !important; }
+body.archive-rebuild[data-archive-stopped] #map-lissajous { transition:none; }
+body.archive-rebuild[data-archive-stopped] :is([data-filter-tag], [data-filter-year], #play-pause-btn)[aria-disabled="true"] {
+  opacity:.65; cursor:default;
+}
+body.archive-rebuild astro-dev-toolbar,
+body.archive-rebuild #work-tooltip { display:none!important; }
+/* The entrance sits outside the scene; don't leave a fade for Stop to hold. */
+body.archive-rebuild #start-overlay.hidden { display:none; }
+
+body.archive-rebuild [data-archive-stop] {
+  position:fixed; z-index:90;
+  bottom:calc(var(--th-safe-bottom) + 8px); left:calc(var(--th-safe-left) + 12px);
+  display:grid; place-items:center;
+  width:44px; height:44px; border-radius:4px;
+  border:1px solid #354b54; background:#0a1217; color:#e9f5f7; cursor:pointer;
+}
+body.archive-rebuild [data-archive-stop]:hover { border-color:currentColor; }
+body.archive-rebuild [data-archive-stop]:focus-visible { outline:2px solid #8cecff; outline-offset:2px; }
+body.archive-rebuild[data-archive-stopped] [data-archive-stop] { color:#fff; background:#101010; border-color:#777; outline-color:currentColor; }
+body.archive-rebuild [data-archive-stop] svg { width:17px; height:17px; fill:currentColor; }
+body.archive-rebuild [data-resume-icon], body.archive-rebuild[data-archive-stopped] [data-stop-icon] { display:none; }
+body.archive-rebuild[data-archive-stopped] [data-resume-icon] { display:inline; }
+
+body.archive-rebuild #site-shell > header {
+  position:fixed; top:24px; left:max(16px, var(--th-safe-left)); margin:0; z-index:40; text-align:left;
+}
+body.archive-rebuild #site-shell > header h1 { font-size:16px; margin:0 0 4px; }
+body.archive-rebuild #site-shell > header p { font-size:11px; color:#a8b8be; }
+body.archive-rebuild .contact-bar {
+  position:fixed; top:12px; right:var(--archive-edge); padding:0; border:0; z-index:39; font-size:12px;
+}
+body.archive-rebuild .contact-link { color:#b0c3c8; letter-spacing:.06em; }
+body.archive-rebuild #site-shell > footer {
+  position:fixed; bottom:20px; left:calc(var(--th-safe-left) + 70px); margin:0; font-size:11px; color:#9baeb4;
+  pointer-events:none; letter-spacing:.06em;
+}
+
+body.archive-rebuild .main-layout { pointer-events:none; }
+body.archive-rebuild .main-layout > div:first-child {
+  position:fixed; top:50%; left:calc((100vw - var(--archive-lane)) / 2);
+  width:min(var(--archive-graph-fit), calc(100vw - var(--archive-lane) - 12px));
+  aspect-ratio:1; padding:0; transform:translate(-50%,-50%); margin:0;
+}
+@media (width > 600px), (orientation:landscape) {
+  body.archive-rebuild {
+    --archive-wheel-lane:calc(var(--archive-wheel-radius) + var(--archive-edge) + 16px);
+    /* The reading and filter panels reserve one stable lane in both Wheel poses. */
+    --archive-lane:var(--archive-wheel-lane);
+    --archive-idle-lane:calc(var(--archive-rail) + var(--archive-edge) + 16px);
+    /* At narrow widths reserve room for the open labels, not just the idle graph. */
+    --archive-camera-size:min(var(--archive-graph-fit), calc(100vw - var(--archive-idle-lane) - 12px), calc((100vw - var(--archive-wheel-lane) - 24px) / var(--archive-camera-zoom)), calc((100dvh - 12px) / var(--archive-camera-zoom)));
+    --archive-camera-zoom:1.08;
+    --archive-camera-x:0px;
+    --archive-camera-scale:1;
+  }
+  body.archive-rebuild:has(#archive-wheel:not(.is-collapsed)) {
+    /* A camera looking right carries the world left. Keep the leftmost points on screen. */
+    --archive-camera-x:var(--archive-detail-pan, max(calc(var(--archive-wheel-lane) / -2), calc((var(--archive-camera-size) * var(--archive-camera-zoom) - 100vw) / 2 + 12px)));
+    --archive-camera-scale:var(--archive-camera-zoom);
+  }
+  /* A stable, centred layout box; only the map and sky ride the camera. */
+  body.archive-rebuild .main-layout > div:first-child {
+    left:50%; width:var(--archive-camera-size); overflow:visible;
+  }
+  body.archive-rebuild :is(#map-target, #trial-ambient) { transition-property:none; }
+  body.archive-rebuild #map-target {
+    translate:var(--archive-camera-x); scale:var(--archive-camera-scale);
+  }
+  body.archive-rebuild #trial-ambient {
+    /* Background parallax within the overscan supplied by the zoom. Year owns transform. */
+    translate:max(var(--archive-camera-x), calc(50vw * (1 - var(--archive-camera-scale))));
+    scale:var(--archive-camera-scale);
+  }
+  @media (prefers-reduced-motion:no-preference) {
+    body.archive-rebuild:not([data-archive-stopped]) :is(#map-target, #trial-ambient) {
+      transition:translate .32s cubic-bezier(.22,1,.36,1), scale .32s cubic-bezier(.22,1,.36,1);
+    }
+  }
+}
+body.archive-rebuild #map-target { border-color:transparent; background:transparent; }
+body.archive-rebuild #map-target > div[style*="radial-gradient"] { display:none; }
+body.archive-rebuild #map-target > .work-coordinate-plane { inset:clamp(14px,calc(4vw - 14px),32px); }
+body.archive-rebuild #map-target [data-work]:not(.is-inactive):not(.is-hidden) { pointer-events:auto; }
+/* Hover still highlights glyphs; it must not move the hit target when
+   focus and pointer ownership move to Stop. Selection/filter poses stay animated. */
+body.archive-rebuild #map-target [data-work]:not(.is-active,.is-inactive,.is-selected) {
+  transform:translate(-50%,50%);
+}
+body.archive-rebuild .contact-link { transition:none; }
+body.archive-rebuild #map-target > .text-zinc-700 {
+  font-size:12px; line-height:1.25; color:#a9c0c7; letter-spacing:.09em;
+  white-space:nowrap; pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(4,10,13,.86) 12% 88%,transparent);
+  padding:2px 5px;
+}
+body.archive-rebuild #map-lissajous { transition:filter .2s ease; }
+body.archive-rebuild.trial-has-drawer #map-lissajous { filter:brightness(.62); }
+body.archive-rebuild [data-point-float]:focus-visible { outline:2px solid #67e8ff; outline-offset:4px; }
+
+/* The soft core and dusty planes are static behind the bounded canvas. Both
+   travel together when Year changes, independently of Points and the graph. */
+#trial-ambient {
+  position:fixed; inset:0; width:100%; height:100dvh; pointer-events:none;
+  transform-origin:50% 50%;
+  background:
+    radial-gradient(ellipse 21% 15% at 55% 54%, #47525a38, #57476b14 54%, transparent 100%),
+    radial-gradient(ellipse 38% 23% at 49% 53%, #34536a2b, transparent 98%),
+    radial-gradient(ellipse 40% 25% at 69% 42%, #40335435, transparent 100%),
+    radial-gradient(ellipse 27% 39% at 29% 69%, #26454a24, transparent 100%);
+}
+body.archive-rebuild.trial-has-drawer #trial-ambient { filter:brightness(.65); }
+#archive-galaxy { display:block; width:100%; height:100%; pointer-events:none; }
+
+body.archive-rebuild #archive-trial-controls {
+  position:fixed; top:68px; left:max(16px, var(--th-safe-left)); z-index:65;
+  display:grid; justify-items:start; align-items:start;
+}
+body.archive-rebuild .trial-disclosure {
+  background:transparent; border:0; padding:0 4px; color:#b5c4ca; cursor:pointer;
+  min-width:44px; min-height:44px; font:12px monospace;
+  text-align:left; white-space:nowrap;
+}
+body.archive-rebuild .trial-disclosure:hover,
+body.archive-rebuild .trial-disclosure[aria-expanded="true"] { color:#67e8ff; }
+body.archive-rebuild .trial-audio-launcher {
+  position:fixed; left:max(16px, var(--th-safe-left)); top:calc(50dvh + 26px);
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:3px; color:#edfaff;
+}
+body.archive-rebuild .trial-audio-status { color:#f0cfaa; font:11px/1.25 monospace; }
+body.archive-rebuild .trial-audio-status:empty { position:absolute; clip-path:inset(50%); }
+body.archive-rebuild .trial-filter-value {
+  color:#d4e4e7; max-width:min(140px, 28vw); overflow:hidden; text-overflow:ellipsis;
+  font:11px monospace;
+}
+body.archive-rebuild .trial-filter-value[hidden],
+body.archive-rebuild [aria-expanded="true"] > .trial-filter-value { display:none; }
+body.archive-rebuild .trial-drawer[hidden] { display:none; }
+body.archive-rebuild .trial-drawer { position:fixed; }
+body.archive-rebuild .trial-filter:not([hidden]) {
+  z-index:67; display:flex; align-items:start; gap:6px;
+  width:min(620px, calc(100vw - var(--archive-lane) - 24px));
+  padding:2px 8px 2px 4px; border:1px solid #304049; border-radius:4px;
+  color:#d0e0e4; background:#0b141b;
+  animation:archive-filter-slide 170ms cubic-bezier(.2,.8,.2,1) both;
+}
+body.archive-rebuild .trial-filter-options {
+  flex:1; min-width:0; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain;
+  scrollbar-width:thin; scrollbar-color:#526a75 transparent; scroll-padding-inline:6px;
+}
+body.archive-rebuild .trial-filter-options > div { width:max-content; flex-wrap:nowrap; gap:4px; opacity:1; font-size:12px; }
+body.archive-rebuild .trial-filter .line-action {
+  min-height:44px; min-width:44px; justify-content:center; color:#c6d8dc; white-space:nowrap;
+  cursor:pointer; padding-inline:8px; transition:none;
+}
+body.archive-rebuild .trial-filter [aria-pressed="true"] { color:#67e8ff; font-weight:700; }
+body.archive-rebuild .trial-filter [aria-pressed="true"] .line-action__word { text-decoration:underline; text-underline-offset:4px; }
+body.archive-rebuild .trial-filter .line-action:focus-visible { outline-offset:-3px; }
+body.archive-rebuild .trial-filter-close { flex:none; font:12px monospace; }
+@keyframes archive-filter-slide { from { opacity:0; translate:-14px 0; } to { opacity:1; translate:0 0; } }
+
+body.archive-rebuild #trial-audio:not([hidden]) { animation:trial-audio-enter 170ms cubic-bezier(.2,.8,.2,1) both; }
+body.archive-rebuild #trial-detail:not([hidden]) { animation:trial-detail-enter 180ms cubic-bezier(.2,.8,.2,1) both; }
+@keyframes trial-audio-enter { from { opacity:0; translate:-10px 0; } to { opacity:1; translate:0 0; } }
+@keyframes trial-detail-enter { from { opacity:0; translate:-12px 0; } to { opacity:1; translate:0 0; } }
+body.archive-rebuild #trial-audio, body.archive-rebuild #trial-detail {
+  border:0; border-radius:0; box-shadow:none; padding:16px;
+  background:radial-gradient(ellipse 47% 47% at 50% 50%, rgba(4,12,16,.95) 0%, rgba(4,12,16,.87) 44%, transparent 100%);
+  scrollbar-width:none; overflow:auto; overscroll-behavior:contain; max-height:calc(100dvh - 24px);
+}
+body.archive-rebuild #trial-audio::-webkit-scrollbar, body.archive-rebuild #trial-detail::-webkit-scrollbar { display:none; }
+body.archive-rebuild #trial-audio { z-index:67; width:min(328px,calc(100vw - 32px)); }
+.trial-audio-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 14px; }
+.trial-audio-heading h2 { margin:0; font:13px monospace; color:#edfaff; }
+.trial-audio-close, #trial-detail-close {
+  min-width:66px; min-height:44px; justify-content:center; flex-shrink:0;
+  border:0; background:none; color:#c8d2d6; cursor:pointer; font:15px/1 system-ui;
+}
+#trial-audio .audio-hud { padding:0; gap:14px; background:none; border:0; }
+#trial-audio .hud-divider { display:none; }
+#trial-audio .waveform-scope { margin-top:5px; padding-top:0; border:0; }
+#trial-audio .waveform-scope__header { font-size:11px; color:#b8cbd0; }
+#trial-audio #waveform-scope { border:0; background:transparent; }
+#trial-audio .audio-monitor { margin:0; padding-top:0; border:0; }
+#trial-audio #doppler-status { font:12px/1.5 monospace; color:#b8cbd0; margin-top:8px; letter-spacing:.04em; }
+#trial-audio #play-pause-btn { min-height:44px; margin:0; padding:0; text-align:left; font-size:12px; border:0; background:transparent; }
+#trial-audio .control-label { font-size:12px; color:#bce8f0; opacity:1; letter-spacing:.03em; }
+#trial-audio output { font-size:12px; flex:none; }
+#trial-audio input[type="range"] { height:28px; background:transparent; cursor:pointer; }
+#trial-audio input[type="range"]::-webkit-slider-runnable-track { height:4px; background:#65848c; border-radius:4px; }
+#trial-audio input[type="range"]::-webkit-slider-thumb { width:14px; height:14px; margin-top:-5px; background:#a1f3ff; box-shadow:0 0 0 2px #081216; }
+#trial-audio input[type="range"]::-moz-range-track { height:4px; background:#65848c; }
+#trial-audio input[type="range"]::-moz-range-thumb { width:14px; height:14px; background:#a1f3ff; border:0; border-radius:50%; }
+#trial-audio input[type="range"]:focus-visible { outline:2px solid #67e8ff; outline-offset:2px; }
+body.archive-rebuild #trial-detail {
+  top:50%; left:auto; right:var(--archive-lane); transform:translateY(-50%); z-index:70;
+  width:min(312px, calc(100vw - var(--archive-lane) - 16px)); padding:20px;
+  overflow-wrap:anywhere;
+}
+.trial-detail-head { display:flex; justify-content:space-between; align-items:center; gap:12px; color:#b8cbd0; font:12px monospace; }
+#trial-detail-thumbnail { aspect-ratio:16 / 9; margin:0 0 10px; overflow:hidden; }
+#trial-detail-thumbnail[hidden], #trial-detail-thumbnail img[hidden] { display:none; }
+#trial-detail-thumbnail a { display:block; width:100%; height:100%; cursor:pointer; }
+#trial-detail-thumbnail a:hover, #trial-detail-thumbnail a:focus-visible { outline:2px solid #67e8ff; outline-offset:-2px; }
+#trial-detail-thumbnail img { display:block; width:100%; height:100%; object-fit:cover; }
+#trial-detail-title { margin:8px 0 12px; font-size:20px; line-height:1.25; }
+#trial-detail-tags,#trial-detail-link { font:12px/1.5 monospace; color:#b8cbd0; }
+#trial-detail-link { display:inline-flex; align-items:center; min-height:44px; margin-top:8px; color:#67e8ff; }
+#trial-detail-link[hidden] { display:none; }
+
+@media (min-width:960px) {
+  /* Reserve a separate card lane until its exit finishes. The gap also
+     clears the card's 12px slide; disclosure positions remain JS-owned. */
+  body.archive-rebuild:has(#trial-detail:not([hidden])) {
+    --archive-detail-width: clamp(240px, 25vw, 312px);
+    --archive-graph-start: calc(max(16px, var(--th-safe-left)) + 48px);
+    --archive-graph-end: calc(var(--archive-lane) + var(--archive-detail-width) + 24px);
+    /* Leave space for the map's push-in without moving the reader. */
+    --archive-detail-pan:-16px;
+  }
+  body.archive-rebuild #trial-detail:not([hidden]) { width:var(--archive-detail-width); }
+  body.archive-rebuild:has(#trial-detail:not([hidden])) .main-layout > div:first-child {
+    left:calc((100vw + var(--archive-graph-start) - var(--archive-graph-end)) / 2);
+    max-width:calc((100vw - var(--archive-graph-start) - var(--archive-graph-end) - 32px) / var(--archive-camera-zoom));
+  }
+}
+@media (max-width:600px) and (orientation:portrait) {
+  body.archive-rebuild #site-shell > footer { display:none; }
+}
+@media (max-width:760px) {
+  body.archive-rebuild .trial-audio-launcher { top:calc(50dvh + 48px); }
+  body.archive-rebuild .trial-filter-value { max-width:24vw; }
+  #trial-audio .control-label { font-size:11px; letter-spacing:0; }
+}
+@media (max-height:480px) {
+  body.archive-rebuild { --archive-graph-fit:87dvh; }
+  body.archive-rebuild #trial-detail { max-height:calc(100dvh - 96px); }
+  body.archive-rebuild .contact-bar { top:auto; bottom:8px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  body.archive-rebuild #map-lissajous, body.archive-rebuild .trial-drawer { transition:none!important; }
+  body.archive-rebuild .trial-filter:not([hidden]), body.archive-rebuild #trial-audio:not([hidden]),
+  body.archive-rebuild #trial-detail:not([hidden]) { animation:none; }
+}
+@media (forced-colors:active) {
+  body.archive-rebuild .trial-filter [aria-pressed="true"] { color:Highlight; }
+  body.archive-rebuild [data-archive-stop]:focus-visible { outline-color:Highlight; }
+}

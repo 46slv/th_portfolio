@@ -1,6 +1,9 @@
+---
+const { archiveLine = false } = Astro.props;
+---
 <div class="contact-bar">
-  <button type="button" class="contact-link" data-contact-copy="info@corecreative.jp">
-    <span class="text-zinc-500">CONTACT:</span>
+  <button type="button" class="contact-link line-action" data-contact-copy="info@corecreative.jp">
+    <span class={archiveLine ? 'line-action__word' : 'text-zinc-500'}>{archiveLine ? 'Contact' : 'CONTACT:'}</span>
     <span id="contact-text">info@corecreative.jp</span>
     <span id="copy-toast" class="copy-feedback">COPIED</span>
   </button>
@@ -49,6 +52,7 @@
     pointer-events: none;
   }
 
+  :global(body.archive-rebuild) .copy-feedback { background:transparent; color:#a1f3ff; padding:0; }
   .copy-feedback.is-visible {
     opacity: 1;
   }
